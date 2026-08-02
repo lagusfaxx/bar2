@@ -325,6 +325,40 @@ En **Domains** poné `https://barzuo.com`. Coolify emite el certificado con
 Let's Encrypt. El valor tiene que coincidir con `NEXT_PUBLIC_SITE_URL`, porque
 de ahí salen las URLs canónicas, el sitemap y el QR de las tarjetas.
 
+#### Sin dominio todavía: usar sslip.io
+
+`sslip.io` resuelve cualquier subdominio a la IP que lleva en el nombre, así
+que sirve para publicar antes de comprar el dominio. Si el servidor está en
+`203.0.113.45`:
+
+```
+Domains:              https://barzuo.203.0.113.45.sslip.io
+NEXT_PUBLIC_SITE_URL: https://barzuo.203.0.113.45.sslip.io
+```
+
+Los dos valores tienen que ser idénticos, incluido el `https://`.
+
+**Usá HTTPS.** Las cookies de sesión se marcan `secure` cuando el sitio se
+sirve por HTTPS, que es lo correcto. Si Let's Encrypt no llega a emitir el
+certificado y quedás en `http://`, poné también `NEXT_PUBLIC_SITE_URL` con
+`http://`: la app detecta el esquema y emite las cookies sin `secure`, porque
+de lo contrario el navegador las descarta y el login del panel falla sin
+mostrar ningún error.
+
+#### Cuando llegue el dominio definitivo
+
+1. Agregá el dominio real en **Domains** (podés dejar el de sslip.io mientras
+   propaga el DNS).
+2. Cambiá `NEXT_PUBLIC_SITE_URL` al dominio nuevo.
+3. **Redesplegá.** Esa variable se inserta en tiempo de build: sin un build
+   nuevo, el sitemap, las URLs canónicas y los QR siguen apuntando a la
+   dirección vieja.
+
+> No imprimas las tarjetas físicas hasta tener el dominio definitivo: el QR
+> apunta a la URL del sitio. Si igual imprimís antes, las tarjetas siguen
+> sirviendo — el equipo de sala las valida por los 16 dígitos, que no cambian —
+> pero el QR impreso deja de abrir la ficha.
+
 ### 5. Almacenamiento de imágenes
 
 **Persistent Storage → Add**:

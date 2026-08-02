@@ -60,6 +60,23 @@ async function verify<T>(token: string, audience: string): Promise<T | null> {
   }
 }
 
+/**
+ * Las cookies de sesion se marcan `secure` solo si el sitio se sirve por HTTPS.
+ *
+ * Se mira el esquema real de NEXT_PUBLIC_SITE_URL y no `NODE_ENV`, porque un
+ * despliegue provisional sobre HTTP (por ejemplo una URL de sslip.io todavia
+ * sin certificado) es igualmente "produccion": con `secure` fijo, el navegador
+ * descarta la cookie y el login falla en silencio, sin ningun mensaje de error.
+ */
+function shouldUseSecureCookies() {
+  const url = process.env.NEXT_PUBLIC_SITE_URL;
+
+  // Sin la variable definida, se asume HTTPS: es lo correcto en produccion.
+  if (!url) return process.env.NODE_ENV === "production";
+
+  return url.startsWith("https://");
+}
+
 // --- Passwords ---------------------------------------------------------------
 
 export function hashPassword(plain: string) {
@@ -79,7 +96,7 @@ export async function createPanelSession(session: PanelSession) {
   store.set(ADMIN_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(),
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
@@ -158,7 +175,7 @@ export async function createMemberSession(session: MemberSession) {
   store.set(MEMBER_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: shouldUseSecureCookies(),
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,
   });
