@@ -21,6 +21,12 @@ const STATIC_ROUTES: Array<{
   { path: "/legales", priority: 0.3, changeFrequency: "yearly" },
 ];
 
+/**
+ * Se genera en cada peticion: la lista de eventos sale de la base y el build
+ * de la imagen Docker corre sin acceso a PostgreSQL.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [events, menu] = await Promise.all([getAllEventSlugs(), getMenu()]);
 

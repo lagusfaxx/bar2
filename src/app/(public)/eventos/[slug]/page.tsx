@@ -11,7 +11,6 @@ import { ButtonAnchor, ButtonLink } from "@/components/ui/button";
 import { Reveal } from "@/components/ui/reveal";
 import { Badge, Section, SectionHeading } from "@/components/ui/section";
 import {
-  getAllEventSlugs,
   getEventBySlug,
   getEventRatingSummary,
   getRelatedEvents,
@@ -27,12 +26,6 @@ import {
 import { absoluteUrl, truncate } from "@/lib/utils";
 
 type Params = { params: Promise<{ slug: string }> };
-
-/** Prerenderiza los eventos publicados en el build. */
-export async function generateStaticParams() {
-  const events = await getAllEventSlugs();
-  return events.map((event) => ({ slug: event.slug }));
-}
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
@@ -485,6 +478,3 @@ function InfoCell({
     </div>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;

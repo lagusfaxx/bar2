@@ -72,6 +72,3 @@ export default async function PromocionesPage() {
     </>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;

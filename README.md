@@ -450,10 +450,14 @@ viñeteado para que no se sienta plano.
 escenario, humo, siluetas y bokeh). Son archivos reales y deterministas, y se
 reemplazan por fotos del local desde el CMS.
 
-**Caché.** Las páginas públicas se prerenderizan y se revalidan por tiempo; al
-guardar en el CMS se invalidan las rutas afectadas. No se usa `unstable_cache`
-en la capa de datos: al leer del caché serializa los valores y convierte los
-`Date` de Prisma en strings, lo que rompía las fichas de evento.
+**Caché.** El sitio se renderiza en cada petición (`export const dynamic =
+"force-dynamic"` en el layout raíz). Todo el contenido —incluida la marca del
+layout— vive en la base, y la imagen Docker se construye en una red donde
+PostgreSQL no es alcanzable, así que prerenderizar en el build rompía el
+`docker build`. Al servirse en caliente contra la base local, además, lo que se
+guarda en el CMS aparece al instante. No se usa `unstable_cache` en la capa de
+datos: al leer del caché serializa los valores y convierte los `Date` de Prisma
+en strings, lo que rompía las fichas de evento.
 
 **Zonas horarias.** Un show a las 22:30 tiene que verse a las 22:30 en
 Montevideo, sin importar dónde corra el servidor. Las fechas se guardan en UTC y
