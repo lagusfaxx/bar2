@@ -131,3 +131,43 @@ export function promotionValueLabel(type: string, value: number) {
       return "Beneficio";
   }
 }
+
+/**
+ * Valor para un <input type="datetime-local"> expresado en la hora de pared del
+ * local. Sin esto, el navegador mostraria la hora en la zona del visitante y el
+ * administrador editaria un horario distinto al que ve el publico.
+ */
+export function toDateTimeLocal(date: Date | string | null | undefined) {
+  if (!date) return "";
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+    .formatToParts(new Date(date))
+    .reduce<Record<string, string>>((acc, part) => {
+      acc[part.type] = part.value;
+      return acc;
+    }, {});
+
+  // Intl puede devolver "24" para la medianoche segun el motor.
+  const hour = parts.hour === "24" ? "00" : parts.hour;
+
+  return `${parts.year}-${parts.month}-${parts.day}T${hour}:${parts.minute}`;
+}
+
+/** Valor para un <input type="date"> a partir de una fecha. */
+export function toDateInput(date: Date | string | null | undefined) {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(date));
+}

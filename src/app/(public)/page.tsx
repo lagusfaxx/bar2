@@ -368,3 +368,6 @@ export default async function HomePage() {
     </>
   );
 }
+
+/** Regeneracion periodica; el CMS ademas invalida al guardar. */
+export const revalidate = 300;

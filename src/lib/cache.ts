@@ -1,52 +1,53 @@
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 
 /**
- * Etiquetas de cache. Cada consulta publica se registra con una de estas y el
- * CMS las invalida al guardar, para que los cambios se vean al instante.
+ * Invalidacion del contenido publico.
+ *
+ * Las paginas publicas se prerenderizan y se refrescan por tiempo (ver
+ * `revalidate` en cada page.tsx). Cuando el CMS guarda un cambio, ademas las
+ * marcamos como obsoletas para que la web lo refleje de inmediato.
+ *
+ * Nota: no usamos `unstable_cache` en la capa de datos porque serializa los
+ * valores y convierte los `Date` de Prisma en strings al leer del cache.
  */
-export const TAGS = {
-  settings: "settings",
-  events: "events",
-  menu: "menu",
-  gallery: "gallery",
-  promotions: "promotions",
-  social: "social",
-  hours: "hours",
-} as const;
+export const PUBLIC_PATHS = [
+  "/",
+  "/eventos",
+  "/carta",
+  "/nosotros",
+  "/galeria",
+  "/ubicacion",
+  "/contacto",
+  "/legales",
+  "/barzucard",
+  "/barzucard/promociones",
+] as const;
 
-export type CacheTag = (typeof TAGS)[keyof typeof TAGS];
+export type ContentArea =
+  | "settings"
+  | "events"
+  | "menu"
+  | "gallery"
+  | "promotions"
+  | "social"
+  | "hours";
 
-/** Invalida una o varias etiquetas y refresca las rutas publicas afectadas. */
-export function revalidateContent(...tags: CacheTag[]) {
-  for (const tag of tags) {
-    revalidateTag(tag);
+/**
+ * Refresca la web publica tras un cambio en el panel.
+ *
+ * El sitio es chico y los datos se comparten entre secciones (el home muestra
+ * cartelera, carta y galeria a la vez), asi que invalidamos todo el frente
+ * publico: es mas barato que razonar caso por caso y no deja nada obsoleto.
+ */
+export function revalidateContent(...areas: ContentArea[]) {
+  for (const path of PUBLIC_PATHS) {
+    revalidatePath(path);
   }
 
-  // El home compone datos de casi todas las secciones.
-  revalidatePath("/");
-
-  if (tags.includes(TAGS.events)) {
-    revalidatePath("/eventos");
+  // Las fichas de evento son rutas dinamicas: se invalidan como plantilla.
+  if (areas.length === 0 || areas.includes("events")) {
     revalidatePath("/eventos/[slug]", "page");
-    revalidatePath("/sitemap.xml");
   }
 
-  if (tags.includes(TAGS.menu)) {
-    revalidatePath("/carta");
-  }
-
-  if (tags.includes(TAGS.gallery)) {
-    revalidatePath("/galeria");
-  }
-
-  if (tags.includes(TAGS.promotions)) {
-    revalidatePath("/barzucard");
-    revalidatePath("/barzucard/promociones");
-  }
-
-  if (tags.includes(TAGS.settings) || tags.includes(TAGS.social) || tags.includes(TAGS.hours)) {
-    revalidatePath("/nosotros");
-    revalidatePath("/ubicacion");
-    revalidatePath("/contacto");
-  }
+  revalidatePath("/sitemap.xml");
 }

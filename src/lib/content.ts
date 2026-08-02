@@ -1,25 +1,22 @@
 import "server-only";
 
-import { unstable_cache } from "next/cache";
-
 import type { EventCategory } from "@/generated/prisma/enums";
-import { TAGS } from "@/lib/cache";
 import { prisma } from "@/lib/prisma";
 
 /**
- * Consultas de contenido publico. Todas pasan por unstable_cache con una
- * etiqueta, de modo que el CMS pueda invalidarlas al guardar (ver lib/cache.ts).
+ * Consultas de contenido publico.
+ *
+ * Deliberadamente son consultas planas a Prisma, sin envoltorio de cache: las
+ * paginas que las usan se prerenderizan y se revalidan por tiempo o desde el
+ * CMS (ver lib/cache.ts), asi que la base solo se consulta al regenerar. Ademas
+ * evita el problema de serializacion que convierte los `Date` en strings.
  */
-
-const HOUR = 60 * 60;
 
 // --- Ajustes del sitio -------------------------------------------------------
 
-export type SiteSettings = NonNullable<
-  Awaited<ReturnType<typeof loadSettings>>
->;
+export type SiteSettings = Awaited<ReturnType<typeof getSettings>>;
 
-async function loadSettings() {
+export async function getSettings() {
   const existing = await prisma.siteSettings.findUnique({
     where: { id: "singleton" },
   });
@@ -31,26 +28,16 @@ async function loadSettings() {
   return prisma.siteSettings.create({ data: { id: "singleton" } });
 }
 
-export const getSettings = unstable_cache(loadSettings, ["site-settings"], {
-  tags: [TAGS.settings],
-  revalidate: HOUR * 12,
-});
+export function getSocialLinks() {
+  return prisma.socialLink.findMany({
+    where: { active: true },
+    orderBy: { position: "asc" },
+  });
+}
 
-export const getSocialLinks = unstable_cache(
-  () =>
-    prisma.socialLink.findMany({
-      where: { active: true },
-      orderBy: { position: "asc" },
-    }),
-  ["social-links"],
-  { tags: [TAGS.social], revalidate: HOUR * 12 },
-);
-
-export const getOpeningHours = unstable_cache(
-  () => prisma.openingHour.findMany({ orderBy: { dayOfWeek: "asc" } }),
-  ["opening-hours"],
-  { tags: [TAGS.hours], revalidate: HOUR * 12 },
-);
+export function getOpeningHours() {
+  return prisma.openingHour.findMany({ orderBy: { dayOfWeek: "asc" } });
+}
 
 // --- Eventos -----------------------------------------------------------------
 
@@ -74,8 +61,8 @@ const eventCardSelect = {
 export type EventCard = Awaited<ReturnType<typeof getUpcomingEvents>>[number];
 
 /**
- * Un evento sigue considerandose "proximo" durante la madrugada siguiente:
- * un show del sabado 23:00 no debe desaparecer de la cartelera a medianoche.
+ * Un evento sigue considerandose "proximo" durante la madrugada siguiente: un
+ * show del sabado a las 23:00 no debe desaparecer de la cartelera a medianoche.
  */
 function upcomingFrom() {
   const cutoff = new Date();
@@ -83,165 +70,127 @@ function upcomingFrom() {
   return cutoff;
 }
 
-export const getUpcomingEvents = unstable_cache(
-  async (take = 24) =>
-    prisma.event.findMany({
-      where: { published: true, startsAt: { gte: upcomingFrom() } },
-      orderBy: { startsAt: "asc" },
-      take,
-      select: eventCardSelect,
-    }),
-  ["events-upcoming"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+export function getUpcomingEvents(take = 24) {
+  return prisma.event.findMany({
+    where: { published: true, startsAt: { gte: upcomingFrom() } },
+    orderBy: { startsAt: "asc" },
+    take,
+    select: eventCardSelect,
+  });
+}
 
-export const getFeaturedEvents = unstable_cache(
-  async (take = 3) =>
-    prisma.event.findMany({
-      where: {
-        published: true,
-        featured: true,
-        startsAt: { gte: upcomingFrom() },
-      },
-      orderBy: { startsAt: "asc" },
-      take,
-      select: eventCardSelect,
-    }),
-  ["events-featured"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+export function getFeaturedEvents(take = 3) {
+  return prisma.event.findMany({
+    where: {
+      published: true,
+      featured: true,
+      startsAt: { gte: upcomingFrom() },
+    },
+    orderBy: { startsAt: "asc" },
+    take,
+    select: eventCardSelect,
+  });
+}
 
-export const getPastEvents = unstable_cache(
-  async (take = 12) =>
-    prisma.event.findMany({
-      where: { published: true, startsAt: { lt: upcomingFrom() } },
-      orderBy: { startsAt: "desc" },
-      take,
-      select: eventCardSelect,
-    }),
-  ["events-past"],
-  { tags: [TAGS.events], revalidate: HOUR },
-);
-
-/** Eventos publicados de un mes concreto, para pintar el calendario. */
-export const getEventsForMonth = unstable_cache(
-  async (year: number, month: number) => {
-    const from = new Date(Date.UTC(year, month, 1));
-    const to = new Date(Date.UTC(year, month + 1, 1));
-
-    return prisma.event.findMany({
-      where: { published: true, startsAt: { gte: from, lt: to } },
-      orderBy: { startsAt: "asc" },
-      select: eventCardSelect,
-    });
-  },
-  ["events-month"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+export function getPastEvents(take = 12) {
+  return prisma.event.findMany({
+    where: { published: true, startsAt: { lt: upcomingFrom() } },
+    orderBy: { startsAt: "desc" },
+    take,
+    select: eventCardSelect,
+  });
+}
 
 /** Rango amplio de eventos publicados: alimenta el calendario del cliente. */
-export const getEventsInRange = unstable_cache(
-  async (fromIso: string, toIso: string) =>
-    prisma.event.findMany({
-      where: {
-        published: true,
-        startsAt: { gte: new Date(fromIso), lt: new Date(toIso) },
-      },
-      orderBy: { startsAt: "asc" },
-      select: eventCardSelect,
-    }),
-  ["events-range"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+export function getEventsInRange(fromIso: string, toIso: string) {
+  return prisma.event.findMany({
+    where: {
+      published: true,
+      startsAt: { gte: new Date(fromIso), lt: new Date(toIso) },
+    },
+    orderBy: { startsAt: "asc" },
+    select: eventCardSelect,
+  });
+}
 
-export const getEventBySlug = unstable_cache(
-  async (slug: string) =>
-    prisma.event.findFirst({
-      where: { slug, published: true },
-      include: {
-        gallery: {
-          where: { active: true },
-          orderBy: { position: "asc" },
-        },
-        ratings: {
-          where: { approved: true },
-          orderBy: { createdAt: "desc" },
-          take: 12,
-          select: {
-            id: true,
-            authorName: true,
-            rating: true,
-            comment: true,
-            createdAt: true,
-          },
+export function getEventBySlug(slug: string) {
+  return prisma.event.findFirst({
+    where: { slug, published: true },
+    include: {
+      gallery: {
+        where: { active: true },
+        orderBy: { position: "asc" },
+      },
+      ratings: {
+        where: { approved: true },
+        orderBy: { createdAt: "desc" },
+        take: 12,
+        select: {
+          id: true,
+          authorName: true,
+          rating: true,
+          comment: true,
+          createdAt: true,
         },
       },
-    }),
-  ["event-by-slug"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+    },
+  });
+}
 
-export const getEventRatingSummary = unstable_cache(
-  async (eventId: string) => {
-    const result = await prisma.eventRating.aggregate({
-      where: { eventId, approved: true },
-      _avg: { rating: true },
-      _count: { rating: true },
-    });
+export async function getEventRatingSummary(eventId: string) {
+  const result = await prisma.eventRating.aggregate({
+    where: { eventId, approved: true },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
 
-    return {
-      average: result._avg.rating ?? 0,
-      count: result._count.rating,
-    };
-  },
-  ["event-rating-summary"],
-  { tags: [TAGS.events], revalidate: 300 },
-);
+  return {
+    average: result._avg.rating ?? 0,
+    count: result._count.rating,
+  };
+}
 
-export const getRelatedEvents = unstable_cache(
-  async (eventId: string, category: EventCategory, take = 3) => {
-    const sameCategory = await prisma.event.findMany({
-      where: {
-        published: true,
-        category,
-        id: { not: eventId },
-        startsAt: { gte: upcomingFrom() },
-      },
-      orderBy: { startsAt: "asc" },
-      take,
-      select: eventCardSelect,
-    });
+export async function getRelatedEvents(
+  eventId: string,
+  category: EventCategory,
+  take = 3,
+) {
+  const sameCategory = await prisma.event.findMany({
+    where: {
+      published: true,
+      category,
+      id: { not: eventId },
+      startsAt: { gte: upcomingFrom() },
+    },
+    orderBy: { startsAt: "asc" },
+    take,
+    select: eventCardSelect,
+  });
 
-    if (sameCategory.length >= take) return sameCategory;
+  if (sameCategory.length >= take) return sameCategory;
 
-    // Completamos con los proximos de cualquier categoria.
-    const fill = await prisma.event.findMany({
-      where: {
-        published: true,
-        id: { notIn: [eventId, ...sameCategory.map((e) => e.id)] },
-        startsAt: { gte: upcomingFrom() },
-      },
-      orderBy: { startsAt: "asc" },
-      take: take - sameCategory.length,
-      select: eventCardSelect,
-    });
+  // Completamos con los proximos de cualquier categoria.
+  const fill = await prisma.event.findMany({
+    where: {
+      published: true,
+      id: { notIn: [eventId, ...sameCategory.map((event) => event.id)] },
+      startsAt: { gte: upcomingFrom() },
+    },
+    orderBy: { startsAt: "asc" },
+    take: take - sameCategory.length,
+    select: eventCardSelect,
+  });
 
-    return [...sameCategory, ...fill];
-  },
-  ["events-related"],
-  { tags: [TAGS.events], revalidate: HOUR },
-);
+  return [...sameCategory, ...fill];
+}
 
-export const getAllEventSlugs = unstable_cache(
-  async () =>
-    prisma.event.findMany({
-      where: { published: true },
-      select: { slug: true, updatedAt: true },
-      orderBy: { startsAt: "desc" },
-    }),
-  ["event-slugs"],
-  { tags: [TAGS.events], revalidate: HOUR },
-);
+export function getAllEventSlugs() {
+  return prisma.event.findMany({
+    where: { published: true },
+    select: { slug: true, updatedAt: true },
+    orderBy: { startsAt: "desc" },
+  });
+}
 
 // --- Carta -------------------------------------------------------------------
 
@@ -249,74 +198,58 @@ export type MenuCategoryWithProducts = Awaited<
   ReturnType<typeof getMenu>
 >[number];
 
-export const getMenu = unstable_cache(
-  async () =>
-    prisma.menuCategory.findMany({
-      where: { active: true },
-      orderBy: { position: "asc" },
-      include: {
-        products: {
-          where: { available: true },
-          orderBy: [{ position: "asc" }, { name: "asc" }],
-        },
+export function getMenu() {
+  return prisma.menuCategory.findMany({
+    where: { active: true },
+    orderBy: { position: "asc" },
+    include: {
+      products: {
+        where: { available: true },
+        orderBy: [{ position: "asc" }, { name: "asc" }],
       },
-    }),
-  ["menu"],
-  { tags: [TAGS.menu], revalidate: HOUR * 6 },
-);
+    },
+  });
+}
 
-export const getFeaturedProducts = unstable_cache(
-  async (take = 6) =>
-    prisma.menuProduct.findMany({
-      where: { available: true, featured: true, category: { active: true } },
-      orderBy: { position: "asc" },
-      take,
-      include: { category: { select: { name: true, slug: true } } },
-    }),
-  ["menu-featured"],
-  { tags: [TAGS.menu], revalidate: HOUR * 6 },
-);
+export function getFeaturedProducts(take = 6) {
+  return prisma.menuProduct.findMany({
+    where: { available: true, featured: true, category: { active: true } },
+    orderBy: { position: "asc" },
+    take,
+    include: { category: { select: { name: true, slug: true } } },
+  });
+}
 
 // --- Galeria -----------------------------------------------------------------
 
-export const getGallery = unstable_cache(
-  async (take = 60) =>
-    prisma.galleryImage.findMany({
-      where: { active: true },
-      orderBy: [{ position: "asc" }, { createdAt: "desc" }],
-      take,
-      include: { event: { select: { slug: true, title: true } } },
-    }),
-  ["gallery"],
-  { tags: [TAGS.gallery], revalidate: HOUR * 6 },
-);
+export function getGallery(take = 60) {
+  return prisma.galleryImage.findMany({
+    where: { active: true },
+    orderBy: [{ position: "asc" }, { createdAt: "desc" }],
+    take,
+    include: { event: { select: { slug: true, title: true } } },
+  });
+}
 
-export const getFeaturedGallery = unstable_cache(
-  async (take = 8) =>
-    prisma.galleryImage.findMany({
-      where: { active: true, featured: true },
-      orderBy: { position: "asc" },
-      take,
-    }),
-  ["gallery-featured"],
-  { tags: [TAGS.gallery], revalidate: HOUR * 6 },
-);
+export function getFeaturedGallery(take = 8) {
+  return prisma.galleryImage.findMany({
+    where: { active: true, featured: true },
+    orderBy: { position: "asc" },
+    take,
+  });
+}
 
 // --- BarzuCard ---------------------------------------------------------------
 
-export const getActivePromotions = unstable_cache(
-  async () => {
-    const now = new Date();
+export function getActivePromotions() {
+  const now = new Date();
 
-    return prisma.promotion.findMany({
-      where: {
-        active: true,
-        startsAt: { lte: now },
-        OR: [{ endsAt: null }, { endsAt: { gte: now } }],
-      },
-      orderBy: { position: "asc" },
-    });
-  },
-  ["promotions-active"],
-  { tags: [TAGS.promotions], revalidate: 300 },
-);
+  return prisma.promotion.findMany({
+    where: {
+      active: true,
+      startsAt: { lte: now },
+      OR: [{ endsAt: null }, { endsAt: { gte: now } }],
+    },
+    orderBy: { position: "asc" },
+  });
+}
