@@ -88,7 +88,7 @@ export default async function AdminTarjetasPage({
             description={
               query
                 ? "Prueba con otro nombre, email o número de tarjeta."
-                : "Cuando alguien se registre en la web, su BarzuCard aparece acá."
+                : "Cuando alguien se registre en la web, su BarzuCard aparece aquí."
             }
           />
         ) : (

@@ -32,7 +32,7 @@ function safeRedirect(target: string | null, fallback: string) {
   return target;
 }
 
-// --- Panel (administradores y garzones) --------------------------------------
+// --- Panel (administradores y personal de sala) --------------------------------------
 
 export async function loginPanel(
   _prev: FormState,

@@ -210,7 +210,7 @@ export default async function NosotrosPage() {
           <div className="container-bz">
             <SectionHeading
               eyebrow="Galería"
-              title="Así se ve una noche acá"
+              title="Así se ve una noche aquí"
               action={
                 <ButtonLink href="/galeria" variant="outline">
                   Ver la galería completa

@@ -115,7 +115,7 @@ Accesos que crea el seed:
 | Rol | Email | Contraseña | Entra por |
 | --- | --- | --- | --- |
 | Administrador | `admin@barzuo.com` | `Barzuo2024!` | `/admin/login` |
-| Equipo de sala | `garzon@barzuo.com` | `Barzuo2024!` | `/staff/login` |
+| Equipo de sala | `sala@barzuo.com` | `Barzuo2024!` | `/staff/login` |
 | Socio de ejemplo | `sofia@ejemplo.com` | `Barzuo2024!` | `/barzucard/ingresar` |
 
 > Cambia estas contraseñas antes de publicar el sitio.

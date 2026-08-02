@@ -56,7 +56,7 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                 required
                 defaultValue={promotion?.title}
                 maxLength={140}
-                placeholder="2x1 en schops"
+                placeholder="2x1 en cervezas de barril"
                 error={state.errors?.title}
               />
 
@@ -129,7 +129,7 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
 
           <Panel
             title="Reglas de canje"
-            description="Determinan qué valida el sistema cuando el garzón escanea una BarzuCard."
+            description="Determinan qué valida el sistema cuando el personal de sala escanea una BarzuCard."
           >
             <div className="flex flex-col gap-5">
               <div className="grid gap-5 sm:grid-cols-2">

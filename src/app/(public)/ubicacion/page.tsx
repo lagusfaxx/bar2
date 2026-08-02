@@ -230,7 +230,7 @@ export default async function UbicacionPage() {
             />
             <HowToCell
               icon={<Bus className="size-6" aria-hidden />}
-              title="En micro o metro"
+              title="En transporte público"
               text="Varias líneas de micro paran sobre la avenida y la estación de metro más cercana queda a pocas cuadras."
             />
             <HowToCell

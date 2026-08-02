@@ -38,7 +38,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
   const [scanError, setScanError] = useState<string | null>(null);
 
   /**
-   * Último canje confirmado. Se guarda acá arriba y no en la fila de la
+   * Último canje confirmado. Se guarda aquí arriba y no en la fila de la
    * promoción porque, al canjearse, esa fila pasa a "no disponibles" y se
    * desmonta: el comprobante tiene que sobrevivir para que el equipo de sala
    * pueda mostrárselo al cliente.

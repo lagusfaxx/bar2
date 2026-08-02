@@ -18,7 +18,7 @@ const TIER_ORDER: Record<CardTier, number> = {
   ORO: 2,
 };
 
-/** Digito verificador de Luhn: detecta tipeos del garzon al cargar el numero. */
+/** Digito verificador de Luhn: detecta tipeos del personal de sala al cargar el numero. */
 function luhnCheckDigit(digits: string) {
   let sum = 0;
   let double = true; // el proximo digito a la izquierda del verificador se dobla
@@ -87,7 +87,7 @@ export function generateReceiptCode() {
   return `BZ-${code}`;
 }
 
-/** Normaliza lo que escribe el garzon: acepta espacios, guiones y la URL del QR. */
+/** Normaliza lo que escribe el personal de sala: acepta espacios, guiones y la URL del QR. */
 export function normalizeCardInput(raw: string) {
   const trimmed = raw.trim();
 
@@ -132,7 +132,7 @@ export type Eligibility =
 
 /**
  * Unica fuente de verdad sobre si una promocion se puede canjear. La usan la
- * app del garzon (para habilitar el boton) y el canje real (para autorizarlo),
+ * app del personal de sala (para habilitar el boton) y el canje real (para autorizarlo),
  * de modo que la pantalla nunca prometa algo que el servidor luego rechaza.
  */
 export function checkEligibility({

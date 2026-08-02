@@ -279,7 +279,7 @@ Formación: guitarra y voz, bajo, batería y teclados. Sonido e iluminación de 
 
 Entrada libre. Se arma lista por orden de llegada desde las 21:00.
 
-Promo de la noche: 2x1 en schops de 21:00 a 23:00 presentando la BarzuCard.`,
+Promoción de la noche: 2x1 en cervezas de barril de 21:00 a 23:00 presentando la BarzuCard.`,
     poster: 3,
     weekday: 4,
     weeksOffset: 0,
@@ -431,8 +431,8 @@ Este show suele agotar entradas: conviene comprar anticipada.`,
     artist: "DJ residente",
     category: "FIESTA",
     excerpt:
-      "Salida del trabajo directo al bar: tapas, schops a precio de happy hour y música hasta la medianoche.",
-    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, schops y tragos clásicos a precio de happy hour, y el DJ residente en formato lounge.
+      "Salida del trabajo directo al bar: tapas, cervezas a precio de happy hour y música hasta la medianoche.",
+    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, cervezas y tragos clásicos a precio de happy hour, y el DJ residente en formato lounge.
 
 Sin entrada. Se recomienda reservar mesa si vienen en grupo.`,
     poster: 10,
@@ -517,11 +517,11 @@ const MENU: SeedCategory[] = [
     icon: "Beer",
     image: 2,
     products: [
-      { name: "Schop Rubio 500cc", description: "Lager clásica, tirada del día.", price: 450000, image: 6 },
-      { name: "Schop IPA 500cc", description: "Amarga, cítrica y bien lupulada.", price: 550000, featured: true, image: 7 },
-      { name: "Schop Negro 500cc", description: "Stout suave, con notas de café y chocolate.", price: 550000 },
+      { name: "Cerveza de barril rubia 500cc", description: "Lager clásica, del barril del día.", price: 450000, image: 6 },
+      { name: "Cerveza de barril IPA 500cc", description: "Amarga, cítrica y bien lupulada.", price: 550000, featured: true, image: 7 },
+      { name: "Cerveza de barril negra 500cc", description: "Stout suave, con notas de café y chocolate.", price: 550000 },
       { name: "Artesanal de la semana", description: "Pregúntale al barman qué hay de barril hoy.", price: 590000 },
-      { name: "Cerveza en botella 330cc", description: "Nacional, bien helada.", price: 400000 },
+      { name: "Cerveza en botella 330cc", description: "Nacional, bien fría.", price: 400000 },
       { name: "Cerveza sin alcohol", description: "Botella 330cc.", price: 380000, tags: ["sin alcohol"] },
     ],
   },
@@ -537,7 +537,7 @@ const MENU: SeedCategory[] = [
       { name: "Gin premium", description: "Con tónica y garnish a elección.", price: 850000 },
       { name: "Ron añejo", description: "Por copa de 50cc.", price: 750000 },
       { name: "Mezcal artesanal", description: "Con naranja y sal de gusano.", price: 1050000, tags: ["ahumado"] },
-      { name: "Pisco reservado", description: "Por copa de 50cc, para cerrar la noche.", price: 650000 },
+      { name: "Tequila reposado", description: "Por copa de 50cc, para cerrar la noche.", price: 650000 },
     ],
   },
   {
@@ -554,9 +554,9 @@ const MENU: SeedCategory[] = [
         featured: true,
         image: 9,
       },
-      { name: "Tabla de quesos", description: "Cinco quesos, manjar y nueces. Para 2 o 3.", price: 1890000, image: 10 },
+      { name: "Tabla de quesos", description: "Cinco quesos, dulce de leche y nueces. Para 2 o 3.", price: 1890000, image: 10 },
       { name: "Tabla vegetariana", description: "Hummus, babaganoush, vegetales asados y pan pita.", price: 1690000, tags: ["vegetariano"] },
-      { name: "Tabla chilena", description: "Longaniza de Chillán, queso de cabra, aceitunas y papas rústicas.", price: 1990000 },
+      { name: "Tabla de la casa", description: "Chorizo, queso de cabra, aceitunas y papas rústicas.", price: 1990000 },
     ],
   },
   {
@@ -567,11 +567,11 @@ const MENU: SeedCategory[] = [
     image: 5,
     products: [
       { name: "Hamburguesa BARZUO", description: "Doble medallón, cheddar, tocino y salsa de la casa. Con papas fritas.", price: 1390000, featured: true, image: 11 },
-      { name: "Lomo a lo pobre", description: "Con papas fritas, huevo frito y cebolla caramelizada.", price: 1350000, image: 12 },
+      { name: "Lomo salteado", description: "Con papas fritas, huevo y cebolla caramelizada.", price: 1350000, image: 12 },
       { name: "Costillar braseado", description: "Ocho horas de cocción, puré rústico y cebolla caramelizada.", price: 1590000 },
       { name: "Calamares apanados", description: "Con alioli de limón.", price: 1290000 },
       { name: "Bowl vegetariano", description: "Quinoa, vegetales asados, palta y semillas.", price: 1190000, tags: ["vegetariano", "sin gluten"] },
-      { name: "Papas BARZUO", description: "Con cheddar, tocino y cebollín.", price: 890000, image: 13 },
+      { name: "Papas BARZUO", description: "Con cheddar, tocino y cebolla verde.", price: 890000, image: 13 },
     ],
   },
   {
@@ -581,9 +581,9 @@ const MENU: SeedCategory[] = [
     icon: "Wine",
     image: 6,
     products: [
-      { name: "Carménère reserva (copa)", description: "El emblema chileno.", price: 650000, image: 14 },
-      { name: "Carménère reserva (botella)", description: "750cc.", price: 2800000 },
-      { name: "Sauvignon blanc (copa)", description: "Del valle de Casablanca, fresco y cítrico.", price: 600000 },
+      { name: "Tinto reserva (copa)", description: "Corte de la casa.", price: 650000, image: 14 },
+      { name: "Tinto reserva (botella)", description: "750cc.", price: 2800000 },
+      { name: "Sauvignon blanc (copa)", description: "Fresco y cítrico.", price: 600000 },
       { name: "Espumante brut (copa)", description: "Método tradicional.", price: 700000 },
     ],
   },
@@ -595,7 +595,7 @@ const MENU: SeedCategory[] = [
     image: 7,
     products: [
       { name: "Limonada de la casa", description: "Con menta y jengibre.", price: 450000, tags: ["sin alcohol"] },
-      { name: "Bebidas", description: "Línea completa, 500cc.", price: 300000, tags: ["sin alcohol"] },
+      { name: "Gaseosas", description: "Línea completa, 500cc.", price: 300000, tags: ["sin alcohol"] },
       { name: "Agua mineral", description: "Con o sin gas, 500cc.", price: 280000, tags: ["sin alcohol"] },
       { name: "Café expreso", description: "De grano tostado en Santiago.", price: 290000, tags: ["sin alcohol"] },
     ],
@@ -635,9 +635,9 @@ const PROMOTIONS: Array<{
   maxTotal?: number;
 }> = [
   {
-    slug: "2x1-en-schops",
-    title: "2x1 en schops",
-    description: "Llévate dos schops de 500cc pagando uno, de 21:00 a 23:00.",
+    slug: "2x1-en-cervezas",
+    title: "2x1 en cervezas de barril",
+    description: "Llévate dos cervezas de barril de 500cc pagando una, de 21:00 a 23:00.",
     terms:
       "Válido de martes a jueves, de 21:00 a 23:00. Un uso por tarjeta por noche. No acumulable con otras promociones.",
     type: "TWO_FOR_ONE",
@@ -739,12 +739,12 @@ async function main() {
     update: { role: "ADMIN", active: true },
   });
 
-  const staffEmail = (process.env.STAFF_EMAIL ?? "garzon@barzuo.com").toLowerCase();
+  const staffEmail = (process.env.STAFF_EMAIL ?? "sala@barzuo.com").toLowerCase();
   await prisma.user.upsert({
     where: { email: staffEmail },
     create: {
       email: staffEmail,
-      name: "Garzón BARZUO",
+      name: "Equipo de sala BARZUO",
       passwordHash: await bcrypt.hash(
         process.env.STAFF_PASSWORD ?? "Barzuo2024!",
         12,
@@ -918,7 +918,7 @@ async function main() {
   }
   console.log(`· ${PROMOTIONS.length} promociones de BarzuCard`);
 
-  // Socios de ejemplo, para probar la app del garzón de inmediato.
+  // Socios de ejemplo, para probar la app del personal de sala de inmediato.
   const demoMembers = [
     { email: "sofia@ejemplo.com", fullName: "Sofía Ramírez", tier: "PLATA" as const, points: 620 },
     { email: "martin@ejemplo.com", fullName: "Martín Cabrera", tier: "CLASICA" as const, points: 120 },

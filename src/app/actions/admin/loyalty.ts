@@ -112,7 +112,7 @@ export type CardLookup = {
 /**
  * Busca una tarjeta por número o por el token del QR y devuelve, para cada
  * promoción vigente, si se puede canjear ahora mismo y por qué no en caso
- * contrario. La app del garzón solo pinta este resultado: toda la decisión se
+ * contrario. La app del personal de sala solo pinta este resultado: toda la decisión se
  * toma en el servidor.
  */
 export async function lookupCard(
@@ -233,7 +233,7 @@ export async function lookupCard(
  * Registra el canje.
  *
  * Se vuelve a comprobar la elegibilidad dentro de una transacción, con el
- * contador de usos leído en ese mismo momento: sin esto, dos garzones podrían
+ * contador de usos leído en ese mismo momento: sin esto, dos personal de sala podrían
  * canjear a la vez una promoción de un solo uso.
  */
 export async function redeemPromotion(
