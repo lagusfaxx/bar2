@@ -160,6 +160,22 @@ export const settingsSchema = z.object({
   heroCtaHref: trimmed.max(200).optional().or(z.literal("")),
   heroCtaSecondaryLabel: trimmed.max(40).optional().or(z.literal("")),
   heroCtaSecondaryHref: trimmed.max(200).optional().or(z.literal("")),
+  heroVideoPosterUrl: optionalUrl,
+
+  marqueeText: trimmed.max(600).optional().or(z.literal("")),
+
+  homeEventsEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeEventsTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeEventsLead: trimmed.max(400).optional().or(z.literal("")),
+  homeMenuEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeMenuTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeMenuLead: trimmed.max(400).optional().or(z.literal("")),
+  homeLoyaltyTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeGalleryEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeGalleryTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeGalleryLead: trimmed.max(400).optional().or(z.literal("")),
+  homeLocationEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeLocationTitle: trimmed.max(120).optional().or(z.literal("")),
 
   aboutTitle: trimmed.max(120).optional().or(z.literal("")),
   aboutLead: trimmed.max(600).optional().or(z.literal("")),
@@ -188,6 +204,11 @@ export const settingsSchema = z.object({
   loyaltyTitle: trimmed.max(60),
   loyaltyDescription: trimmed.max(800).optional().or(z.literal("")),
   loyaltyTerms: trimmed.max(4000).optional().or(z.literal("")),
+
+  // El precio llega como texto del formulario ("5.500") y se guarda en centesimos.
+  cardPrice: trimmed.max(20).optional().or(z.literal("")),
+  cardPaymentInfo: trimmed.max(1200).optional().or(z.literal("")),
+  cardPickupInfo: trimmed.max(1200).optional().or(z.literal("")),
 });
 
 export const socialLinkSchema = z.object({

@@ -17,6 +17,7 @@ type HeroProps = {
     heroSubtitle: string | null;
     heroImageUrl: string | null;
     heroVideoUrl: string | null;
+    heroVideoPosterUrl: string | null;
     heroCtaLabel: string | null;
     heroCtaHref: string | null;
     heroCtaSecondaryLabel: string | null;
@@ -48,7 +49,7 @@ export function Hero({ settings, nextEvent }: HeroProps) {
             muted
             loop
             playsInline
-            poster={background}
+            poster={settings.heroVideoPosterUrl ?? background}
             aria-hidden
           >
             <source src={settings.heroVideoUrl} />

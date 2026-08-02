@@ -45,6 +45,15 @@ const ALLOWED_MIME = new Set([
   "image/gif",
 ]);
 
+/** Video de portada: se guarda tal cual, no hay transcodificacion en el server. */
+const MAX_VIDEO_BYTES = 32 * 1024 * 1024; // 32 MB
+
+const ALLOWED_VIDEO_MIME: Record<string, string> = {
+  "video/mp4": "mp4",
+  "video/webm": "webm",
+  "video/quicktime": "mov",
+};
+
 /** Ancho maximo por destino: no tiene sentido guardar un afiche de 6000px. */
 const PRESETS = {
   poster: 1400,
@@ -147,6 +156,55 @@ export async function saveUpload(
     height: output.info.height,
     size: output.info.size,
   };
+}
+
+/**
+ * Guarda el video de la portada.
+ *
+ * A diferencia de las imagenes no se reprocesa: convertir video exigiria
+ * ffmpeg en la imagen de produccion. Se valida tipo y peso, y se recomienda en
+ * el panel subir un clip corto y liviano, que es lo que conviene para un fondo.
+ */
+export async function saveVideoUpload(file: File): Promise<{ url: string; size: number }> {
+  if (!file || file.size === 0) {
+    throw new UploadError("No se recibió ningún archivo.");
+  }
+
+  const extension = ALLOWED_VIDEO_MIME[file.type];
+
+  if (!extension) {
+    throw new UploadError("Formato no admitido. Sube un video MP4, WebM o MOV.");
+  }
+
+  if (file.size > MAX_VIDEO_BYTES) {
+    throw new UploadError(
+      "El video supera los 32 MB. Recórtalo o bájale la calidad antes de subirlo.",
+    );
+  }
+
+  const input = Buffer.from(await file.arrayBuffer());
+
+  const stamp = new Date();
+  const folder = `${stamp.getFullYear()}-${String(stamp.getMonth() + 1).padStart(2, "0")}`;
+  const filename = `${randomBytes(12).toString("hex")}.${extension}`;
+
+  const targetDir = path.join(UPLOAD_DIR, folder);
+  await mkdir(targetDir, { recursive: true });
+  await writeFile(path.join(targetDir, filename), input);
+
+  const url = `/uploads/${folder}/${filename}`;
+
+  await prisma.media.create({
+    data: {
+      url,
+      filename,
+      originalName: file.name.slice(0, 200),
+      mimeType: file.type,
+      size: input.byteLength,
+    },
+  });
+
+  return { url, size: input.byteLength };
 }
 
 /** Borra un archivo subido y su registro. Las rutas ajenas se ignoran. */

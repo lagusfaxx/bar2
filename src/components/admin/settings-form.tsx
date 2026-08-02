@@ -5,6 +5,7 @@ import { useActionState, useState } from "react";
 import { saveSettings } from "@/app/actions/admin/content";
 import { ImageField } from "@/components/admin/image-field";
 import { Panel } from "@/components/admin/ui";
+import { VideoField } from "@/components/admin/video-field";
 import {
   CheckboxField,
   Field,
@@ -30,6 +31,20 @@ type Settings = {
   heroCtaHref: string | null;
   heroCtaSecondaryLabel: string | null;
   heroCtaSecondaryHref: string | null;
+  heroVideoPosterUrl: string | null;
+  marqueeText: string | null;
+  homeEventsEyebrow: string | null;
+  homeEventsTitle: string | null;
+  homeEventsLead: string | null;
+  homeMenuEyebrow: string | null;
+  homeMenuTitle: string | null;
+  homeMenuLead: string | null;
+  homeLoyaltyTitle: string | null;
+  homeGalleryEyebrow: string | null;
+  homeGalleryTitle: string | null;
+  homeGalleryLead: string | null;
+  homeLocationEyebrow: string | null;
+  homeLocationTitle: string | null;
   aboutTitle: string | null;
   aboutLead: string | null;
   aboutBody: string | null;
@@ -53,11 +68,15 @@ type Settings = {
   loyaltyTitle: string;
   loyaltyDescription: string | null;
   loyaltyTerms: string | null;
+  cardPriceCents: number;
+  cardPaymentInfo: string | null;
+  cardPickupInfo: string | null;
 };
 
 const TABS = [
   { id: "identidad", label: "Identidad" },
   { id: "portada", label: "Portada" },
+  { id: "home", label: "Secciones del inicio" },
   { id: "nosotros", label: "Nosotros" },
   { id: "contacto", label: "Contacto y ubicación" },
   { id: "seo", label: "SEO" },
@@ -200,13 +219,21 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               hint="Horizontal y bien oscura: encima va el logotipo."
             />
 
-            <Field
-              label="Video de fondo (URL)"
+            <VideoField
+              label="Video de fondo"
               name="heroVideoUrl"
-              defaultValue={settings.heroVideoUrl ?? ""}
-              placeholder="https://…/loop.mp4"
-              hint="Si lo completas, reemplaza a la imagen de fondo."
+              defaultValue={settings.heroVideoUrl}
+              hint="Opcional. Si subes un video, reemplaza a la imagen. MP4, WebM o MOV de hasta 32 MB; lo ideal es un clip corto (10 a 20 segundos) que se repita sin cortes. Va sin sonido."
               error={state.errors?.heroVideoUrl}
+            />
+
+            <ImageField
+              label="Imagen mientras carga el video"
+              name="heroVideoPosterUrl"
+              preset="cover"
+              aspect="aspect-16/9"
+              defaultValue={settings.heroVideoPosterUrl}
+              hint="Solo si usas video: es lo que se ve el primer instante. Si la dejas vacía usamos la imagen de fondo."
             />
 
             <div className="grid gap-5 sm:grid-cols-2">
@@ -236,6 +263,157 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 placeholder="/carta"
                 error={state.errors?.heroCtaSecondaryHref}
               />
+            </div>
+          </div>
+        </Panel>
+      </div>
+
+      <div hidden={tab !== "home"}>
+        <Panel
+          title="Secciones de la página de inicio"
+          description="Los títulos que se ven en la portada. Si dejas un campo vacío, se muestra el texto que trae el sitio por defecto."
+        >
+          <div className="flex flex-col gap-8">
+            <div className="flex flex-col gap-5">
+              <TextareaField
+                label="Cintillo animado"
+                name="marqueeText"
+                rows={4}
+                maxLength={600}
+                defaultValue={settings.marqueeText ?? ""}
+                hint="La franja de palabras que se desplaza bajo la portada. Escribe una palabra o frase por línea; se repiten en bucle."
+                error={state.errors?.marqueeText}
+              />
+            </div>
+
+            <div className="flex flex-col gap-5 border-t border-line pt-6">
+              <p className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                Bloque de la cartelera
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Etiqueta superior"
+                  name="homeEventsEyebrow"
+                  defaultValue={settings.homeEventsEyebrow ?? ""}
+                  placeholder="Cartelera"
+                  error={state.errors?.homeEventsEyebrow}
+                />
+                <Field
+                  label="Título"
+                  name="homeEventsTitle"
+                  defaultValue={settings.homeEventsTitle ?? ""}
+                  placeholder="Lo que se viene"
+                  error={state.errors?.homeEventsTitle}
+                />
+              </div>
+              <TextareaField
+                label="Bajada"
+                name="homeEventsLead"
+                rows={2}
+                maxLength={400}
+                defaultValue={settings.homeEventsLead ?? ""}
+                error={state.errors?.homeEventsLead}
+              />
+            </div>
+
+            <div className="flex flex-col gap-5 border-t border-line pt-6">
+              <p className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                Bloque de la carta
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Etiqueta superior"
+                  name="homeMenuEyebrow"
+                  defaultValue={settings.homeMenuEyebrow ?? ""}
+                  placeholder="La carta"
+                  error={state.errors?.homeMenuEyebrow}
+                />
+                <Field
+                  label="Título"
+                  name="homeMenuTitle"
+                  defaultValue={settings.homeMenuTitle ?? ""}
+                  placeholder="Para acompañar la noche"
+                  error={state.errors?.homeMenuTitle}
+                />
+              </div>
+              <TextareaField
+                label="Bajada"
+                name="homeMenuLead"
+                rows={2}
+                maxLength={400}
+                defaultValue={settings.homeMenuLead ?? ""}
+                error={state.errors?.homeMenuLead}
+              />
+            </div>
+
+            <div className="flex flex-col gap-5 border-t border-line pt-6">
+              <p className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                Bloque de la BarzuCard
+              </p>
+              <Field
+                label="Título"
+                name="homeLoyaltyTitle"
+                defaultValue={settings.homeLoyaltyTitle ?? ""}
+                placeholder="Tu tarjeta de beneficios"
+                hint="La bajada de este bloque es la descripción del programa, en la pestaña BarzuCard."
+                error={state.errors?.homeLoyaltyTitle}
+              />
+            </div>
+
+            <div className="flex flex-col gap-5 border-t border-line pt-6">
+              <p className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                Bloque de la galería
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Etiqueta superior"
+                  name="homeGalleryEyebrow"
+                  defaultValue={settings.homeGalleryEyebrow ?? ""}
+                  placeholder="Galería"
+                  error={state.errors?.homeGalleryEyebrow}
+                />
+                <Field
+                  label="Título"
+                  name="homeGalleryTitle"
+                  defaultValue={settings.homeGalleryTitle ?? ""}
+                  placeholder="Noches que quedan"
+                  error={state.errors?.homeGalleryTitle}
+                />
+              </div>
+              <TextareaField
+                label="Bajada"
+                name="homeGalleryLead"
+                rows={2}
+                maxLength={400}
+                defaultValue={settings.homeGalleryLead ?? ""}
+                error={state.errors?.homeGalleryLead}
+              />
+            </div>
+
+            <div className="flex flex-col gap-5 border-t border-line pt-6">
+              <p className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                Bloque de la ubicación
+              </p>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <Field
+                  label="Etiqueta superior"
+                  name="homeLocationEyebrow"
+                  defaultValue={settings.homeLocationEyebrow ?? ""}
+                  placeholder="Ubicación"
+                  error={state.errors?.homeLocationEyebrow}
+                />
+                <Field
+                  label="Título"
+                  name="homeLocationTitle"
+                  defaultValue={settings.homeLocationTitle ?? ""}
+                  placeholder="Te esperamos"
+                  error={state.errors?.homeLocationTitle}
+                />
+              </div>
+              <p className="text-xs text-muted-dark">
+                La dirección que aparece debajo sale de la pestaña «Contacto y
+                ubicación».
+              </p>
             </div>
           </div>
         </Panel>
@@ -457,6 +635,44 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             />
           </div>
         </Panel>
+
+        <div className="mt-6">
+          <Panel
+            title="Tarjeta física: pago y retiro"
+            description="Lo que ve el socio cuando pide su tarjeta. El seguimiento de cada pago se hace en Socios y tarjetas."
+          >
+            <div className="flex flex-col gap-5">
+              <Field
+                label="Precio de la tarjeta"
+                name="cardPrice"
+                defaultValue={(settings.cardPriceCents / 100).toLocaleString("es-CL")}
+                placeholder="5.500"
+                hint="Solo el monto, sin el signo. Déjalo en 0 si la tarjeta es gratuita."
+                error={state.errors?.cardPrice}
+              />
+
+              <TextareaField
+                label="Datos para la transferencia"
+                name="cardPaymentInfo"
+                rows={6}
+                maxLength={1200}
+                defaultValue={settings.cardPaymentInfo ?? ""}
+                hint="Banco, tipo de cuenta, número, nombre, documento y correo de aviso. Se muestran tal cual al socio."
+                error={state.errors?.cardPaymentInfo}
+              />
+
+              <TextareaField
+                label="Cómo se retira"
+                name="cardPickupInfo"
+                rows={4}
+                maxLength={1200}
+                defaultValue={settings.cardPickupInfo ?? ""}
+                hint="Por ejemplo: días y horarios en que puede pasar a buscarla y qué tiene que mostrar."
+                error={state.errors?.cardPickupInfo}
+              />
+            </div>
+          </Panel>
+        </div>
       </div>
 
       <div className="sticky bottom-0 flex flex-col gap-3 border-t border-line bg-ink/95 py-4 backdrop-blur-xl">

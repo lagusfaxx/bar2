@@ -15,6 +15,17 @@ import {
 } from "@/lib/content";
 import { formatPrice } from "@/lib/format";
 
+/** Cintillo de fabrica, editable desde Ajustes → Secciones del inicio. */
+const DEFAULT_MARQUEE = [
+  "Música en vivo",
+  "Tributos",
+  "DJ sets",
+  "Coctelería de autor",
+  "Cocina de bar",
+  "Karaoke",
+  "After office",
+].join("\n");
+
 export default async function HomePage() {
   const [settings, upcoming, featuredProducts, gallery] = await Promise.all([
     getSettings(),
@@ -25,48 +36,54 @@ export default async function HomePage() {
 
   const [nextEvent, ...restEvents] = upcoming;
 
+  // El cintillo admite una palabra por linea; si esta vacio usamos las de fabrica.
+  const marqueeWords = (settings.marqueeText ?? DEFAULT_MARQUEE)
+    .split(/[\n,]/)
+    .map((word) => word.trim())
+    .filter(Boolean);
+
   return (
     <>
       <Hero settings={settings} nextEvent={nextEvent ?? null} />
 
-      {/* Cintillo: refuerza el caracter del local sin ocupar una seccion entera. */}
-      <div className="grain relative overflow-hidden border-y border-line bg-ink-soft py-4">
-        <div className="flex w-max animate-marquee gap-10 whitespace-nowrap will-change-transform">
-          {Array.from({ length: 2 }).map((_, group) => (
-            <div key={group} className="flex gap-10" aria-hidden={group === 1}>
-              {[
-                "Música en vivo",
-                "Tributos",
-                "DJ sets",
-                "Coctelería de autor",
-                "Cocina de bar",
-                "Karaoke",
-                "After office",
-              ].map((word) => (
-                <span
-                  key={word}
-                  className="flex items-center gap-10 font-display text-lg text-bone-dim italic sm:text-xl"
-                >
-                  {word}
-                  <span className="size-1.5 rotate-45 bg-crimson" />
-                </span>
-              ))}
-            </div>
-          ))}
+      {/* Cintillo: refuerza el caracter del local sin ocupar una seccion entera.
+          Las palabras se cargan desde el panel (Ajustes → Secciones del inicio). */}
+      {marqueeWords.length > 0 && (
+        <div className="grain relative overflow-hidden border-y border-line bg-ink-soft py-4">
+          <div className="flex w-max animate-marquee gap-10 whitespace-nowrap will-change-transform">
+            {Array.from({ length: 2 }).map((_, group) => (
+              <div key={group} className="flex gap-10" aria-hidden={group === 1}>
+                {marqueeWords.map((word, index) => (
+                  <span
+                    key={`${word}-${index}`}
+                    className="flex items-center gap-10 font-display text-lg text-bone-dim italic sm:text-xl"
+                  >
+                    {word}
+                    <span className="size-1.5 rotate-45 bg-crimson" />
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Cartelera */}
       <Section id="cartelera" className="container-bz">
         <SectionHeading
-          eyebrow="Cartelera"
+          eyebrow={settings.homeEventsEyebrow ?? "Cartelera"}
           title={
-            <>
-              Lo que se viene en{" "}
-              <span className="font-western text-crimson">BARZUO</span>
-            </>
+            settings.homeEventsTitle ?? (
+              <>
+                Lo que se viene en{" "}
+                <span className="font-western text-crimson">{settings.barName}</span>
+              </>
+            )
           }
-          lead="Tributos, bandas en vivo y noches de DJ. La programación se actualiza todas las semanas."
+          lead={
+            settings.homeEventsLead ??
+            "Tributos, bandas en vivo y noches de DJ. La programación se actualiza todas las semanas."
+          }
           action={
             <ButtonLink href="/eventos" variant="outline">
               Ver cartelera completa
@@ -148,7 +165,7 @@ export default async function HomePage() {
 
             <Reveal delay={180} className="mt-10 flex flex-wrap gap-4">
               <ButtonLink href="/nosotros" variant="outline">
-                Conocer BARZUO
+                Conocer {settings.barName}
               </ButtonLink>
               <ButtonLink href="/ubicacion" variant="ghost">
                 <MapPin className="size-4" aria-hidden />
@@ -163,9 +180,12 @@ export default async function HomePage() {
       {featuredProducts.length > 0 && (
         <Section className="container-bz">
           <SectionHeading
-            eyebrow="La carta"
-            title="Para acompañar la noche"
-            lead="Coctelería de autor, cervezas tiradas y cocina pensada para compartir."
+            eyebrow={settings.homeMenuEyebrow ?? "La carta"}
+            title={settings.homeMenuTitle ?? "Para acompañar la noche"}
+            lead={
+              settings.homeMenuLead ??
+              "Coctelería de autor, cervezas de barril y cocina pensada para compartir."
+            }
             action={
               <ButtonLink href="/carta" variant="outline">
                 Ver la carta completa
@@ -229,10 +249,13 @@ export default async function HomePage() {
               <SectionHeading
                 eyebrow={settings.loyaltyTitle}
                 title={
-                  <>
-                    Tu tarjeta de{" "}
-                    <span className="text-ember">beneficios</span> en BARZUO
-                  </>
+                  settings.homeLoyaltyTitle ?? (
+                    <>
+                      Tu tarjeta de{" "}
+                      <span className="text-ember">beneficios</span> en{" "}
+                      {settings.barName}
+                    </>
+                  )
                 }
                 lead={settings.loyaltyDescription}
               />
@@ -282,9 +305,12 @@ export default async function HomePage() {
       {gallery.length > 0 && (
         <Section className="container-bz">
           <SectionHeading
-            eyebrow="Galería"
-            title="Noches que quedan"
-            lead="Un vistazo a lo que se vive cada fin de semana en BARZUO."
+            eyebrow={settings.homeGalleryEyebrow ?? "Galería"}
+            title={settings.homeGalleryTitle ?? "Noches que quedan"}
+            lead={
+              settings.homeGalleryLead ??
+              `Un vistazo a lo que se vive cada fin de semana en ${settings.barName}.`
+            }
             action={
               <ButtonLink href="/galeria" variant="outline">
                 Ver la galería
@@ -329,8 +355,8 @@ export default async function HomePage() {
         <div className="container-bz grid items-center gap-12 lg:grid-cols-2">
           <div>
             <SectionHeading
-              eyebrow="Ubicación"
-              title="Te esperamos"
+              eyebrow={settings.homeLocationEyebrow ?? "Ubicación"}
+              title={settings.homeLocationTitle ?? "Te esperamos"}
               lead={`${settings.address} — ${settings.addressCity}`}
             />
 

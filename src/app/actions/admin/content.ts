@@ -4,7 +4,13 @@ import { requireAdmin, requireCmsUser, hashPassword } from "@/lib/auth";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
-import { deleteUpload, saveUpload, UploadError, type UploadPreset } from "@/lib/uploads";
+import {
+  deleteUpload,
+  saveUpload,
+  saveVideoUpload,
+  UploadError,
+  type UploadPreset,
+} from "@/lib/uploads";
 import { uniqueSlug } from "@/lib/utils";
 import {
   fieldErrors,
@@ -42,6 +48,30 @@ export async function uploadImage(
       return formError(error.message);
     }
     return formError("No pudimos subir la imagen. Prueba de nuevo.");
+  }
+}
+
+/** Sube el video de la portada. Se guarda tal cual: no se transcodifica. */
+export async function uploadVideo(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireCmsUser();
+
+  const file = formData.get("file");
+
+  if (!(file instanceof File)) {
+    return formError("No se recibió ningún archivo.");
+  }
+
+  try {
+    const result = await saveVideoUpload(file);
+    return formSuccess("Video subido.", { url: result.url });
+  } catch (error) {
+    if (error instanceof UploadError) {
+      return formError(error.message);
+    }
+    return formError("No pudimos subir el video. Prueba de nuevo.");
   }
 }
 
@@ -291,9 +321,25 @@ export async function saveSettings(
   // Los campos opcionales vacíos se guardan como null, no como "".
   const nullable = <T extends string>(value: T | undefined) => value || null;
 
+  let cardPriceCents: number | undefined;
+
+  if (input.cardPrice) {
+    try {
+      cardPriceCents = parsePriceToCents(input.cardPrice);
+    } catch {
+      return formError("Revisa los ajustes.", {
+        cardPrice: "Escribe solo el monto, por ejemplo 5.500",
+      });
+    }
+  }
+
+  // `cardPrice` es el texto del formulario; a la base va `cardPriceCents`.
+  const settingsInput = { ...input, cardPrice: undefined };
+  delete settingsInput.cardPrice;
+
   await prisma.siteSettings.upsert({
     where: { id: "singleton" },
-    create: { id: "singleton", ...input },
+    create: { id: "singleton", ...settingsInput, ...(cardPriceCents != null && { cardPriceCents }) },
     update: {
       barName: input.barName,
       tagline: input.tagline,
@@ -310,6 +356,21 @@ export async function saveSettings(
       heroCtaHref: nullable(input.heroCtaHref),
       heroCtaSecondaryLabel: nullable(input.heroCtaSecondaryLabel),
       heroCtaSecondaryHref: nullable(input.heroCtaSecondaryHref),
+      heroVideoPosterUrl: nullable(input.heroVideoPosterUrl),
+
+      marqueeText: nullable(input.marqueeText),
+      homeEventsEyebrow: nullable(input.homeEventsEyebrow),
+      homeEventsTitle: nullable(input.homeEventsTitle),
+      homeEventsLead: nullable(input.homeEventsLead),
+      homeMenuEyebrow: nullable(input.homeMenuEyebrow),
+      homeMenuTitle: nullable(input.homeMenuTitle),
+      homeMenuLead: nullable(input.homeMenuLead),
+      homeLoyaltyTitle: nullable(input.homeLoyaltyTitle),
+      homeGalleryEyebrow: nullable(input.homeGalleryEyebrow),
+      homeGalleryTitle: nullable(input.homeGalleryTitle),
+      homeGalleryLead: nullable(input.homeGalleryLead),
+      homeLocationEyebrow: nullable(input.homeLocationEyebrow),
+      homeLocationTitle: nullable(input.homeLocationTitle),
 
       aboutTitle: nullable(input.aboutTitle),
       aboutLead: nullable(input.aboutLead),
@@ -338,6 +399,10 @@ export async function saveSettings(
       loyaltyTitle: input.loyaltyTitle,
       loyaltyDescription: nullable(input.loyaltyDescription),
       loyaltyTerms: nullable(input.loyaltyTerms),
+
+      ...(cardPriceCents != null && { cardPriceCents }),
+      cardPaymentInfo: nullable(input.cardPaymentInfo),
+      cardPickupInfo: nullable(input.cardPickupInfo),
     },
   });
 

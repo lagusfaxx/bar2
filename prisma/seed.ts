@@ -165,6 +165,31 @@ const SETTINGS = {
   heroCtaSecondaryHref: "/carta",
   heroImageUrl: "/demo/hero.jpg",
 
+  marqueeText: [
+    "Música en vivo",
+    "Tributos",
+    "DJ sets",
+    "Coctelería de autor",
+    "Cocina de bar",
+    "Karaoke",
+    "After office",
+  ].join("\n"),
+
+  homeEventsEyebrow: "Cartelera",
+  homeEventsTitle: "Lo que se viene",
+  homeEventsLead:
+    "Tributos, bandas en vivo y noches de DJ. La programación se actualiza todas las semanas.",
+  homeMenuEyebrow: "La carta",
+  homeMenuTitle: "Para acompañar la noche",
+  homeMenuLead:
+    "Coctelería de autor, cervezas de barril y cocina pensada para compartir.",
+  homeLoyaltyTitle: "Tu tarjeta de beneficios",
+  homeGalleryEyebrow: "Galería",
+  homeGalleryTitle: "Noches que quedan",
+  homeGalleryLead: "Un vistazo a lo que se vive cada fin de semana en BARZUO.",
+  homeLocationEyebrow: "Ubicación",
+  homeLocationTitle: "Te esperamos",
+
   aboutTitle: "Un bar hecho de canciones",
   aboutLead:
     "BARZUO nació en 2024 con una idea simple: que en Santiago hubiera un lugar donde la música en vivo no fuera el fondo, sino el motivo.",
@@ -205,6 +230,15 @@ Nuestra cocina trabaja con producto local y nuestra barra apuesta a la cocteler�
 Cada promoción indica sus condiciones: vigencia, días habilitados y cantidad de usos por tarjeta. Los beneficios no son acumulables entre sí ni canjeables por dinero.
 
 El canje se realiza en el local presentando el QR o el número de tarjeta al personal de BARZUO. BARZUO puede suspender una tarjeta ante un uso indebido.`,
+
+  cardPriceCents: 550000,
+  cardPaymentInfo: `Banco Ejemplo · Cuenta corriente 000-11-22222
+Titular: BARZUO SpA · 76.543.210-9
+Correo de aviso: pagos@barzuo.com
+
+Escribe tu nombre y el número de operación al transferir.`,
+  cardPickupInfo: `Retira tu tarjeta en el local de martes a sábado, desde las 19:00.
+Preséntate en la barra con tu documento y el QR de esta página.`,
 };
 
 const SOCIAL = [
