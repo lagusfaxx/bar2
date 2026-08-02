@@ -11,11 +11,25 @@ FROM node:22-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
+# La red del servidor de build corta conexiones con el registro npm cada tanto
+# (ECONNRESET a mitad de la descarga) y tumba el despliegue entero. Con mas
+# reintentos internos y timeouts holgados, npm se recupera solo.
+ENV NPM_CONFIG_FETCH_RETRIES=5
+ENV NPM_CONFIG_FETCH_RETRY_MINTIMEOUT=10000
+ENV NPM_CONFIG_FETCH_RETRY_MAXTIMEOUT=120000
+ENV NPM_CONFIG_FETCH_TIMEOUT=600000
+
 
 # --- Dependencias -----------------------------------------------------------
 FROM base AS deps
 COPY package.json package-lock.json ./
-RUN npm ci
+# Si aun asi npm aborta, se reintenta el comando completo hasta tres veces.
+RUN i=1; until npm ci; do \
+      i=$((i + 1)); \
+      if [ "$i" -gt 3 ]; then echo "npm ci fallo tras 3 intentos" >&2; exit 1; fi; \
+      echo "→ reintento $i de npm ci"; \
+      sleep 10; \
+    done
 
 
 # --- Build ------------------------------------------------------------------
@@ -69,7 +83,15 @@ require('fs').writeFileSync('package.json', JSON.stringify({ \
     tsx: pick('tsx') \
   } \
 })); \
-" && npm install --no-audit --no-fund --ignore-scripts
+"
+
+# En capa aparte del package.json: asi un corte de red solo repite la descarga.
+RUN i=1; until npm install --no-audit --no-fund --ignore-scripts; do \
+      i=$((i + 1)); \
+      if [ "$i" -gt 3 ]; then echo "npm install fallo tras 3 intentos" >&2; exit 1; fi; \
+      echo "→ reintento $i de npm install"; \
+      sleep 10; \
+    done
 
 
 # --- Runtime ----------------------------------------------------------------
