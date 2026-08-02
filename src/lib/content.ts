@@ -7,9 +7,9 @@ import { prisma } from "@/lib/prisma";
  * Consultas de contenido publico.
  *
  * Deliberadamente son consultas planas a Prisma, sin envoltorio de cache: las
- * paginas que las usan se prerenderizan y se revalidan por tiempo o desde el
- * CMS (ver lib/cache.ts), asi que la base solo se consulta al regenerar. Ademas
- * evita el problema de serializacion que convierte los `Date` en strings.
+ * paginas que las usan se renderizan en cada peticion contra la base local,
+ * que responde en milisegundos. Ademas evita el problema de serializacion que
+ * convierte los `Date` en strings al leer del cache.
  */
 
 // --- Ajustes del sitio -------------------------------------------------------

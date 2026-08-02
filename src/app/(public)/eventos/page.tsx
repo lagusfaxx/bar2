@@ -148,6 +148,3 @@ export default async function EventosPage() {
     </>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;

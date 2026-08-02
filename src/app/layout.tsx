@@ -50,6 +50,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+/**
+ * Todo el sitio se renderiza en cada peticion.
+ *
+ * El contenido vive en la base de datos y hasta el layout raiz la consulta
+ * (marca, analitica, metadatos). La imagen de produccion se construye en una
+ * red donde PostgreSQL no es alcanzable, asi que prerenderizar en el build
+ * rompia el `docker build`. Al ser dinamico, cada pagina lee la base al
+ * servirse: siempre muestra lo ultimo que guardo el CMS y el build no necesita
+ * base de datos. Se hereda en todas las rutas hijas.
+ */
+export const dynamic = "force-dynamic";
+
 export const viewport: Viewport = {
   themeColor: "#08070a",
   colorScheme: "dark",

@@ -186,6 +186,3 @@ export default async function ContactoPage() {
     </>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;

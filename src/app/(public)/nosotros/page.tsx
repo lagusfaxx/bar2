@@ -239,6 +239,3 @@ export default async function NosotrosPage() {
     </>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;

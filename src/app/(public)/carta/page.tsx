@@ -198,6 +198,3 @@ export default async function CartaPage() {
     </>
   );
 }
-
-/** Regeneracion periodica; el CMS ademas invalida al guardar. */
-export const revalidate = 300;
