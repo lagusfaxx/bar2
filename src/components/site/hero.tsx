@@ -25,8 +25,17 @@ type HeroProps = {
   nextEvent?: EventCardData | null;
 };
 
+/** Portada apaisada de demostracion y su variante vertical. */
+const DEMO_HERO = "/demo/hero.jpg";
+const DEMO_HERO_PORTRAIT = "/demo/hero-mobile.jpg";
+
 export function Hero({ settings, nextEvent }: HeroProps) {
-  const background = settings.heroImageUrl ?? "/demo/hero.jpg";
+  const background = settings.heroImageUrl ?? DEMO_HERO;
+
+  // Solo la portada que viene con el proyecto tiene variante vertical; una
+  // imagen subida desde el CMS se usa tal cual, reencuadrada por CSS.
+  const backgroundPortrait =
+    background === DEMO_HERO ? DEMO_HERO_PORTRAIT : null;
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-between overflow-hidden">
@@ -45,19 +54,39 @@ export function Hero({ settings, nextEvent }: HeroProps) {
             <source src={settings.heroVideoUrl} />
           </video>
         ) : (
-          <Image
-            src={background}
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-          />
+          <>
+            {/* Direccion de arte: en vertical, recortar una foto apaisada deja
+                fuera la parte iluminada. Cuando existe una variante vertical se
+                usa esa en pantallas chicas. */}
+            {backgroundPortrait && (
+              <Image
+                src={backgroundPortrait}
+                alt=""
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover sm:hidden"
+              />
+            )}
+
+            <Image
+              src={background}
+              alt=""
+              fill
+              priority
+              sizes="100vw"
+              className={
+                backgroundPortrait
+                  ? "hidden object-cover object-[50%_35%] sm:block"
+                  : "object-cover object-[50%_35%]"
+              }
+            />
+          </>
         )}
 
         {/* Capas de lectura: dan contraste al texto sin apagar el fondo. */}
-        <div className="absolute inset-0 bg-ink/25" />
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/85 via-transparent to-ink" />
+        <div className="absolute inset-0 bg-ink/15" />
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-transparent to-ink" />
         <div
           className="absolute inset-0"
           style={{

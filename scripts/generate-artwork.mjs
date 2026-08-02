@@ -66,6 +66,8 @@ function sceneSvg(width, height, seed, paletteName, opts = {}) {
   const blobs = opts.blobs ?? 4;
   const bokeh = opts.bokeh ?? 26;
   const crowd = opts.crowd ?? true;
+  // Multiplicador de luz: la portada necesita mas presencia que un afiche.
+  const intensity = opts.intensity ?? 1;
   const maxDim = Math.max(width, height);
   const blur = (maxDim * 0.01).toFixed(1);
 
@@ -76,7 +78,7 @@ function sceneSvg(width, height, seed, paletteName, opts = {}) {
     const cy = (0.04 + rand() * 0.55) * height;
     const r = (0.1 + rand() * 0.18) * maxDim;
     const color = i === 0 ? hot : i % 2 === 0 ? mid : deep;
-    const opacity = (0.34 - i * 0.05).toFixed(2);
+    const opacity = Math.min(0.85, (0.34 - i * 0.05) * intensity).toFixed(2);
 
     gradients.push(`<radialGradient id="g${i}" cx="50%" cy="50%" r="50%">
       <stop offset="0%" stop-color="${color}" stop-opacity="0.9"/>
@@ -103,7 +105,7 @@ function sceneSvg(width, height, seed, paletteName, opts = {}) {
 
     return `<g transform="rotate(${angle.toFixed(1)} ${x.toFixed(0)} 0)">
       <polygon points="${(x - spread * 0.08).toFixed(0)},0 ${(x + spread * 0.08).toFixed(0)},0 ${(x + spread).toFixed(0)},${drop.toFixed(0)} ${(x - spread).toFixed(0)},${drop.toFixed(0)}"
-        fill="url(#b${i})" opacity="${(0.3 + rand() * 0.3).toFixed(2)}"/>
+        fill="url(#b${i})" opacity="${Math.min(0.95, (0.3 + rand() * 0.3) * intensity).toFixed(2)}"/>
     </g>`;
   }).join("");
 
@@ -192,9 +194,9 @@ async function main() {
   console.log("Generando imagineria de BARZUO…");
 
   // Portada principal y og por defecto
-  push(await render("hero.jpg", 2400, 1350, 101, "crimson", { beams: 4, blobs: 5, bokeh: 34 }));
-  push(await render("hero-mobile.jpg", 1200, 1600, 137, "crimson", { beams: 3, blobs: 4, bokeh: 22 }));
-  push(await render("og-default.jpg", 1200, 630, 211, "ember", { beams: 3, blobs: 4, bokeh: 18 }));
+  push(await render("hero.jpg", 2400, 1350, 101, "crimson", { beams: 4, blobs: 5, bokeh: 34, intensity: 2.1 }));
+  push(await render("hero-mobile.jpg", 1200, 1600, 137, "crimson", { beams: 3, blobs: 4, bokeh: 22, intensity: 2.1 }));
+  push(await render("og-default.jpg", 1200, 630, 211, "ember", { beams: 3, blobs: 4, bokeh: 18, intensity: 1.9 }));
 
   // Nosotros
   push(await render("about-1.jpg", 1200, 1500, 313, "ember", { beams: 2, blobs: 4, bokeh: 20 }));
