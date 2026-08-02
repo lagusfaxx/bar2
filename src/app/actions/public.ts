@@ -21,14 +21,14 @@ export async function submitContactMessage(
 
   if (!limit.ok) {
     return formError(
-      "Recibimos varios mensajes desde esta conexión. Probá de nuevo en unos minutos.",
+      "Recibimos varios mensajes desde esta conexión. Prueba de nuevo en unos minutos.",
     );
   }
 
   const parsed = contactSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del formulario.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del formulario.", fieldErrors(parsed.error));
   }
 
   const { website, ...data } = parsed.data;
@@ -60,13 +60,13 @@ export async function submitEventRating(
   const limit = rateLimit(`rating:${ip}`, 8, 60 * 30);
 
   if (!limit.ok) {
-    return formError("Demasiadas calificaciones seguidas. Probá más tarde.");
+    return formError("Demasiadas calificaciones seguidas. Prueba más tarde.");
   }
 
   const parsed = eventRatingSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá tu calificación.", fieldErrors(parsed.error));
+    return formError("Revisa tu calificación.", fieldErrors(parsed.error));
   }
 
   const { website, eventId, authorName, rating, comment } = parsed.data;
@@ -91,7 +91,7 @@ export async function submitEventRating(
   // Solo tiene sentido calificar un show al que ya se pudo asistir.
   if (event.startsAt > new Date()) {
     return formError(
-      "Vas a poder calificar este evento una vez que se haya realizado.",
+      "Podrás calificar este evento una vez que se haya realizado.",
     );
   }
 

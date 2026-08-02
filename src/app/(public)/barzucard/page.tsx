@@ -15,7 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const description =
     settings.loyaltyDescription ??
-    `Sumate a ${settings.loyaltyTitle}, el programa de beneficios de ${settings.barName}.`;
+    `Súmate a ${settings.loyaltyTitle}, el programa de beneficios de ${settings.barName}.`;
 
   return {
     title: settings.loyaltyTitle,
@@ -32,23 +32,23 @@ export async function generateMetadata(): Promise<Metadata> {
 const STEPS = [
   {
     icon: Sparkles,
-    title: "Registrate",
-    text: "Creá tu cuenta en un minuto con tu nombre y tu email. Es gratis y no tiene costo de mantenimiento.",
+    title: "Regístrate",
+    text: "Crea tu cuenta en un minuto con tu nombre y tu email. Es gratis y no tiene costo de mantenimiento.",
   },
   {
     icon: QrCode,
-    title: "Recibí tu tarjeta",
-    text: "Te emitimos una BarzuCard con número único y código QR. La llevás en el celular o la retirás impresa en el local.",
+    title: "Recibe tu tarjeta",
+    text: "Te emitimos una BarzuCard con número único y código QR. La llevas en el celular o la retiras impresa en el local.",
   },
   {
     icon: Gift,
-    title: "Canjeá beneficios",
-    text: "Mostrá el QR en la barra y el equipo valida la promoción al instante. Sin cupones ni papeles.",
+    title: "Canjea beneficios",
+    text: "Muestra el QR en la barra y el equipo valida la promoción al instante. Sin cupones ni papeles.",
   },
   {
     icon: TrendingUp,
-    title: "Subí de nivel",
-    text: "Cada canje suma puntos. Al acumularlos pasás a Plata y Oro, con beneficios exclusivos.",
+    title: "Sube de nivel",
+    text: "Cada canje suma puntos. Al acumularlos pasas a Plata y Oro, con beneficios exclusivos.",
   },
 ];
 
@@ -126,7 +126,7 @@ export default async function BarzuCardPage() {
         <div className="container-bz">
           <SectionHeading
             eyebrow="Niveles"
-            title="Cuanto más venís, mejor"
+            title="Cuanto más vienes, mejor"
             lead="Los puntos se acumulan con cada beneficio canjeado en el local."
             align="center"
           />
@@ -181,7 +181,7 @@ export default async function BarzuCardPage() {
         <SectionHeading
           eyebrow="Beneficios"
           title="Promociones vigentes"
-          lead="Estas son las promociones que podés canjear ahora mismo presentando tu BarzuCard."
+          lead="Estas son las promociones que puedes canjear ahora mismo presentando tu BarzuCard."
           action={
             <ButtonLink href="/barzucard/promociones" variant="outline">
               Ver todas
@@ -199,7 +199,7 @@ export default async function BarzuCardPage() {
           </div>
         ) : (
           <p className="card-bz mt-14 p-12 text-center text-muted">
-            Estamos preparando las próximas promociones. Volvé pronto.
+            Estamos preparando las próximas promociones. Vuelve pronto.
           </p>
         )}
       </Section>
@@ -216,7 +216,7 @@ export default async function BarzuCardPage() {
             <SectionHeading
               eyebrow="Es gratis"
               title="Tu BarzuCard te espera"
-              lead="Registrate hoy y empezá a acumular puntos desde tu próxima visita."
+              lead="Regístrate hoy y empieza a acumular puntos desde tu próxima visita."
             />
 
             <Reveal delay={120} className="mt-9 flex flex-wrap gap-4">

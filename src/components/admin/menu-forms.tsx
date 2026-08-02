@@ -163,7 +163,7 @@ export function MenuProductForm({
               inputMode="decimal"
               defaultValue={product?.price}
               placeholder="490"
-              hint="En pesos. Usá coma para los centésimos."
+              hint="En pesos. Usa coma para los centésimos."
               error={state.errors?.price}
             />
 

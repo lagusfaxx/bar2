@@ -27,8 +27,8 @@ export default async function EditarEventoPage({
         title={event.title}
         description={
           creado
-            ? "El evento se creó correctamente. Ya podés completar el resto de los datos."
-            : "Editá los datos del evento y guardá los cambios."
+            ? "El evento se creó correctamente. Ya puedes completar el resto de los datos."
+            : "Edita los datos del evento y guarda los cambios."
         }
         back={{ href: "/admin/eventos", label: "Volver a la cartelera" }}
         action={

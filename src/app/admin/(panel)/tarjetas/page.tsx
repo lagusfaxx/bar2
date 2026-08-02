@@ -87,7 +87,7 @@ export default async function AdminTarjetasPage({
             title={query ? "Sin resultados" : "Todavía no hay socios"}
             description={
               query
-                ? "Probá con otro nombre, email o número de tarjeta."
+                ? "Prueba con otro nombre, email o número de tarjeta."
                 : "Cuando alguien se registre en la web, su BarzuCard aparece acá."
             }
           />

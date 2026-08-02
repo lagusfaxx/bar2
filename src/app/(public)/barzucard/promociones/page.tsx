@@ -35,7 +35,7 @@ export default async function PromocionesPage() {
       <PageHeader
         eyebrow={settings.loyaltyTitle}
         title="Promociones vigentes"
-        lead="Presentá el QR de tu BarzuCard en la barra y el equipo valida el beneficio al instante."
+        lead="Presenta el QR de tu BarzuCard en la barra y el equipo valida el beneficio al instante."
         image="/demo/promo-5.jpg"
       >
         <ButtonLink href="/barzucard/tarjeta" size="lg">
@@ -54,7 +54,7 @@ export default async function PromocionesPage() {
           </div>
         ) : (
           <p className="card-bz p-12 text-center text-muted">
-            No hay promociones activas en este momento. Volvé pronto.
+            No hay promociones activas en este momento. Vuelve pronto.
           </p>
         )}
 

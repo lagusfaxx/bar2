@@ -48,7 +48,7 @@ export default async function GaleriaPage() {
           />
         ) : (
           <p className="card-bz p-12 text-center text-muted">
-            Todavía no cargamos fotos. Volvé pronto.
+            Todavía no cargamos fotos. Vuelve pronto.
           </p>
         )}
       </Section>

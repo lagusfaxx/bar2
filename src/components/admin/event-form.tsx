@@ -115,7 +115,7 @@ export function EventForm({ event }: { event?: EventFormValues }) {
                 name="description"
                 rows={10}
                 defaultValue={event?.description ?? ""}
-                placeholder="Contá de qué se trata la noche. Separá los párrafos con una línea en blanco."
+                placeholder="Cuenta de qué se trata la noche. Separa los párrafos con una línea en blanco."
                 hint="Se muestra en la página del evento."
                 error={state.errors?.description}
               />
@@ -124,7 +124,7 @@ export function EventForm({ event }: { event?: EventFormValues }) {
 
           <Panel
             title="Fecha y entrada"
-            description="Los horarios se cargan en hora de Montevideo."
+            description="Los horarios se cargan en hora de Santiago."
           >
             <div className="flex flex-col gap-5">
               <div className="grid gap-5 sm:grid-cols-3">
@@ -167,7 +167,7 @@ export function EventForm({ event }: { event?: EventFormValues }) {
                     inputMode="decimal"
                     defaultValue={event?.price}
                     placeholder="650"
-                    hint="En pesos. Usá coma para los centésimos."
+                    hint="En pesos. Usa coma para los centésimos."
                     error={state.errors?.price}
                   />
                   <Field
@@ -195,7 +195,7 @@ export function EventForm({ event }: { event?: EventFormValues }) {
 
           <Panel
             title="SEO del evento"
-            description="Si lo dejás vacío usamos el título y el resumen."
+            description="Si lo dejas vacío usamos el título y el resumen."
           >
             <div className="flex flex-col gap-5">
               <Field
@@ -219,7 +219,7 @@ export function EventForm({ event }: { event?: EventFormValues }) {
                 preset="cover"
                 aspect="aspect-16/9"
                 defaultValue={event?.ogImageUrl}
-                hint="Recomendado 1200×630. Si no cargás una, usamos el afiche."
+                hint="Recomendado 1200×630. Si no cargas una, usamos el afiche."
               />
             </div>
           </Panel>

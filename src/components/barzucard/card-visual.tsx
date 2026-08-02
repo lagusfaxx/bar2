@@ -109,7 +109,7 @@ export function CardVisual({
             {issuedAt && (
               <p className="mt-2 text-[0.5rem] tracking-[0.16em] text-muted-dark uppercase">
                 Miembro desde{" "}
-                {new Intl.DateTimeFormat("es-UY", {
+                {new Intl.DateTimeFormat("es-CL", {
                   month: "2-digit",
                   year: "numeric",
                 }).format(issuedAt)}

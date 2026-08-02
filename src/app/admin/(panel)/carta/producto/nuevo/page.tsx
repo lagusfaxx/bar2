@@ -27,7 +27,7 @@ export default async function NuevoProductoPage({
     <>
       <AdminHeader
         title="Nuevo producto"
-        description="Cargá el producto y elegí en qué categoría se muestra."
+        description="Carga el producto y elige en qué categoría se muestra."
         back={{ href: "/admin/carta", label: "Volver a la carta" }}
       />
       <MenuProductForm

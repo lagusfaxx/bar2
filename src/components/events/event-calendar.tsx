@@ -306,7 +306,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                   </ul>
                 ) : (
                   <p className="card-bz p-6 text-sm text-muted">
-                    No hay eventos programados para este mes. Probá con el mes
+                    No hay eventos programados para este mes. Prueba con el mes
                     siguiente.
                   </p>
                 )}

@@ -14,7 +14,7 @@ export default function NuevoEventoPage() {
     <>
       <AdminHeader
         title="Nuevo evento"
-        description="Cargá el show y publicalo cuando esté listo."
+        description="Carga el show y publicalo cuando esté listo."
         back={{ href: "/admin/eventos", label: "Volver a la cartelera" }}
       />
 

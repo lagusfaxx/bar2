@@ -379,10 +379,10 @@ model SiteSettings {
   aboutSecondaryImageUrl String?
 
   // Contacto y ubicacion
-  address     String @default("Av. Presidente Jose Batlle y Ordonez 3714")
-  addressCity String @default("Montevideo, Uruguay")
-  latitude    Float  @default(-34.8544)
-  longitude   Float  @default(-56.1712)
+  address     String @default("Av. Italia 1348, Providencia")
+  addressCity String @default("Santiago, Chile")
+  latitude    Float  @default(-33.4392)
+  longitude   Float  @default(-70.6250)
   phone       String?
   whatsapp    String?
   email       String?
@@ -393,7 +393,7 @@ model SiteSettings {
 
   // SEO global
   seoTitle          String  @default("BARZUO Restobar · Musica en vivo, tributos y cocteleria")
-  seoDescription    String  @default("BARZUO Restobar en Montevideo. Cartelera de shows en vivo, tributos, DJ y la mejor cocteleria de autor.") @db.Text
+  seoDescription    String  @default("BARZUO Restobar en Santiago. Cartelera de shows en vivo, tributos, DJ y la mejor cocteleria de autor.") @db.Text
   seoImageUrl       String?
   seoKeywords       String?
   googleAnalyticsId String?

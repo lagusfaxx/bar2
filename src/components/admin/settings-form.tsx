@@ -128,7 +128,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               preset="logo"
               aspect="aspect-3/1"
               defaultValue={settings.logoUrl}
-              hint="PNG o SVG con fondo transparente. Si no cargás ninguno, usamos el logotipo tipográfico."
+              hint="PNG o SVG con fondo transparente. Si no cargas ninguno, usamos el logotipo tipográfico."
             />
 
             <ImageField
@@ -205,7 +205,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               name="heroVideoUrl"
               defaultValue={settings.heroVideoUrl ?? ""}
               placeholder="https://…/loop.mp4"
-              hint="Si lo completás, reemplaza a la imagen de fondo."
+              hint="Si lo completas, reemplaza a la imagen de fondo."
               error={state.errors?.heroVideoUrl}
             />
 
@@ -265,7 +265,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               name="aboutBody"
               rows={12}
               defaultValue={settings.aboutBody ?? ""}
-              hint="Separá los párrafos con una línea en blanco."
+              hint="Separa los párrafos con una línea en blanco."
               error={state.errors?.aboutBody}
             />
 
@@ -339,7 +339,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 label="WhatsApp"
                 name="whatsapp"
                 defaultValue={settings.whatsapp ?? ""}
-                placeholder="+59899123456"
+                placeholder="+56912345678"
                 error={state.errors?.whatsapp}
               />
               <Field
@@ -404,7 +404,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               name="seoKeywords"
               maxLength={400}
               defaultValue={settings.seoKeywords ?? ""}
-              placeholder="bar montevideo, música en vivo, tributos"
+              placeholder="bar santiago, música en vivo, tributos"
               hint="Separadas por comas."
               error={state.errors?.seoKeywords}
             />
@@ -428,7 +428,7 @@ export function SettingsForm({ settings }: { settings: Settings }) {
               label="Programa activo"
               name="loyaltyEnabled"
               defaultChecked={settings.loyaltyEnabled}
-              hint="Si lo desactivás, se oculta de la web pública."
+              hint="Si lo desactivas, se oculta de la web pública."
             />
 
             <Field

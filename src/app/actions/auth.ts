@@ -43,14 +43,14 @@ export async function loginPanel(
 
   if (!limit.ok) {
     return formError(
-      `Demasiados intentos. Probá de nuevo en ${Math.ceil(limit.retryAfterSeconds / 60)} minutos.`,
+      `Demasiados intentos. Prueba de nuevo en ${Math.ceil(limit.retryAfterSeconds / 60)} minutos.`,
     );
   }
 
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos.", fieldErrors(parsed.error));
+    return formError("Revisa los datos.", fieldErrors(parsed.error));
   }
 
   const user = await prisma.user.findUnique({
@@ -115,13 +115,13 @@ export async function registerMember(
   const limit = rateLimit(`register:${ip}`, 5, 60 * 60);
 
   if (!limit.ok) {
-    return formError("Demasiados registros desde esta conexión. Probá más tarde.");
+    return formError("Demasiados registros desde esta conexión. Prueba más tarde.");
   }
 
   const parsed = memberRegisterSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del formulario.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del formulario.", fieldErrors(parsed.error));
   }
 
   const { email, password, fullName, phone, birthDate, acceptsNews } = parsed.data;
@@ -133,7 +133,7 @@ export async function registerMember(
 
   if (existing) {
     return formError(
-      "Ya existe una cuenta con ese email. Iniciá sesión para ver tu tarjeta.",
+      "Ya existe una cuenta con ese email. Inicia sesión para ver tu tarjeta.",
       { email: "Este email ya está registrado" },
     );
   }
@@ -175,13 +175,13 @@ export async function loginMember(
   const limit = rateLimit(`login-member:${ip}`, 10, 60 * 10);
 
   if (!limit.ok) {
-    return formError("Demasiados intentos. Probá de nuevo en unos minutos.");
+    return formError("Demasiados intentos. Prueba de nuevo en unos minutos.");
   }
 
   const parsed = loginSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos.", fieldErrors(parsed.error));
+    return formError("Revisa los datos.", fieldErrors(parsed.error));
   }
 
   const member = await prisma.member.findUnique({

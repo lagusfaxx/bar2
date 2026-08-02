@@ -21,7 +21,7 @@ import type { EventCategory, PromotionType } from "../src/generated/prisma/enums
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
 
-const VENUE_TZ = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Montevideo";
+const VENUE_TZ = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
 
 // --- Utilidades de fecha -----------------------------------------------------
 
@@ -58,7 +58,7 @@ function zoneOffsetMs(instant: Date) {
 /**
  * Convierte una hora de pared del local en el instante UTC correspondiente.
  * Sin esto, un show cargado a las 22:30 se guardaria como 22:30 UTC y la web lo
- * mostraria a las 19:30 en Montevideo.
+ * mostraria a las 19:30 en Santiago.
  */
 function venueTime(year: number, month: number, day: number, hour: number, minute = 0) {
   const guess = Date.UTC(year, month, day, hour, minute);
@@ -158,7 +158,7 @@ const SETTINGS = {
   heroTitle: "BARZUO",
   heroEyebrow: "EST. 2024",
   heroSubtitle:
-    "Música en vivo, tributos y coctelería de autor en el corazón de Montevideo. Abrimos cuando cae el sol y cerramos cuando se apaga la última canción.",
+    "Música en vivo, tributos y coctelería de autor en el corazón de Santiago. Abrimos cuando cae el sol y cerramos cuando se apaga la última canción.",
   heroCtaLabel: "Ver cartelera",
   heroCtaHref: "/eventos",
   heroCtaSecondaryLabel: "Ver la carta",
@@ -167,7 +167,7 @@ const SETTINGS = {
 
   aboutTitle: "Un bar hecho de canciones",
   aboutLead:
-    "BARZUO nació en 2024 con una idea simple: que en Montevideo hubiera un lugar donde la música en vivo no fuera el fondo, sino el motivo.",
+    "BARZUO nació en 2024 con una idea simple: que en Santiago hubiera un lugar donde la música en vivo no fuera el fondo, sino el motivo.",
   aboutBody: `Empezamos con un escenario chico, dos parlantes prestados y una banda de amigos tocando covers un jueves de invierno. No entró casi nadie. La semana siguiente entraron veinte personas, y a la otra no quedaba mesa libre.
 
 Hoy BARZUO es tres cosas a la vez: un restobar donde se come bien antes del show, un club donde suenan los tributos que la gente se sabe de memoria, y un lounge donde la noche puede terminar tranquila, con un buen destilado y la conversación justa.
@@ -176,30 +176,30 @@ Nuestra cocina trabaja con producto local y nuestra barra apuesta a la cocteler�
   aboutImageUrl: "/demo/about-1.jpg",
   aboutSecondaryImageUrl: "/demo/about-2.jpg",
 
-  address: "Av. Presidente José Batlle y Ordóñez 3714",
-  addressCity: "Montevideo, Uruguay",
-  latitude: -34.86086,
-  longitude: -56.16884,
-  phone: "+598 2487 3714",
-  whatsapp: "+59899123456",
+  address: "Av. Italia 1348",
+  addressCity: "Providencia, Santiago",
+  latitude: -33.43739,
+  longitude: -70.62742,
+  phone: "+56 2 2487 3714",
+  whatsapp: "+56912345678",
   email: "hola@barzuo.com",
 
   reservationsNote:
-    "Reservamos mesas hasta 30 minutos antes del show. Para grupos de más de 8 personas, escribinos por WhatsApp.",
+    "Reservamos mesas hasta 30 minutos antes del show. Para grupos de más de 8 personas, escríbenos por WhatsApp.",
   footerNote:
-    "Restobar, lounge y club en Montevideo. Shows en vivo, tributos y coctelería de autor todas las semanas.",
+    "Restobar, lounge y club en Santiago. Shows en vivo, tributos y coctelería de autor todas las semanas.",
 
   seoTitle: "BARZUO Restobar · Música en vivo, tributos y coctelería",
   seoDescription:
-    "Cartelera de shows en vivo, tributos y DJ sets en Montevideo. Coctelería de autor, cocina de bar y las mejores noches de la semana en BARZUO.",
+    "Cartelera de shows en vivo, tributos y DJ sets en Santiago. Coctelería de autor, cocina de bar y las mejores noches de la semana en BARZUO.",
   seoImageUrl: "/demo/og-default.jpg",
   seoKeywords:
-    "bar montevideo, música en vivo montevideo, tributos, restobar, coctelería, shows en vivo, barzuo",
+    "bar santiago, música en vivo santiago, tributos, restobar, coctelería, shows en vivo, barzuo",
 
   loyaltyEnabled: true,
   loyaltyTitle: "BarzuCard",
   loyaltyDescription:
-    "Registrate y recibí tu BarzuCard con QR y número único. Presentala en el local para canjear descuentos, 2x1 y cortesías, y sumá puntos en cada visita.",
+    "Regístrate y recibe tu BarzuCard con QR y número único. Preséntala en el local para canjear descuentos, 2x1 y cortesías, y suma puntos en cada visita.",
   loyaltyTerms: `La BarzuCard es personal e intransferible y se emite sin costo al registrarse en barzuo.com.
 
 Cada promoción indica sus condiciones: vigencia, días habilitados y cantidad de usos por tarjeta. Los beneficios no son acumulables entre sí ni canjeables por dinero.
@@ -208,10 +208,10 @@ El canje se realiza en el local presentando el QR o el número de tarjeta al per
 };
 
 const SOCIAL = [
-  { platform: "instagram", label: "@barzuo.uy", url: "https://instagram.com/barzuo.uy" },
+  { platform: "instagram", label: "@barzuo.cl", url: "https://instagram.com/barzuo.cl" },
   { platform: "facebook", label: "BARZUO Restobar", url: "https://facebook.com/barzuo" },
   { platform: "tiktok", label: "@barzuo", url: "https://tiktok.com/@barzuo" },
-  { platform: "whatsapp", label: "Reservas por WhatsApp", url: "https://wa.me/59899123456" },
+  { platform: "whatsapp", label: "Reservas por WhatsApp", url: "https://wa.me/56912345678" },
   { platform: "spotify", label: "Playlist BARZUO", url: "https://open.spotify.com" },
 ];
 
@@ -252,10 +252,10 @@ const EVENTS: SeedEvent[] = [
     artist: "Nada Personal",
     category: "TRIBUTO",
     excerpt:
-      "Un repaso completo por la discografía de Soda, de Signos a Canción Animal, con la banda que mejor lo hace en Montevideo.",
-    description: `Nada Personal lleva ocho años recorriendo el país con el tributo a Soda Stereo más fiel del Río de la Plata. Esta noche repasan los discos que marcaron a tres generaciones: Signos, Doble Vida y Canción Animal, completos y en orden.
+      "Un repaso completo por la discografía de Soda, de Signos a Canción Animal, con la banda que mejor lo hace en Santiago.",
+    description: `Nada Personal lleva ocho años recorriendo el país con el tributo a Soda Stereo más fiel de Chile. Esta noche repasan los discos que marcaron a tres generaciones: Signos, Doble Vida y Canción Animal, completos y en orden.
 
-El show arranca puntual a las 22:30. La cocina funciona desde las 19:00, así que conviene venir temprano, cenar tranquilo y agarrar lugar cerca del escenario.
+El show arranca puntual a las 22:30. La cocina funciona desde las 19:00, así que conviene llegar temprano, cenar tranquilo y tomar lugar cerca del escenario.
 
 Formación: guitarra y voz, bajo, batería y teclados. Sonido e iluminación de sala.`,
     poster: 1,
@@ -264,7 +264,7 @@ Formación: guitarra y voz, bajo, batería y teclados. Sonido e iluminación de 
     hour: 22,
     minute: 30,
     isFree: false,
-    price: 65000,
+    price: 1500000,
     featured: true,
     capacity: 180,
   },
@@ -279,7 +279,7 @@ Formación: guitarra y voz, bajo, batería y teclados. Sonido e iluminación de 
 
 Entrada libre. Se arma lista por orden de llegada desde las 21:00.
 
-Promo de la noche: 2x1 en chopps de 21:00 a 23:00 presentando la BarzuCard.`,
+Promo de la noche: 2x1 en schops de 21:00 a 23:00 presentando la BarzuCard.`,
     poster: 3,
     weekday: 4,
     weeksOffset: 0,
@@ -297,7 +297,7 @@ Promo de la noche: 2x1 en chopps de 21:00 a 23:00 presentando la BarzuCard.`,
 
 Britpop, grunge, trip hop, house de la primera camada y algún clásico latino bien elegido.
 
-Arranca a las 23:30, después de la cena. Entrada libre para quienes ya estén en el local.`,
+Arranca a las 23:30, después de la cena. Entrada liberada para quienes ya estén en el local.`,
     poster: 4,
     weekday: 5,
     weeksOffset: 0,
@@ -308,11 +308,11 @@ Arranca a las 23:30, después de la cena. Entrada libre para quienes ya estén e
   {
     slug: "noche-de-tributo-queen",
     title: "Tributo a Queen",
-    artist: "Killer Queen UY",
+    artist: "Killer Queen CL",
     category: "TRIBUTO",
     excerpt:
       "Bohemian Rhapsody, Somebody to Love y todo el repertorio que la gente canta de memoria, con banda completa y coros en vivo.",
-    description: `Killer Queen UY reconstruye el sonido de Queen sin pistas ni playback: cuatro músicos, coros a tres voces y un repertorio que no da respiro.
+    description: `Killer Queen CL reconstruye el sonido de Queen sin pistas ni playback: cuatro músicos, coros a tres voces y un repertorio que no da respiro.
 
 Hacen el set clásico de estadio — We Will Rock You, Radio Ga Ga, Under Pressure — y cierran, como corresponde, con Bohemian Rhapsody completa.
 
@@ -322,20 +322,20 @@ Entrada anticipada disponible hasta el día anterior al show.`,
     weeksOffset: 1,
     hour: 23,
     isFree: false,
-    price: 70000,
+    price: 1800000,
     featured: true,
     capacity: 200,
   },
   {
-    slug: "tributo-charly-garcia",
-    title: "Tributo a Charly García",
-    artist: "Say No More Trío",
+    slug: "tributo-los-prisioneros",
+    title: "Tributo a Los Prisioneros",
+    artist: "La Voz de los 80",
     category: "TRIBUTO",
     excerpt:
-      "De Sui Generis a Clics Modernos. Un recorrido por cincuenta años de la mejor canción argentina.",
-    description: `Say No More Trío arma un recorrido cronológico por la obra de Charly: los años de Sui Generis, el salto con Serú Girán y la etapa solista que arranca con Yendo de la cama al living.
+      "De La voz de los 80 a Corazones. Un recorrido por la banda que le puso letra a toda una generación.",
+    description: `La Voz de los 80 arma un recorrido cronológico por la obra de Los Prisioneros: los años de San Miguel, el salto de Pateando piedras y el giro pop de Corazones.
 
-Formato acústico ampliado: piano, bajo, batería y voz.
+Formato banda completa: guitarra y voz, bajo, batería y teclados.
 
 Cupos limitados — este show se agota siempre.`,
     poster: 5,
@@ -343,7 +343,7 @@ Cupos limitados — este show se agota siempre.`,
     weeksOffset: 2,
     hour: 22,
     isFree: false,
-    price: 60000,
+    price: 1400000,
     featured: true,
     capacity: 150,
   },
@@ -365,7 +365,7 @@ Recomendado para mayores de 16 años.`,
     hour: 21,
     minute: 30,
     isFree: false,
-    price: 45000,
+    price: 1000000,
   },
   {
     slug: "fiesta-aniversario-barzuo",
@@ -404,18 +404,18 @@ Show en dos sets de 45 minutos.`,
     weeksOffset: 4,
     hour: 22,
     isFree: false,
-    price: 50000,
+    price: 1200000,
   },
   {
-    slug: "tributo-los-redondos",
-    title: "Tributo a Patricio Rey",
-    artist: "Ricota Sur",
+    slug: "tributo-los-tres",
+    title: "Tributo a Los Tres",
+    artist: "Déjate Caer",
     category: "TRIBUTO",
     excerpt:
-      "El ritual ricotero en Montevideo: banda completa, coros del público y clásicos de punta a punta.",
-    description: `Ricota Sur trae el repertorio completo de Patricio Rey y sus Redonditos de Ricota, con banda de siete músicos y sección de vientos.
+      "El ritual noventero en Santiago: banda completa, coros del público y clásicos de punta a punta.",
+    description: `Déjate Caer trae el repertorio completo de Los Tres, con banda de siete músicos y sección de vientos para los arreglos de La Yein Fonda.
 
-Todo un palo, Un poco de amor francés, Jijiji y lo que corresponde.
+Pájaros de fuego, He barrido el sol, Déjate caer y lo que corresponde.
 
 Este show suele agotar entradas: conviene comprar anticipada.`,
     poster: 9,
@@ -423,7 +423,7 @@ Este show suele agotar entradas: conviene comprar anticipada.`,
     weeksOffset: -2,
     hour: 22,
     isFree: false,
-    price: 65000,
+    price: 1500000,
   },
   {
     slug: "after-office-barzuo",
@@ -431,8 +431,8 @@ Este show suele agotar entradas: conviene comprar anticipada.`,
     artist: "DJ residente",
     category: "FIESTA",
     excerpt:
-      "Salida del trabajo directo al bar: tapas, chopps a precio de happy hour y música hasta la medianoche.",
-    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, chopps y tragos clásicos a precio de happy hour, y el DJ residente en formato lounge.
+      "Salida del trabajo directo al bar: tapas, schops a precio de happy hour y música hasta la medianoche.",
+    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, schops y tragos clásicos a precio de happy hour, y el DJ residente en formato lounge.
 
 Sin entrada. Se recomienda reservar mesa si vienen en grupo.`,
     poster: 10,
@@ -470,42 +470,42 @@ const MENU: SeedCategory[] = [
       {
         name: "Zuo Negroni",
         description: "Gin de la casa, vermouth rosso, bitter y un twist de naranja quemada.",
-        price: 49000,
+        price: 890000,
         featured: true,
         image: 1,
       },
       {
         name: "Humo y Miel",
         description: "Mezcal, miel de eucalipto, lima y un velo de humo de roble.",
-        price: 52000,
+        price: 950000,
         featured: true,
         image: 2,
         tags: ["ahumado"],
       },
       {
-        name: "Batlle 3714",
+        name: "Italia 1348",
         description: "Whisky, licor de café, naranja y espuma de cacao. El trago de la casa.",
-        price: 55000,
+        price: 990000,
         featured: true,
         image: 3,
       },
       {
         name: "Jardín de Invierno",
         description: "Gin, pepino, albahaca fresca y tónica artesanal.",
-        price: 46000,
+        price: 850000,
         image: 4,
         tags: ["refrescante"],
       },
       {
         name: "Clavel Rojo",
         description: "Vodka, frutos rojos, hibisco y lima.",
-        price: 46000,
+        price: 850000,
         image: 5,
       },
       {
         name: "Última Canción",
         description: "Maracuyá, jengibre, lima y soda. Sin alcohol, con la misma vuelta.",
-        price: 32000,
+        price: 550000,
         tags: ["sin alcohol"],
       },
     ],
@@ -517,12 +517,12 @@ const MENU: SeedCategory[] = [
     icon: "Beer",
     image: 2,
     products: [
-      { name: "Chopp Rubia 500cc", description: "Lager clásica, tirada del día.", price: 26000, image: 6 },
-      { name: "Chopp IPA 500cc", description: "Amarga, cítrica y bien lupulada.", price: 30000, featured: true, image: 7 },
-      { name: "Chopp Negra 500cc", description: "Stout suave, con notas de café y chocolate.", price: 30000 },
-      { name: "Artesanal de la semana", description: "Preguntale al barman qué hay tirado hoy.", price: 32000 },
-      { name: "Cerveza en botella 340cc", description: "Nacional, bien fría.", price: 21000 },
-      { name: "Cerveza sin alcohol", description: "Botella 340cc.", price: 19000, tags: ["sin alcohol"] },
+      { name: "Schop Rubio 500cc", description: "Lager clásica, tirada del día.", price: 450000, image: 6 },
+      { name: "Schop IPA 500cc", description: "Amarga, cítrica y bien lupulada.", price: 550000, featured: true, image: 7 },
+      { name: "Schop Negro 500cc", description: "Stout suave, con notas de café y chocolate.", price: 550000 },
+      { name: "Artesanal de la semana", description: "Pregúntale al barman qué hay de barril hoy.", price: 590000 },
+      { name: "Cerveza en botella 330cc", description: "Nacional, bien helada.", price: 400000 },
+      { name: "Cerveza sin alcohol", description: "Botella 330cc.", price: 380000, tags: ["sin alcohol"] },
     ],
   },
   {
@@ -532,12 +532,12 @@ const MENU: SeedCategory[] = [
     icon: "GlassWater",
     image: 3,
     products: [
-      { name: "Whisky single malt 12 años", description: "Por copa de 50cc.", price: 62000, image: 8 },
-      { name: "Whisky blended", description: "Por copa de 50cc.", price: 38000 },
-      { name: "Gin premium", description: "Con tónica y garnish a elección.", price: 45000 },
-      { name: "Ron añejo", description: "Por copa de 50cc.", price: 42000 },
-      { name: "Mezcal artesanal", description: "Con naranja y sal de gusano.", price: 58000, tags: ["ahumado"] },
-      { name: "Grappamiel", description: "La de siempre, para cerrar la noche.", price: 24000 },
+      { name: "Whisky single malt 12 años", description: "Por copa de 50cc.", price: 1190000, image: 8 },
+      { name: "Whisky blended", description: "Por copa de 50cc.", price: 690000 },
+      { name: "Gin premium", description: "Con tónica y garnish a elección.", price: 850000 },
+      { name: "Ron añejo", description: "Por copa de 50cc.", price: 750000 },
+      { name: "Mezcal artesanal", description: "Con naranja y sal de gusano.", price: 1050000, tags: ["ahumado"] },
+      { name: "Pisco reservado", description: "Por copa de 50cc, para cerrar la noche.", price: 650000 },
     ],
   },
   {
@@ -550,13 +550,13 @@ const MENU: SeedCategory[] = [
       {
         name: "Tabla BARZUO",
         description: "Fiambres, quesos, aceitunas, frutos secos y pan de masa madre. Para 3 o 4.",
-        price: 118000,
+        price: 2290000,
         featured: true,
         image: 9,
       },
-      { name: "Tabla de quesos", description: "Cinco quesos, dulce de leche y nueces. Para 2 o 3.", price: 92000, image: 10 },
-      { name: "Tabla vegetariana", description: "Hummus, babaganoush, vegetales asados y pan pita.", price: 84000, tags: ["vegetariano"] },
-      { name: "Picada criolla", description: "Chorizo, morcilla, provolone y papas rústicas.", price: 105000 },
+      { name: "Tabla de quesos", description: "Cinco quesos, manjar y nueces. Para 2 o 3.", price: 1890000, image: 10 },
+      { name: "Tabla vegetariana", description: "Hummus, babaganoush, vegetales asados y pan pita.", price: 1690000, tags: ["vegetariano"] },
+      { name: "Tabla chilena", description: "Longaniza de Chillán, queso de cabra, aceitunas y papas rústicas.", price: 1990000 },
     ],
   },
   {
@@ -566,12 +566,12 @@ const MENU: SeedCategory[] = [
     icon: "ChefHat",
     image: 5,
     products: [
-      { name: "Hamburguesa BARZUO", description: "Doble medallón, cheddar, panceta y salsa de la casa. Con papas.", price: 78000, featured: true, image: 11 },
-      { name: "Milanesa napolitana", description: "Con papas fritas y ensalada. Porción generosa.", price: 72000, image: 12 },
-      { name: "Bondiola braseada", description: "Ocho horas de cocción, puré rústico y cebolla caramelizada.", price: 85000 },
-      { name: "Rabas", description: "Calamar rebozado, alioli de limón.", price: 68000 },
-      { name: "Bowl vegetariano", description: "Quinoa, vegetales asados, palta y semillas.", price: 62000, tags: ["vegetariano", "sin gluten"] },
-      { name: "Papas BARZUO", description: "Con cheddar, panceta y verdeo.", price: 48000, image: 13 },
+      { name: "Hamburguesa BARZUO", description: "Doble medallón, cheddar, tocino y salsa de la casa. Con papas fritas.", price: 1390000, featured: true, image: 11 },
+      { name: "Lomo a lo pobre", description: "Con papas fritas, huevo frito y cebolla caramelizada.", price: 1350000, image: 12 },
+      { name: "Costillar braseado", description: "Ocho horas de cocción, puré rústico y cebolla caramelizada.", price: 1590000 },
+      { name: "Calamares apanados", description: "Con alioli de limón.", price: 1290000 },
+      { name: "Bowl vegetariano", description: "Quinoa, vegetales asados, palta y semillas.", price: 1190000, tags: ["vegetariano", "sin gluten"] },
+      { name: "Papas BARZUO", description: "Con cheddar, tocino y cebollín.", price: 890000, image: 13 },
     ],
   },
   {
@@ -581,10 +581,10 @@ const MENU: SeedCategory[] = [
     icon: "Wine",
     image: 6,
     products: [
-      { name: "Tannat reserva (copa)", description: "El clásico uruguayo.", price: 34000, image: 14 },
-      { name: "Tannat reserva (botella)", description: "750cc.", price: 145000 },
-      { name: "Sauvignon blanc (copa)", description: "Fresco y cítrico.", price: 32000 },
-      { name: "Espumante brut (copa)", description: "Método tradicional.", price: 38000 },
+      { name: "Carménère reserva (copa)", description: "El emblema chileno.", price: 650000, image: 14 },
+      { name: "Carménère reserva (botella)", description: "750cc.", price: 2800000 },
+      { name: "Sauvignon blanc (copa)", description: "Del valle de Casablanca, fresco y cítrico.", price: 600000 },
+      { name: "Espumante brut (copa)", description: "Método tradicional.", price: 700000 },
     ],
   },
   {
@@ -594,10 +594,10 @@ const MENU: SeedCategory[] = [
     icon: "CupSoda",
     image: 7,
     products: [
-      { name: "Limonada de la casa", description: "Con menta y jengibre.", price: 24000, tags: ["sin alcohol"] },
-      { name: "Refrescos", description: "Línea completa, 500cc.", price: 16000, tags: ["sin alcohol"] },
-      { name: "Agua mineral", description: "Con o sin gas, 500cc.", price: 13000, tags: ["sin alcohol"] },
-      { name: "Café expreso", description: "De grano tostado en Montevideo.", price: 15000, tags: ["sin alcohol"] },
+      { name: "Limonada de la casa", description: "Con menta y jengibre.", price: 450000, tags: ["sin alcohol"] },
+      { name: "Bebidas", description: "Línea completa, 500cc.", price: 300000, tags: ["sin alcohol"] },
+      { name: "Agua mineral", description: "Con o sin gas, 500cc.", price: 280000, tags: ["sin alcohol"] },
+      { name: "Café expreso", description: "De grano tostado en Santiago.", price: 290000, tags: ["sin alcohol"] },
     ],
   },
 ];
@@ -635,9 +635,9 @@ const PROMOTIONS: Array<{
   maxTotal?: number;
 }> = [
   {
-    slug: "2x1-en-chopps",
-    title: "2x1 en chopps",
-    description: "Llevate dos chopps de 500cc pagando uno, de 21:00 a 23:00.",
+    slug: "2x1-en-schops",
+    title: "2x1 en schops",
+    description: "Llévate dos schops de 500cc pagando uno, de 21:00 a 23:00.",
     terms:
       "Válido de martes a jueves, de 21:00 a 23:00. Un uso por tarjeta por noche. No acumulable con otras promociones.",
     type: "TWO_FOR_ONE",
@@ -674,12 +674,12 @@ const PROMOTIONS: Array<{
   },
   {
     slug: "entrada-con-descuento",
-    title: "$200 off en la entrada del show",
+    title: "$3.000 off en la entrada del show",
     description: "Descuento fijo sobre el valor de la entrada de cualquier show con costo.",
     terms:
       "Válido para shows con entrada paga. Un uso por tarjeta por show. Presentar antes de abonar.",
     type: "AMOUNT_OFF",
-    value: 20000,
+    value: 300000,
     image: 4,
     maxPerCard: 0,
     pointsReward: 25,

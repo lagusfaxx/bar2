@@ -102,8 +102,8 @@ export default async function MiTarjetaPage({
         title="Tu BarzuCard"
         lead={
           bienvenida
-            ? "¡Bienvenido al programa! Esta es tu tarjeta: mostrá el QR en la barra para canjear beneficios."
-            : "Mostrá este QR en la barra para canjear tus beneficios."
+            ? "¡Bienvenido al programa! Esta es tu tarjeta: muestra el QR en la barra para canjear beneficios."
+            : "Muestra este QR en la barra para canjear tus beneficios."
         }
       />
 
@@ -149,7 +149,7 @@ export default async function MiTarjetaPage({
 
             {card.status !== "ACTIVE" && (
               <p className="mt-6 border border-crimson/50 bg-crimson/10 px-4 py-3 text-sm text-crimson-bright">
-                Tu tarjeta está suspendida. Escribinos para regularizarla.
+                Tu tarjeta está suspendida. Escríbenos para regularizarla.
               </p>
             )}
           </div>
@@ -218,7 +218,7 @@ export default async function MiTarjetaPage({
 
               {card.redemptions.length === 0 ? (
                 <p className="card-bz mt-4 p-6 text-sm text-muted">
-                  Todavía no canjeaste ningún beneficio. Mostrá tu QR en la
+                  Todavía no canjeaste ningún beneficio. Muestra tu QR en la
                   barra para estrenar la tarjeta.
                 </p>
               ) : (
@@ -258,16 +258,16 @@ export default async function MiTarjetaPage({
       {/* Promociones disponibles para este socio */}
       <Section className="print-hidden container-bz border-t border-line">
         <SectionHeading
-          eyebrow="Disponibles para vos"
+          eyebrow="Disponibles para ti"
           title={
             available.length > 0
-              ? "Beneficios que podés canjear hoy"
+              ? "Beneficios que puedes canjear hoy"
               : "Sin beneficios disponibles ahora"
           }
           lead={
             available.length > 0
-              ? `Mostrá el QR de tu ${settings.loyaltyTitle} en la barra.`
-              : "Volvé a mirar más adelante: las promociones cambian seguido."
+              ? `Muestra el QR de tu ${settings.loyaltyTitle} en la barra.`
+              : "Vuelve a mirar más adelante: las promociones cambian seguido."
           }
         />
 

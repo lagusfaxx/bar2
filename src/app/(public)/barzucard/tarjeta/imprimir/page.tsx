@@ -52,14 +52,14 @@ export default async function ImprimirTarjetaPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Imprimí esta página en tamaño real (sin ajuste de escala) sobre papel
-          grueso o cartulina. Recortá por el borde y, si querés que dure,
+          Imprime esta página en tamaño real (sin ajuste de escala) sobre papel
+          grueso o cartulina. Recorta por el borde y, si quieres que dure,
           plastificala. El QR sigue funcionando impreso.
         </p>
 
         <p className="mt-4 text-xs text-muted-dark">
-          Consejo: en el diálogo de impresión, desactivá &ldquo;Ajustar a la
-          página&rdquo; y activá &ldquo;Gráficos de fondo&rdquo;.
+          Consejo: en el diálogo de impresión, desactiva &ldquo;Ajustar a la
+          página&rdquo; y activa &ldquo;Gráficos de fondo&rdquo;.
         </p>
       </div>
 
@@ -89,10 +89,10 @@ export default async function ImprimirTarjetaPage() {
           </div>
 
           <p className="text-[0.42rem] leading-relaxed text-muted-dark">
-            Tarjeta personal e intransferible. Presentala en el local para
+            Tarjeta personal e intransferible. Preséntala en el local para
             canjear los beneficios vigentes según sus condiciones. No es
             canjeable por dinero. BARZUO puede suspenderla ante un uso indebido.
-            Consultá los términos en {settings.email ?? "el sitio web"}.
+            Consulta los términos en {settings.email ?? "el sitio web"}.
           </p>
 
           <p className="font-mono text-[0.55rem] tracking-[0.14em] text-bone-dim">

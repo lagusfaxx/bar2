@@ -227,7 +227,7 @@ export const contactSchema = z.object({
   email: emailSchema,
   phone: trimmed.max(40).optional().or(z.literal("")),
   subject: trimmed.max(140).optional().or(z.literal("")),
-  message: trimmed.min(10, "Contanos un poco mas").max(2000),
+  message: trimmed.min(10, "Cuéntanos un poco mas").max(2000),
   // Campo trampa: los bots lo completan, las personas no lo ven.
   website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),
 });
@@ -238,7 +238,7 @@ export const eventRatingSchema = z.object({
   rating: z.coerce
     .number()
     .int()
-    .min(1, "Elegi una puntuacion")
+    .min(1, "Elige una puntuacion")
     .max(5, "La puntuacion maxima es 5"),
   comment: trimmed.max(600).optional().or(z.literal("")),
   website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),

@@ -18,7 +18,7 @@ import { recordAudit } from "./audit";
  * mostraria corrida.
  */
 function parseVenueDateTime(value: string): Date {
-  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Montevideo";
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
   const match = value.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
 
   if (!match) {
@@ -69,7 +69,7 @@ export async function saveEvent(
   const parsed = eventSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del evento.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del evento.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -79,7 +79,7 @@ export async function saveEvent(
     startsAt = parseVenueDateTime(input.startsAt);
   } catch {
     return formError("La fecha del evento no es válida.", {
-      startsAt: "Indicá una fecha y hora válidas",
+      startsAt: "Indica una fecha y hora válidas",
     });
   }
 

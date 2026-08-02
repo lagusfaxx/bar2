@@ -86,7 +86,7 @@ export async function saveUpload(
 
   if (!ALLOWED_MIME.has(file.type)) {
     throw new UploadError(
-      "Formato no admitido. Subí una imagen JPG, PNG, WebP, AVIF o GIF.",
+      "Formato no admitido. Sube una imagen JPG, PNG, WebP, AVIF o GIF.",
     );
   }
 
@@ -100,7 +100,7 @@ export async function saveUpload(
     metadata = await pipeline.metadata();
   } catch {
     // El archivo dice ser una imagen pero sharp no puede leerlo.
-    throw new UploadError("No pudimos procesar la imagen. Probá con otro archivo.");
+    throw new UploadError("No pudimos procesar la imagen. Prueba con otro archivo.");
   }
 
   if (!metadata.width || !metadata.height) {

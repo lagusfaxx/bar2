@@ -97,7 +97,7 @@ export function SocialLinksManager({ links }: { links: SocialLink[] }) {
             name="label"
             required
             maxLength={60}
-            placeholder="@barzuo.uy"
+            placeholder="@barzuo.cl"
             error={state.errors?.label}
           />
 

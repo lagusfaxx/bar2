@@ -31,7 +31,7 @@ export default async function AdminGaleriaPage() {
     <>
       <AdminHeader
         title="Galería"
-        description="Subí fotos, ordenalas y asociá cada una a un evento si corresponde."
+        description="Sube fotos, ordenalas y asocia cada una a un evento si corresponde."
       />
 
       <div className="mb-8">
@@ -41,7 +41,7 @@ export default async function AdminGaleriaPage() {
       {images.length === 0 ? (
         <EmptyState
           title="Todavía no hay fotos"
-          description="Subí las primeras imágenes para que la galería del sitio deje de estar vacía."
+          description="Sube las primeras imágenes para que la galería del sitio deje de estar vacía."
         />
       ) : (
         <Panel

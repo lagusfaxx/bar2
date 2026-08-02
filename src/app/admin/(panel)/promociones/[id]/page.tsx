@@ -21,7 +21,7 @@ export default async function EditarPromocionPage({
     <>
       <AdminHeader
         title={promotion.title}
-        description="Editá el beneficio y sus reglas de canje."
+        description="Edita el beneficio y sus reglas de canje."
         back={{ href: "/admin/promociones", label: "Volver a promociones" }}
       />
       <PromotionForm

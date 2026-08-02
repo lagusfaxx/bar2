@@ -116,7 +116,7 @@ export default async function AdminDashboard() {
             <StatCard
               label="Reseñas por revisar"
               value={pendingRatings}
-              hint="Se publican recién cuando las aprobás"
+              hint="Se publican recién cuando las apruebas"
               href="/admin/resenas"
               icon={<MessageSquareQuote className="size-4" aria-hidden />}
               tone="crimson"
@@ -147,7 +147,7 @@ export default async function AdminDashboard() {
           {nextEvents.length === 0 ? (
             <EmptyState
               title="No hay eventos programados"
-              description="Cargá el primer show para que aparezca en la cartelera."
+              description="Carga el primer show para que aparezca en la cartelera."
               action={
                 <ButtonLink href="/admin/eventos/nuevo" size="sm">
                   <Plus className="size-4" aria-hidden />

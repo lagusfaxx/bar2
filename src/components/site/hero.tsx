@@ -200,7 +200,7 @@ export function Hero({ settings, nextEvent }: HeroProps) {
             aria-label="Ver la cartelera"
             className="hidden items-center gap-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-bone sm:flex"
           >
-            Descubrí BARZUO
+            Descubre BARZUO
             <ChevronDown className="size-4 animate-bounce" aria-hidden />
           </a>
         </div>

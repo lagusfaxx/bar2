@@ -85,7 +85,7 @@ export function RatingForm({ eventId }: { eventId: string }) {
         name="authorName"
         required
         maxLength={80}
-        placeholder="Cómo querés que aparezca"
+        placeholder="Cómo quieres que aparezca"
         error={state.errors?.authorName}
       />
 

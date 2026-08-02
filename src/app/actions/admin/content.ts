@@ -41,7 +41,7 @@ export async function uploadImage(
     if (error instanceof UploadError) {
       return formError(error.message);
     }
-    return formError("No pudimos subir la imagen. Probá de nuevo.");
+    return formError("No pudimos subir la imagen. Prueba de nuevo.");
   }
 }
 
@@ -64,7 +64,7 @@ export async function saveGalleryImage(
   const parsed = galleryImageSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos de la imagen.", fieldErrors(parsed.error));
+    return formError("Revisa los datos de la imagen.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -183,7 +183,7 @@ export async function savePromotion(
   });
 
   if (!parsed.success) {
-    return formError("Revisá los datos de la promoción.", fieldErrors(parsed.error));
+    return formError("Revisa los datos de la promoción.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -283,7 +283,7 @@ export async function saveSettings(
   const parsed = settingsSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los ajustes.", fieldErrors(parsed.error));
+    return formError("Revisa los ajustes.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -361,7 +361,7 @@ export async function saveSocialLink(
   const parsed = socialLinkSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá el enlace.", fieldErrors(parsed.error));
+    return formError("Revisa el enlace.", fieldErrors(parsed.error));
   }
 
   if (linkId) {
@@ -405,7 +405,7 @@ export async function saveOpeningHours(
     });
 
     if (!parsed.success) {
-      return formError("Revisá los horarios cargados.");
+      return formError("Revisa los horarios cargados.");
     }
 
     const value = parsed.data;
@@ -473,7 +473,7 @@ export async function saveUser(
   const parsed = userSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del usuario.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del usuario.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -505,7 +505,7 @@ export async function saveUser(
   // Nadie puede quitarse a sí mismo el acceso y dejar el panel sin administrador.
   if (userId === session.userId && (input.role !== "ADMIN" || !input.active)) {
     return formError(
-      "No podés quitarte a vos mismo el rol de administrador ni desactivar tu cuenta.",
+      "No puedes quitarte a ti mismo el rol de administrador ni desactivar tu cuenta.",
     );
   }
 
@@ -549,7 +549,7 @@ export async function deleteUser(id: string) {
   const session = await requireAdmin();
 
   if (id === session.userId) {
-    throw new Error("No podés eliminar tu propia cuenta.");
+    throw new Error("No puedes eliminar tu propia cuenta.");
   }
 
   // Nunca dejamos el panel sin ningún administrador activo.

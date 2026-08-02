@@ -108,7 +108,7 @@ export default async function EventoPage({ params }: Params) {
         "@type": "PostalAddress",
         streetAddress: settings.address,
         addressLocality: settings.addressCity,
-        addressCountry: "UY",
+        addressCountry: "CL",
       },
       geo: {
         "@type": "GeoCoordinates",
@@ -119,7 +119,7 @@ export default async function EventoPage({ params }: Params) {
     offers: {
       "@type": "Offer",
       price: event.isFree ? 0 : (event.priceCents ?? 0) / 100,
-      priceCurrency: process.env.NEXT_PUBLIC_CURRENCY ?? "UYU",
+      priceCurrency: process.env.NEXT_PUBLIC_CURRENCY ?? "CLP",
       availability: "https://schema.org/InStock",
       url: event.ticketUrl ?? url,
       validFrom: event.createdAt.toISOString(),
@@ -417,7 +417,7 @@ export default async function EventoPage({ params }: Params) {
 
           <div>
             <h2 className="font-display text-2xl text-bone">
-              {isPast ? "Contanos cómo estuvo" : "Calificaciones"}
+              {isPast ? "Cuéntanos cómo estuvo" : "Calificaciones"}
             </h2>
 
             <div className="mt-6">
@@ -429,7 +429,7 @@ export default async function EventoPage({ params }: Params) {
                 <RatingForm eventId={event.id} />
               ) : (
                 <p className="card-bz p-6 text-sm text-muted">
-                  Vas a poder calificar este evento una vez que se haya
+                  Podrás calificar este evento una vez que se haya
                   realizado. ¡Te esperamos!
                 </p>
               )}

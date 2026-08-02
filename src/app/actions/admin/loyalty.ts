@@ -125,20 +125,20 @@ export async function lookupCard(
   const limit = rateLimit(`lookup:${ip}`, 120, 60 * 5);
 
   if (!limit.ok) {
-    return formError("Demasiadas consultas seguidas. Esperá un momento.");
+    return formError("Demasiadas consultas seguidas. Espera un momento.");
   }
 
   const raw = formData.get("code");
 
   if (typeof raw !== "string" || raw.trim().length < 4) {
-    return formError("Ingresá el número de tarjeta o escaneá el QR.");
+    return formError("Ingresa el número de tarjeta o escanea el QR.");
   }
 
   const parsed = normalizeCardInput(raw);
 
   if (parsed.kind === "number" && !isValidCardNumber(parsed.value)) {
     return formError(
-      "El número no corresponde a una BarzuCard. Revisá los 16 dígitos.",
+      "El número no corresponde a una BarzuCard. Revisa los 16 dígitos.",
     );
   }
 
@@ -254,7 +254,7 @@ export async function redeemPromotion(
   const limit = rateLimit(`redeem:${ip}`, 60, 60 * 5);
 
   if (!limit.ok) {
-    return formError("Demasiados canjes seguidos. Esperá un momento.");
+    return formError("Demasiados canjes seguidos. Espera un momento.");
   }
 
   try {
@@ -333,7 +333,7 @@ export async function redeemPromotion(
     return formError(
       error instanceof Error
         ? error.message
-        : "No se pudo registrar el canje. Probá de nuevo.",
+        : "No se pudo registrar el canje. Prueba de nuevo.",
     );
   }
 }

@@ -85,7 +85,7 @@ export default async function HomePage() {
           </div>
         ) : (
           <p className="card-bz mt-14 p-12 text-center text-muted">
-            Estamos armando la próxima cartelera. Volvé pronto.
+            Estamos armando la próxima cartelera. Vuelve pronto.
           </p>
         )}
 

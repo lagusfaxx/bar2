@@ -90,7 +90,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
 
     if (!Detector) {
       setScanError(
-        "Este navegador no puede escanear desde la app. Usá la cámara del teléfono sobre el QR, o cargá los 16 dígitos.",
+        "Este navegador no puede escanear desde la app. Usa la cámara del teléfono sobre el QR, o carga los 16 dígitos.",
       );
       return;
     }
@@ -134,7 +134,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
       requestAnimationFrame(() => void tick());
     } catch {
       setScanError(
-        "No pudimos acceder a la cámara. Revisá los permisos del navegador o cargá los dígitos a mano.",
+        "No pudimos acceder a la cámara. Revisa los permisos del navegador o carga los dígitos a mano.",
       );
       stopCamera();
     }
@@ -249,7 +249,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
           className="pointer-events-none absolute inset-[18%] border-2 border-crimson/70"
         />
         <p className="absolute inset-x-0 bottom-0 bg-ink/80 py-3 text-center text-xs text-bone-dim">
-          Apuntá al código QR de la tarjeta
+          Apunta al código QR de la tarjeta
         </p>
       </div>
 
@@ -406,7 +406,7 @@ function CardResult({
               >
                 <span className="text-bone-dim">{redemption.title}</span>
                 <span className="font-mono text-muted-dark">
-                  {new Intl.DateTimeFormat("es-UY", {
+                  {new Intl.DateTimeFormat("es-CL", {
                     day: "2-digit",
                     month: "2-digit",
                     hour: "2-digit",

@@ -13,7 +13,7 @@ import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const description = `${settings.barName} está en ${settings.address}, ${settings.addressCity}. Mirá cómo llegar, horarios y datos de contacto.`;
+  const description = `${settings.barName} está en ${settings.address}, ${settings.addressCity}. Mira cómo llegar, horarios y datos de contacto.`;
 
   return {
     title: "Ubicación",
@@ -48,7 +48,7 @@ export default async function UbicacionPage() {
       "@type": "PostalAddress",
       streetAddress: settings.address,
       addressLocality: settings.addressCity,
-      addressCountry: "UY",
+      addressCountry: "CL",
     },
     geo: {
       "@type": "GeoCoordinates",
@@ -230,25 +230,25 @@ export default async function UbicacionPage() {
             />
             <HowToCell
               icon={<Bus className="size-6" aria-hidden />}
-              title="En ómnibus"
-              text="Varias líneas paran sobre Av. Batlle y Ordóñez, a menos de una cuadra del local."
+              title="En micro o metro"
+              text="Varias líneas de micro paran sobre la avenida y la estación de metro más cercana queda a pocas cuadras."
             />
             <HowToCell
               icon={<Navigation className="size-6" aria-hidden />}
               title="En app de viajes"
-              text={`Indicá "${settings.barName}, ${settings.address}" y te deja en la puerta.`}
+              text={`Indica "${settings.barName}, ${settings.address}" y te deja en la puerta.`}
             />
           </div>
 
           <p className="mt-8 text-center text-xs text-muted-dark">
-            ¿Necesitás ayuda para llegar?{" "}
+            ¿Necesitas ayuda para llegar?{" "}
             <a
               href={`https://www.google.com/maps/search/?api=1&query=${query}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-crimson-bright underline-offset-4 hover:underline"
             >
-              Abrí la dirección en Google Maps
+              Abre la dirección en Google Maps
             </a>
             .
           </p>

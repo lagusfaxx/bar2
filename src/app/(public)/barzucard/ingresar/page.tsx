@@ -29,7 +29,7 @@ export default async function IngresarPage({
       <PageHeader
         eyebrow="BarzuCard"
         title="Ingresar"
-        lead="Accedé a tu tarjeta, tus puntos y las promociones disponibles."
+        lead="Accede a tu tarjeta, tus puntos y las promociones disponibles."
         image="/demo/promo-4.jpg"
       />
 
@@ -40,7 +40,7 @@ export default async function IngresarPage({
           </div>
 
           <p className="mt-8 text-center text-sm text-muted">
-            ¿Todavía no tenés BarzuCard?{" "}
+            ¿Todavía no tienes BarzuCard?{" "}
             <Link
               href="/barzucard/registro"
               className="text-crimson-bright underline-offset-4 hover:underline"

@@ -154,7 +154,7 @@ export function ImageField({
             type="text"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
-            placeholder="…o pegá una URL"
+            placeholder="…o pega una URL"
             className="w-full border border-line bg-ink px-3 py-2.5 text-xs text-bone placeholder:text-muted-dark focus:border-crimson focus:outline-none"
           />
 

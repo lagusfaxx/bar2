@@ -28,7 +28,7 @@ export async function saveMenuCategory(
   const parsed = menuCategorySchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos de la categoría.", fieldErrors(parsed.error));
+    return formError("Revisa los datos de la categoría.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -148,7 +148,7 @@ export async function saveMenuProduct(
   const parsed = menuProductSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del producto.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del producto.", fieldErrors(parsed.error));
   }
 
   const input = parsed.data;
@@ -167,7 +167,7 @@ export async function saveMenuProduct(
 
   if (!category) {
     return formError("La categoría seleccionada ya no existe.", {
-      categoryId: "Elegí una categoría válida",
+      categoryId: "Elige una categoría válida",
     });
   }
 

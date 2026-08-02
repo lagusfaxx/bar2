@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const description =
     settings.aboutLead ??
-    `Conocé la historia de ${settings.barName}, restobar de música en vivo en ${settings.addressCity}.`;
+    `Conoce la historia de ${settings.barName}, restobar de música en vivo en ${settings.addressCity}.`;
 
   return {
     title: "Nosotros",
@@ -92,7 +92,7 @@ export default async function NosotrosPage() {
               </div>
             ) : (
               <p className="text-muted">
-                Muy pronto vas a poder leer acá la historia de{" "}
+                Muy pronto podrás leer aquí la historia de{" "}
                 {settings.barName}.
               </p>
             )}

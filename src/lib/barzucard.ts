@@ -200,7 +200,7 @@ export function checkEligibility({
 
 /** Dia de la semana (0=domingo) en la zona horaria del local, no en UTC. */
 function weekdayInVenueTimeZone(date: Date) {
-  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Montevideo";
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
   const label = new Intl.DateTimeFormat("en-US", {
     timeZone,
     weekday: "short",

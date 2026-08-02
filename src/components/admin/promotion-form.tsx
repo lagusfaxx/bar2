@@ -56,7 +56,7 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                 required
                 defaultValue={promotion?.title}
                 maxLength={140}
-                placeholder="2x1 en chopps"
+                placeholder="2x1 en schops"
                 error={state.errors?.title}
               />
 
@@ -209,7 +209,7 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                   ))}
                 </div>
                 <p className="mt-2 text-xs text-muted-dark">
-                  Si no marcás ninguno, la promoción vale todos los días.
+                  Si no marcas ninguno, la promoción vale todos los días.
                 </p>
               </fieldset>
             </div>
