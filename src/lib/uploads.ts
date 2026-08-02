@@ -18,9 +18,22 @@ import { prisma } from "@/lib/prisma";
  * app/uploads/[...path]/route.ts).
  */
 
-export const UPLOAD_DIR = path.resolve(
-  process.env.UPLOAD_DIR ?? "./storage/uploads",
-);
+/**
+ * Directorio de las subidas.
+ *
+ * Se admite una ruta absoluta (lo habitual en Docker: /app/storage/uploads) o
+ * una relativa, que se ancla al directorio de trabajo.
+ *
+ * Nota: al ser una ruta configurable en tiempo de ejecucion, el build emite un
+ * aviso de rastreo ("unexpected file in NFT list") y copia el codigo fuente
+ * dentro de la salida standalone. Es inocuo —solo agrega unos MB a la imagen—
+ * y es el precio de que el volumen de subidas sea configurable.
+ */
+const CONFIGURED_UPLOAD_DIR = process.env.UPLOAD_DIR ?? "storage/uploads";
+
+export const UPLOAD_DIR = CONFIGURED_UPLOAD_DIR.startsWith("/")
+  ? CONFIGURED_UPLOAD_DIR
+  : path.join(process.cwd(), CONFIGURED_UPLOAD_DIR);
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 

@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 
 import { getSettings } from "@/lib/content";
 import { fontVariables } from "@/lib/fonts";
@@ -57,12 +58,35 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const settings = await getSettings();
+
   return (
-    <html lang="es" className={`${fontVariables} h-full antialiased`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+    <html
+      lang="es"
+      // Declara el scroll suave del CSS para que Next no lo aplique durante
+      // las transiciones de ruta.
+      data-scroll-behavior="smooth"
+      className={`${fontVariables} h-full antialiased`}
+    >
+      <body className="flex min-h-full flex-col">
+        {children}
+
+        {/* Analitica opcional: solo se carga si el administrador la configuro. */}
+        {settings.googleAnalyticsId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${settings.googleAnalyticsId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga" strategy="afterInteractive">
+              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${settings.googleAnalyticsId}');`}
+            </Script>
+          </>
+        )}
+      </body>
     </html>
   );
 }

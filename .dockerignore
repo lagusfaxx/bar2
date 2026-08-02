@@ -1,0 +1,25 @@
+node_modules
+.next
+.git
+.gitignore
+npm-debug.log*
+README.md
+
+# Nunca deben entrar a la imagen: los valores llegan por variables de entorno.
+.env
+.env.*
+!.env.example
+
+# Contenido subido en desarrollo.
+storage
+public/uploads
+
+# Herramientas de desarrollo.
+.vscode
+.idea
+.claude
+.windsurf
+.agents
+skills-lock.json
+coverage
+*.tsbuildinfo
