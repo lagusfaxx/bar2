@@ -1,0 +1,463 @@
+// BARZUO — Restobar · Web oficial + CMS
+// Documentacion del modelo de datos: ver README.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Usuarios del panel (administradores y garzones)
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  ADMIN // acceso total al CMS
+  EDITOR // gestiona contenido, no gestiona usuarios
+  STAFF // solo la app de verificacion de BarzuCard
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  role         UserRole  @default(EDITOR)
+  active       Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  redemptions Redemption[] @relation("RedemptionStaff")
+  auditLogs   AuditLog[]
+
+  @@index([role])
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------------
+// Cartelera / Eventos
+// ---------------------------------------------------------------------------
+
+enum EventCategory {
+  TRIBUTO
+  EN_VIVO
+  DJ
+  KARAOKE
+  STANDUP
+  FIESTA
+  ESPECIAL
+}
+
+model Event {
+  id       String        @id @default(cuid())
+  slug     String        @unique
+  title    String
+  artist   String?
+  category EventCategory @default(EN_VIVO)
+
+  excerpt     String? @db.Text
+  description String? @db.Text
+
+  // Afiche vertical (cards / detalle) y portada horizontal opcional (hero)
+  posterUrl String?
+  coverUrl  String?
+
+  startsAt DateTime // fecha y hora de inicio del show
+  doorsAt  DateTime? // apertura de puertas
+  endsAt   DateTime?
+
+  // Entrada: gratis o con costo
+  isFree     Boolean @default(true)
+  priceCents Int? // precio de entrada en centesimos
+  ticketUrl  String? // link externo de venta de entradas
+  capacity   Int?
+
+  published  Boolean @default(false)
+  featured   Boolean @default(false)
+  ratingLock Boolean @default(false) // cierra la calificacion del evento
+
+  // SEO por evento
+  seoTitle       String?
+  seoDescription String? @db.Text
+  ogImageUrl     String?
+
+  viewCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gallery GalleryImage[]
+  ratings EventRating[]
+
+  @@index([published, startsAt])
+  @@index([featured, published])
+  @@index([category])
+  @@map("events")
+}
+
+model EventRating {
+  id      String @id @default(cuid())
+  eventId String
+  event   Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  memberId String?
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  authorName String
+  rating     Int // 1..5
+  comment    String? @db.Text
+  approved   Boolean @default(false)
+
+  // hash de IP + user agent para evitar votos duplicados sin guardar datos personales
+  fingerprint String
+
+  createdAt DateTime @default(now())
+
+  @@unique([eventId, fingerprint])
+  @@index([eventId, approved])
+  @@map("event_ratings")
+}
+
+// ---------------------------------------------------------------------------
+// Carta / Menu
+// ---------------------------------------------------------------------------
+
+model MenuCategory {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String? @db.Text
+  imageUrl    String?
+  icon        String? // nombre de icono lucide
+  position    Int     @default(0)
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products MenuProduct[]
+
+  @@index([active, position])
+  @@map("menu_categories")
+}
+
+model MenuProduct {
+  id         String       @id @default(cuid())
+  categoryId String
+  category   MenuCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  name        String
+  slug        String  @unique
+  description String? @db.Text
+  priceCents  Int
+  imageUrl    String?
+
+  available Boolean  @default(true)
+  featured  Boolean  @default(false)
+  position  Int      @default(0)
+  tags      String[] @default([]) // ej: "vegano", "picante", "sin gluten"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId, position])
+  @@index([available, featured])
+  @@map("menu_products")
+}
+
+// ---------------------------------------------------------------------------
+// Galeria
+// ---------------------------------------------------------------------------
+
+model GalleryImage {
+  id      String  @id @default(cuid())
+  url     String
+  alt     String
+  caption String?
+
+  eventId String?
+  event   Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  tag      String? // "ambiente", "shows", "cocina", "publico"
+  width    Int?
+  height   Int?
+  position Int     @default(0)
+  featured Boolean @default(false)
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, position])
+  @@index([eventId])
+  @@map("gallery_images")
+}
+
+// ---------------------------------------------------------------------------
+// Biblioteca de medios (uploads del CMS)
+// ---------------------------------------------------------------------------
+
+model Media {
+  id           String   @id @default(cuid())
+  url          String   @unique
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("media")
+}
+
+// ---------------------------------------------------------------------------
+// BarzuCard — programa de fidelizacion
+// ---------------------------------------------------------------------------
+
+enum CardTier {
+  CLASICA
+  PLATA
+  ORO
+}
+
+enum CardStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model Member {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  fullName     String
+  passwordHash String
+  phone        String?
+  birthDate    DateTime?
+  acceptsNews  Boolean   @default(true)
+  lastLoginAt  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  card    BarzuCard?
+  ratings EventRating[]
+
+  @@map("members")
+}
+
+model BarzuCard {
+  id       String @id @default(cuid())
+  memberId String @unique
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Identificador numerico legible (16 digitos) impreso en la tarjeta
+  cardNumber String @unique
+  // Token opaco que viaja dentro del QR (rotable si la tarjeta se pierde)
+  qrToken String @unique
+
+  tier   CardTier   @default(CLASICA)
+  status CardStatus @default(ACTIVE)
+  points Int        @default(0)
+
+  issuedAt  DateTime  @default(now())
+  printedAt DateTime? // fecha en que se imprimio la tarjeta fisica
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions Redemption[]
+
+  @@index([status])
+  @@map("barzu_cards")
+}
+
+enum PromotionType {
+  PERCENT_OFF // % de descuento
+  AMOUNT_OFF // monto fijo de descuento
+  TWO_FOR_ONE // 2x1
+  FREE_ITEM // producto de cortesia
+  OTHER
+}
+
+model Promotion {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  description String        @db.Text
+  terms       String?       @db.Text
+  imageUrl    String?
+  type        PromotionType @default(PERCENT_OFF)
+
+  // Valor asociado al tipo: % para PERCENT_OFF, centesimos para AMOUNT_OFF
+  value Int @default(0)
+
+  startsAt DateTime  @default(now())
+  endsAt   DateTime?
+
+  active   Boolean @default(true)
+  position Int     @default(0)
+
+  // Reglas de canje
+  minTier           CardTier @default(CLASICA)
+  maxPerCard        Int      @default(1) // 0 = ilimitado
+  maxTotal          Int      @default(0) // 0 = sin tope global
+  redeemedCount     Int      @default(0)
+  pointsCost        Int      @default(0) // costo en puntos, 0 = gratuito
+  pointsReward      Int      @default(0) // puntos que otorga al canjear
+  availableWeekdays Int[]    @default([]) // 0=domingo .. 6=sabado; vacio = todos
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions Redemption[]
+
+  @@index([active, position])
+  @@map("promotions")
+}
+
+model Redemption {
+  id String @id @default(cuid())
+
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  cardId String
+  card   BarzuCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  staffUserId String?
+  staffUser   User?   @relation("RedemptionStaff", fields: [staffUserId], references: [id], onDelete: SetNull)
+
+  // Codigo corto mostrado al cliente como comprobante del canje
+  receiptCode String @unique
+
+  note         String?
+  pointsSpent  Int     @default(0)
+  pointsEarned Int     @default(0)
+
+  redeemedAt DateTime @default(now())
+
+  @@index([cardId, redeemedAt])
+  @@index([promotionId])
+  @@map("redemptions")
+}
+
+// ---------------------------------------------------------------------------
+// Configuracion del sitio
+// ---------------------------------------------------------------------------
+
+model SiteSettings {
+  id String @id @default("singleton")
+
+  // Identidad
+  barName    String  @default("BARZUO")
+  tagline    String  @default("Restobar · Lounge & Club")
+  logoUrl    String?
+  logoAltUrl String?
+  faviconUrl String?
+
+  // Hero
+  heroTitle             String  @default("BARZUO")
+  heroSubtitle          String? @db.Text
+  heroEyebrow           String? @default("EST. 2024")
+  heroImageUrl          String?
+  heroVideoUrl          String?
+  heroCtaLabel          String? @default("Ver cartelera")
+  heroCtaHref           String? @default("/eventos")
+  heroCtaSecondaryLabel String? @default("Ver la carta")
+  heroCtaSecondaryHref  String? @default("/carta")
+
+  // Nosotros
+  aboutTitle             String? @default("Nuestra historia")
+  aboutLead              String? @db.Text
+  aboutBody              String? @db.Text
+  aboutImageUrl          String?
+  aboutSecondaryImageUrl String?
+
+  // Contacto y ubicacion
+  address     String @default("Av. Presidente Jose Batlle y Ordonez 3714")
+  addressCity String @default("Montevideo, Uruguay")
+  latitude    Float  @default(-34.8544)
+  longitude   Float  @default(-56.1712)
+  phone       String?
+  whatsapp    String?
+  email       String?
+
+  // Textos generales
+  reservationsNote String? @db.Text
+  footerNote       String? @db.Text
+
+  // SEO global
+  seoTitle          String  @default("BARZUO Restobar · Musica en vivo, tributos y cocteleria")
+  seoDescription    String  @default("BARZUO Restobar en Montevideo. Cartelera de shows en vivo, tributos, DJ y la mejor cocteleria de autor.") @db.Text
+  seoImageUrl       String?
+  seoKeywords       String?
+  googleAnalyticsId String?
+
+  // BarzuCard
+  loyaltyEnabled     Boolean @default(true)
+  loyaltyTitle       String  @default("BarzuCard")
+  loyaltyDescription String? @db.Text
+  loyaltyTerms       String? @db.Text
+
+  updatedAt DateTime @updatedAt
+
+  @@map("site_settings")
+}
+
+model SocialLink {
+  id       String  @id @default(cuid())
+  platform String // instagram | facebook | tiktok | whatsapp | youtube | spotify | x
+  label    String
+  url      String
+  position Int     @default(0)
+  active   Boolean @default(true)
+
+  @@index([active, position])
+  @@map("social_links")
+}
+
+model OpeningHour {
+  id        String  @id @default(cuid())
+  dayOfWeek Int     @unique // 0 = domingo .. 6 = sabado
+  opensAt   String? // "19:00"
+  closesAt  String? // "03:00"
+  closed    Boolean @default(false)
+  note      String?
+
+  @@map("opening_hours")
+}
+
+model ContactMessage {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String   @db.Text
+  read      Boolean  @default(false)
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([read, createdAt])
+  @@map("contact_messages")
+}
+
+model AuditLog {
+  id     String  @id @default(cuid())
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  action    String // "create" | "update" | "delete" | "login" | "redeem"
+  entity    String // "Event" | "MenuProduct" | ...
+  entityId  String?
+  summary   String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}

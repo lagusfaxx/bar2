@@ -1,0 +1,377 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   BARZUO — sistema de diseño
+   Paleta y tipografia derivadas del logo: negro profundo, rojo carmesi y
+   blanco hueso, con una serif de alto contraste para titulos.
+   ========================================================================== */
+
+@theme {
+  /* Negros y superficies */
+  --color-ink: #08070a;
+  --color-ink-soft: #0d0c11;
+  --color-surface: #131118;
+  --color-surface-2: #1b1822;
+  --color-line: #272231;
+
+  /* Rojo BARZUO */
+  --color-crimson: #b4111b;
+  --color-crimson-bright: #e11d2a;
+  --color-crimson-deep: #6b0a11;
+  --color-crimson-glow: #ff3341;
+
+  /* Blanco hueso y grises calidos */
+  --color-bone: #f4efe7;
+  --color-bone-dim: #cdc5bb;
+  --color-muted: #8e8792;
+  --color-muted-dark: #5d5765;
+
+  /* Dorado, reservado para BarzuCard */
+  --color-gilt: #c9a227;
+  --color-gilt-soft: #e8cf7a;
+
+  --font-display: var(--font-display), "Playfair Display", Georgia, serif;
+  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-western: var(--font-western), var(--font-display), Georgia, serif;
+
+  --radius-card: 0.25rem;
+
+  --shadow-lift: 0 24px 60px -24px rgb(0 0 0 / 0.85);
+  --shadow-ember: 0 0 0 1px rgb(180 17 27 / 0.35), 0 18px 50px -20px rgb(180 17 27 / 0.55);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --animate-reveal: reveal 0.9s var(--ease-out-expo) both;
+  --animate-marquee: marquee 40s linear infinite;
+  --animate-ember: ember 6s ease-in-out infinite;
+  --animate-fade-in: fade-in 0.6s ease both;
+}
+
+@keyframes reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 24px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes ember {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.08);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-bone);
+    font-family: var(--font-sans);
+    font-synthesis-weight: none;
+    text-rendering: optimizeLegibility;
+    overflow-x: clip;
+  }
+
+  ::selection {
+    background: var(--color-crimson);
+    color: var(--color-bone);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Foco visible y coherente en todo el sitio (accesibilidad) */
+  :focus-visible {
+    outline: 2px solid var(--color-crimson-bright);
+    outline-offset: 3px;
+    border-radius: 2px;
+  }
+
+  /* Scrollbar discreta, en tono con el sitio */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-surface-2);
+    border-radius: 999px;
+    border: 2px solid var(--color-ink);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-crimson-deep);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Utilidades de marca
+   -------------------------------------------------------------------------- */
+
+@utility container-bz {
+  width: 100%;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+  max-width: 82rem;
+
+  @media (width >= 48rem) {
+    padding-inline: 2rem;
+  }
+  @media (width >= 80rem) {
+    padding-inline: 2.5rem;
+  }
+}
+
+/* Etiqueta pequeña en versalitas, muy espaciada. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--color-bone-dim);
+}
+
+/* Grano de pelicula: da textura y evita el look "plano de plantilla". */
+@utility grain {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    opacity: 0.32;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  }
+}
+
+/* Viñeta suave hacia los bordes. */
+@utility vignette {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 1;
+    background: radial-gradient(
+      120% 90% at 50% 40%,
+      transparent 40%,
+      rgb(8 7 10 / 0.55) 78%,
+      rgb(8 7 10 / 0.92) 100%
+    );
+  }
+}
+
+/* Linea divisoria con degradado, usada entre secciones. */
+@utility rule-glow {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-line) 20%,
+    var(--color-crimson) 50%,
+    var(--color-line) 80%,
+    transparent
+  );
+}
+
+/* Texto con degradado de hueso a rojo, para acentos puntuales. */
+@utility text-ember {
+  background: linear-gradient(
+    180deg,
+    var(--color-bone) 0%,
+    var(--color-bone) 45%,
+    var(--color-crimson-bright) 130%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Superficie de tarjeta estandar del sitio. */
+@utility card-bz {
+  position: relative;
+  background: linear-gradient(
+    160deg,
+    var(--color-surface) 0%,
+    var(--color-ink-soft) 100%
+  );
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  transition:
+    border-color 0.45s var(--ease-out-expo),
+    transform 0.45s var(--ease-out-expo),
+    box-shadow 0.45s var(--ease-out-expo);
+}
+
+/* Realce del borde superior al pasar el mouse. */
+@utility hover-ember {
+  &:hover {
+    border-color: color-mix(in srgb, var(--color-crimson) 55%, transparent);
+    box-shadow: var(--shadow-lift);
+  }
+}
+
+/* Subrayado animado para enlaces de navegacion. */
+@utility link-underline {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -4px;
+    height: 1px;
+    width: 100%;
+    background: var(--color-crimson-bright);
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 0.5s var(--ease-out-expo);
+  }
+
+  &:hover::after,
+  &[data-active="true"]::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+/* Oculta la barra de scroll manteniendo el desplazamiento (carruseles). */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Degradado de lectura sobre imagenes. */
+@utility scrim {
+  background: linear-gradient(
+    to top,
+    rgb(8 7 10 / 0.96) 0%,
+    rgb(8 7 10 / 0.75) 28%,
+    rgb(8 7 10 / 0.25) 60%,
+    transparent 100%
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Revelado al hacer scroll (ver components/ui/reveal.tsx)
+   -------------------------------------------------------------------------- */
+
+@layer components {
+  [data-reveal] {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+    transition:
+      opacity 0.9s var(--ease-out-expo),
+      transform 0.9s var(--ease-out-expo);
+    transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
+  }
+
+  [data-reveal="in"] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Respeta la preferencia del sistema de reducir movimiento. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  [data-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Impresion de la BarzuCard
+   -------------------------------------------------------------------------- */
+
+@media print {
+  .print-hidden {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .print-card {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}
