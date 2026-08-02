@@ -222,7 +222,7 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                           ? `, ${dayEvents.length} evento${dayEvents.length > 1 ? "s" : ""}`
                           : ", sin eventos"
                       }`}
-                      aria-pressed={isSelected}
+                      aria-selected={isSelected}
                       className={cn(
                         // 44px minimo: objetivo tactil comodo en movil.
                         "relative flex aspect-square min-h-11 flex-col items-center justify-center gap-1 border text-sm transition-all duration-300",

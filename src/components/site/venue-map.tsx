@@ -32,9 +32,10 @@ export function VenueMap({
     const node = ref.current;
     if (!node || load) return;
 
+    // Sin soporte de IntersectionObserver, cargamos el mapa igual.
     if (typeof IntersectionObserver === "undefined") {
-      setLoad(true);
-      return;
+      const timer = setTimeout(() => setLoad(true), 0);
+      return () => clearTimeout(timer);
     }
 
     const observer = new IntersectionObserver(

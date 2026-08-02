@@ -2,7 +2,7 @@
 
 import { ImagePlus, Loader2, Trash2, X } from "lucide-react";
 import Image from "next/image";
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { uploadImage } from "@/app/actions/admin/content";
 import { cn } from "@/lib/utils";
@@ -37,6 +37,18 @@ export function ImageField({
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const hiddenRef = useRef<HTMLInputElement>(null);
+
+  // Cuando el formulario que contiene este campo se reinicia, la vista previa
+  // debe volver a su valor inicial.
+  useEffect(() => {
+    const form = hiddenRef.current?.form;
+    if (!form) return;
+
+    const onReset = () => setUrl(defaultValue ?? "");
+    form.addEventListener("reset", onReset);
+    return () => form.removeEventListener("reset", onReset);
+  }, [defaultValue]);
 
   const upload = (file: File) => {
     setMessage(null);
@@ -67,7 +79,7 @@ export function ImageField({
       </label>
 
       {/* La URL es lo que realmente viaja en el formulario. */}
-      <input type="hidden" name={name} value={url} />
+      <input ref={hiddenRef} type="hidden" name={name} value={url} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
         <div

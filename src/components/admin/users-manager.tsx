@@ -1,7 +1,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { deleteUser, saveUser } from "@/app/actions/admin/content";
 import { ActionButton } from "@/components/admin/action-button";
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/section";
 import { formatDateTime } from "@/lib/format";
-import { IDLE } from "@/lib/form-state";
+import { IDLE, type FormState } from "@/lib/form-state";
 
 type User = {
   id: string;
@@ -46,16 +46,27 @@ export function UsersManager({
   users: User[];
   currentUserId: string;
 }) {
-  const [state, action] = useActionState(saveUser, IDLE);
+  const [state, setState] = useState<FormState>(IDLE);
   const [editing, setEditing] = useState<User | null>(null);
+  const [, startTransition] = useTransition();
   const formRef = useRef<HTMLFormElement>(null);
 
-  useEffect(() => {
-    if (state.status === "success") {
-      formRef.current?.reset();
-      setEditing(null);
-    }
-  }, [state]);
+  /**
+   * Se llama a la Server Action desde la transición en lugar de usar
+   * `useActionState`: así el resultado se conoce en el mismo callback y se puede
+   * salir del modo edición sin recurrir a un efecto.
+   */
+  const action = (formData: FormData) => {
+    startTransition(async () => {
+      const result = await saveUser(IDLE, formData);
+      setState(result);
+
+      if (result.status === "success") {
+        formRef.current?.reset();
+        setEditing(null);
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col gap-6">

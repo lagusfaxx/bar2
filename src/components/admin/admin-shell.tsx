@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { logoutPanel } from "@/app/actions/auth";
 import { Logo } from "@/components/brand/logo";
@@ -80,11 +80,12 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  // El cajon se recuerda junto a la ruta en la que se abrio: al navegar, el
+  // pathname cambia y queda cerrado sin necesidad de un efecto.
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
+  const open = openedAt === pathname;
+  const setOpen = (value: boolean) => setOpenedAt(value ? pathname : null);
 
   const isActive = (href: string) =>
     href === "/admin" ? pathname === "/admin" : pathname.startsWith(href);

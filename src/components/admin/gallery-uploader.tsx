@@ -24,8 +24,8 @@ export function GalleryUploader({
   const [state, action] = useActionState(saveGalleryImage, IDLE);
   const formRef = useRef<HTMLFormElement>(null);
 
-  // Tras guardar, el formulario vuelve a cero para poder cargar otra foto
-  // sin recargar la página.
+  // Tras guardar, el formulario vuelve a cero para poder cargar otra foto sin
+  // recargar la página. ImageField escucha el mismo evento `reset`.
   useEffect(() => {
     if (state.status === "success") formRef.current?.reset();
   }, [state]);
@@ -38,9 +38,6 @@ export function GalleryUploader({
       <form
         ref={formRef}
         action={action}
-        // `key` fuerza a remontar ImageField (que tiene estado propio) tras
-        // un guardado exitoso.
-        key={state.status === "success" ? Date.now() : "form"}
         className="flex flex-col gap-5"
       >
         <ImageField

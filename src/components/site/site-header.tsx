@@ -3,7 +3,7 @@
 import { Menu, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { Logo } from "@/components/brand/logo";
 import { NAV_LINKS } from "@/components/site/nav-links";
@@ -26,21 +26,23 @@ export function SiteHeader({
   loyaltyTitle,
 }: SiteHeaderProps) {
   const pathname = usePathname();
-  const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
 
-  // La barra se vuelve opaca al alejarse del hero.
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 24);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  // La barra se vuelve opaca al alejarse del hero. Se lee del scroll real en
+  // lugar de duplicarlo en un estado propio.
+  const scrolled = useSyncExternalStore(
+    (notify) => {
+      window.addEventListener("scroll", notify, { passive: true });
+      return () => window.removeEventListener("scroll", notify);
+    },
+    () => window.scrollY > 24,
+    () => false,
+  );
 
-  // Al navegar, el menu movil siempre debe cerrarse.
-  useEffect(() => {
-    setOpen(false);
-  }, [pathname]);
+  // El menu movil se recuerda junto a la ruta en la que se abrio: al navegar,
+  // el pathname cambia y queda cerrado sin necesidad de un efecto.
+  const [openedAt, setOpenedAt] = useState<string | null>(null);
+  const open = openedAt === pathname;
+  const setOpen = (value: boolean) => setOpenedAt(value ? pathname : null);
 
   // Con el menu movil abierto se bloquea el scroll del documento.
   useEffect(() => {
@@ -50,7 +52,7 @@ export function SiteHeader({
     document.body.style.overflow = "hidden";
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") setOpenedAt(null);
     };
     window.addEventListener("keydown", onKeyDown);
 
@@ -124,7 +126,7 @@ export function SiteHeader({
 
             <button
               type="button"
-              onClick={() => setOpen((value) => !value)}
+              onClick={() => setOpen(!open)}
               aria-expanded={open}
               aria-controls="menu-movil"
               aria-label={open ? "Cerrar menu" : "Abrir menu"}

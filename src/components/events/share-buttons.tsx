@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Copy, Share2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { SocialIcon } from "@/components/site/social-icon";
 
@@ -18,13 +18,14 @@ type ShareButtonsProps = {
  */
 export function ShareButtons({ url, title, text }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
-  const [canShareNatively, setCanShareNatively] = useState(false);
 
-  // navigator.share solo existe en el cliente: se comprueba tras montar para no
-  // romper la hidratación.
-  useEffect(() => {
-    setCanShareNatively(typeof navigator !== "undefined" && !!navigator.share);
-  }, []);
+  // navigator.share solo existe en el cliente. Se lee tras la hidratación (el
+  // snapshot del servidor devuelve false) para no romper el HTML inicial.
+  const canShareNatively = useSyncExternalStore(
+    () => () => {},
+    () => typeof navigator !== "undefined" && !!navigator.share,
+    () => false,
+  );
 
   useEffect(() => {
     if (!copied) return;

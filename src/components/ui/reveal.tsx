@@ -32,10 +32,10 @@ export function Reveal({
     const node = ref.current;
     if (!node || visible) return;
 
-    // Sin soporte de IntersectionObserver mostramos el contenido directamente.
+    // Sin soporte de IntersectionObserver mostramos el contenido igual.
     if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
+      const timer = setTimeout(() => setVisible(true), 0);
+      return () => clearTimeout(timer);
     }
 
     const observer = new IntersectionObserver(
