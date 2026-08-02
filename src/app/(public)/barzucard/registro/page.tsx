@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { getMemberSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
+import { formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Pedir mi BarzuCard",
@@ -27,7 +28,7 @@ export default async function RegistroPage() {
       <PageHeader
         eyebrow="Registro"
         title="Pide tu BarzuCard"
-        lead="Es gratis. Completa tus datos y te emitimos la tarjeta al instante, con su QR y su número único."
+        lead="Completa tus datos y te emitimos la tarjeta al instante, con su QR y su número único. La cuenta y los beneficios digitales no tienen costo."
         image="/demo/promo-3.jpg"
       />
 
@@ -50,6 +51,16 @@ export default async function RegistroPage() {
               >
                 Iniciar sesión
               </Link>
+            </div>
+
+            <div className="card-bz mt-6 p-6">
+              <h2 className="eyebrow mb-4 text-bone">La tarjeta física</h2>
+              <p className="text-sm leading-relaxed text-muted">
+                Si la quieres impresa, tiene un valor de{" "}
+                <span className="text-bone">{formatPrice(settings.cardPriceCents)}</span>
+                . Se paga por transferencia y se retira en el local; los datos
+                aparecen en tu tarjeta apenas te registras.
+              </p>
             </div>
 
             <div className="card-bz mt-6 p-6">

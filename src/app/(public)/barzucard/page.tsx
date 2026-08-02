@@ -38,7 +38,7 @@ const STEPS = [
   {
     icon: QrCode,
     title: "Recibe tu tarjeta",
-    text: "Te emitimos una BarzuCard con número único y código QR. La llevas en el celular o la retiras impresa en el local.",
+    text: "Te emitimos una BarzuCard con número único y código QR. La guardas en el celular sin costo, y si la quieres impresa la pides en el local.",
   },
   {
     icon: Gift,

@@ -53,11 +53,15 @@ cambiar un texto, subir un afiche o publicar un show.
 - **Galería**: subida con optimización automática, orden, destacados y
   asociación a un evento.
 - **Promociones**: beneficios de la BarzuCard con todas sus reglas de canje.
-- **Socios y tarjetas**: búsqueda, nivel, puntos, suspensión y regeneración del QR.
+- **Socios y tarjetas**: búsqueda, nivel, puntos, suspensión, regeneración del
+  QR y seguimiento del pago de la tarjeta física (pendiente, transferencia
+  informada, pagada, entregada).
 - **Canjes**: historial completo con comprobante y quién validó.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
-- **Ajustes**: identidad, portada, nosotros, contacto, SEO, redes y horarios.
+- **Ajustes**: identidad, portada (con video de fondo), textos de cada bloque
+  del inicio, nosotros, contacto, SEO, redes, horarios y precio, datos de
+  transferencia e instrucciones de retiro de la tarjeta física.
 - **Usuarios**: administradores, editores y equipo de sala.
 
 ### App de sala (`/staff`)

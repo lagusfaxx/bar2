@@ -19,7 +19,7 @@ export async function cardQrDataUrl(qrToken: string) {
     width: 512,
     color: {
       dark: "#08070aff",
-      light: "#f4efe7ff",
+      light: "#ffffffff",
     },
   });
 }

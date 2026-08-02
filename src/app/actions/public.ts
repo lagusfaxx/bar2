@@ -1,6 +1,8 @@
 "use server";
 
-import { fingerprint } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+
+import { fingerprint, getMemberSession } from "@/lib/auth";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
@@ -121,4 +123,61 @@ export async function submitEventRating(
   revalidateContent("events");
 
   return formSuccess("¡Gracias! Tu calificación se publica apenas la revisemos.");
+}
+
+/**
+ * El socio avisa que transfirió el valor de su tarjeta física.
+ *
+ * No confirma nada por sí solo: dejar el aviso solo mueve la tarjeta a
+ * "transferencia informada" para que el local la revise contra su banco y la
+ * confirme desde el panel.
+ */
+export async function reportCardTransfer(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await getMemberSession();
+
+  if (!session) {
+    return formError("Vuelve a iniciar sesión para avisar tu transferencia.");
+  }
+
+  const ip = await clientIp();
+  const limit = rateLimit(`transfer:${ip}`, 10, 60 * 15);
+
+  if (!limit.ok) {
+    return formError("Demasiados avisos seguidos. Prueba de nuevo en un rato.");
+  }
+
+  const reference = String(formData.get("paymentReference") ?? "")
+    .trim()
+    .slice(0, 120);
+
+  const card = await prisma.barzuCard.findUnique({
+    where: { memberId: session.memberId },
+    select: { id: true, paymentStatus: true },
+  });
+
+  if (!card) {
+    return formError("No encontramos tu tarjeta.");
+  }
+
+  if (card.paymentStatus === "PAID" || card.paymentStatus === "DELIVERED") {
+    return formSuccess("Tu pago ya estaba confirmado.");
+  }
+
+  await prisma.barzuCard.update({
+    where: { id: card.id },
+    data: {
+      paymentStatus: "REPORTED",
+      reportedAt: new Date(),
+      paymentReference: reference || null,
+    },
+  });
+
+  revalidatePath("/barzucard/tarjeta");
+
+  return formSuccess(
+    "¡Gracias! Vamos a revisar la transferencia y te avisamos cuando la tarjeta esté lista para retirar.",
+  );
 }

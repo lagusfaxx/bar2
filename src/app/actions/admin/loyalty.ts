@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import type { CardStatus } from "@/generated/prisma/enums";
+import type { CardPaymentStatus, CardStatus } from "@/generated/prisma/enums";
 import { requireCmsUser, requireStaff } from "@/lib/auth";
 import {
   checkEligibility,
@@ -40,6 +40,54 @@ export async function setCardStatus(cardId: string, status: CardStatus) {
 
   revalidatePath("/admin/tarjetas");
 }
+
+/**
+ * Avanza el estado de pago de la tarjeta física.
+ *
+ * El dinero se mueve por fuera del sistema (transferencia bancaria), así que
+ * esto es un registro: alguien del local confirma que el pago llegó y, más
+ * tarde, que el socio pasó a retirar la tarjeta.
+ */
+export async function setCardPaymentStatus(
+  cardId: string,
+  status: CardPaymentStatus,
+) {
+  const session = await requireCmsUser();
+
+  const card = await prisma.barzuCard.update({
+    where: { id: cardId },
+    data: {
+      paymentStatus: status,
+      // Las fechas se sellan la primera vez y no se pisan al volver atrás.
+      ...(status === "PAID" && { paidAt: new Date() }),
+      ...(status === "DELIVERED" && { deliveredAt: new Date() }),
+      ...(status === "PENDING" && {
+        paidAt: null,
+        deliveredAt: null,
+        reportedAt: null,
+        paymentReference: null,
+      }),
+    },
+    select: { cardNumber: true },
+  });
+
+  await recordAudit(
+    session.userId,
+    "update",
+    "BarzuCard",
+    cardId,
+    `Tarjeta ${card.cardNumber}: ${CARD_PAYMENT_AUDIT[status]}`,
+  );
+
+  revalidatePath("/admin/tarjetas");
+}
+
+const CARD_PAYMENT_AUDIT: Record<CardPaymentStatus, string> = {
+  PENDING: "pago pendiente",
+  REPORTED: "transferencia informada",
+  PAID: "pago confirmado",
+  DELIVERED: "tarjeta entregada",
+};
 
 /**
  * Emite un QR nuevo. Se usa cuando el socio pierde la tarjeta física: el código
