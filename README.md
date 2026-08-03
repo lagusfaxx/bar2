@@ -152,7 +152,8 @@ de demostración.
 | `DATABASE_POOL_MAX` | No | Tamaño del pool. Por defecto 10. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | No | Primer administrador (seed y `npm run create:admin`). |
 | `STAFF_EMAIL`, `STAFF_PASSWORD` | No | Cuenta del equipo de sala que crea el seed. |
-| `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido al arrancar. |
+| `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido de demostración al arrancar. No hace nada si la base ya tiene contenido. |
+| `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
 cambias, hay que reconstruir la imagen.
@@ -431,6 +432,10 @@ El mismo comando **restablece la contraseña** de un administrador existente.
 2. Carga el logotipo, el favicon y los textos reales en **Ajustes**.
 3. Reemplaza los eventos y las fotos de demostración por los propios.
 4. Pon `SEED_ON_START=false` y vuelve a desplegar.
+
+> El seed no vuelve a sembrar sobre una base con contenido, así que dejar
+> `SEED_ON_START=true` por olvido ya no borra nada. Lo que sí lo haría es
+> `SEED_FORCE=true`: no la dejes puesta.
 
 ---
 

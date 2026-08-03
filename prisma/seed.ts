@@ -1214,17 +1214,13 @@ const PROMOTIONS: Array<{
 
 // --- Seed --------------------------------------------------------------------
 
-async function main() {
-  console.log("Sembrando contenido de BARZUO…\n");
-
-  await prisma.siteSettings.upsert({
-    where: { id: "singleton" },
-    create: { id: "singleton", ...SETTINGS },
-    update: SETTINGS,
-  });
-  console.log("· Ajustes del sitio");
-
-  // Usuarios del panel
+/**
+ * Crea o repara las cuentas del panel.
+ *
+ * Es lo unico que se puede correr sobre una base con contenido real sin pisar
+ * nada: recupera el acceso si alguien se quedo fuera, sin tocar la contraseña.
+ */
+async function seedPanelUsers() {
   const adminEmail = (process.env.ADMIN_EMAIL ?? "admin@barzuo.com").toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Barzuo2024!";
 
@@ -1255,6 +1251,42 @@ async function main() {
     update: { role: "STAFF", active: true },
   });
   console.log(`· Usuarios del panel (${adminEmail} / ${staffEmail})`);
+}
+
+async function main() {
+  const yaSembrada = await prisma.siteSettings.findUnique({
+    where: { id: "singleton" },
+    select: { id: true },
+  });
+
+  // El seed carga contenido de DEMOSTRACION. Sobre una base que ya tiene
+  // contenido real pisaria la portada, la galeria y la cartelera cargadas
+  // desde el panel: las imagenes subidas siguen en el volumen, pero los
+  // ajustes vuelven a apuntar a /demo/*. Como el entrypoint puede correrlo en
+  // cada arranque (SEED_ON_START), la unica proteccion segura es no sembrar
+  // dos veces.
+  if (yaSembrada && process.env.SEED_FORCE !== "true") {
+    console.log(
+      "La base ya tiene contenido: no se siembra nada.\n" +
+        "Sembrar de nuevo devolveria la portada al contenido de demostracion.\n" +
+        "Si de verdad quieres recargar la demo, corre el seed con SEED_FORCE=true.\n",
+    );
+    await seedPanelUsers();
+    return;
+  }
+
+  console.log("Sembrando contenido de BARZUO…\n");
+
+  await prisma.siteSettings.upsert({
+    where: { id: "singleton" },
+    // Los ajustes son contenido del local, no catalogo: una vez creados no se
+    // pisan nunca. Aqui viven la portada, el logo y las imagenes del "nosotros".
+    create: { id: "singleton", ...SETTINGS },
+    update: {},
+  });
+  console.log("· Ajustes del sitio");
+
+  await seedPanelUsers();
 
   for (const [index, link] of SOCIAL.entries()) {
     const existing = await prisma.socialLink.findFirst({
