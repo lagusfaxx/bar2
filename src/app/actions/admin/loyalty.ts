@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import type { CardStatus } from "@/generated/prisma/enums";
+import type { CardPaymentStatus, CardStatus } from "@/generated/prisma/enums";
 import { requireCmsUser, requireStaff } from "@/lib/auth";
 import {
   checkEligibility,
@@ -40,6 +40,54 @@ export async function setCardStatus(cardId: string, status: CardStatus) {
 
   revalidatePath("/admin/tarjetas");
 }
+
+/**
+ * Avanza el estado de pago de la tarjeta física.
+ *
+ * El dinero se mueve por fuera del sistema (transferencia bancaria), así que
+ * esto es un registro: alguien del local confirma que el pago llegó y, más
+ * tarde, que el socio pasó a retirar la tarjeta.
+ */
+export async function setCardPaymentStatus(
+  cardId: string,
+  status: CardPaymentStatus,
+) {
+  const session = await requireCmsUser();
+
+  const card = await prisma.barzuCard.update({
+    where: { id: cardId },
+    data: {
+      paymentStatus: status,
+      // Las fechas se sellan la primera vez y no se pisan al volver atrás.
+      ...(status === "PAID" && { paidAt: new Date() }),
+      ...(status === "DELIVERED" && { deliveredAt: new Date() }),
+      ...(status === "PENDING" && {
+        paidAt: null,
+        deliveredAt: null,
+        reportedAt: null,
+        paymentReference: null,
+      }),
+    },
+    select: { cardNumber: true },
+  });
+
+  await recordAudit(
+    session.userId,
+    "update",
+    "BarzuCard",
+    cardId,
+    `Tarjeta ${card.cardNumber}: ${CARD_PAYMENT_AUDIT[status]}`,
+  );
+
+  revalidatePath("/admin/tarjetas");
+}
+
+const CARD_PAYMENT_AUDIT: Record<CardPaymentStatus, string> = {
+  PENDING: "pago pendiente",
+  REPORTED: "transferencia informada",
+  PAID: "pago confirmado",
+  DELIVERED: "tarjeta entregada",
+};
 
 /**
  * Emite un QR nuevo. Se usa cuando el socio pierde la tarjeta física: el código
@@ -112,7 +160,7 @@ export type CardLookup = {
 /**
  * Busca una tarjeta por número o por el token del QR y devuelve, para cada
  * promoción vigente, si se puede canjear ahora mismo y por qué no en caso
- * contrario. La app del garzón solo pinta este resultado: toda la decisión se
+ * contrario. La app del personal de sala solo pinta este resultado: toda la decisión se
  * toma en el servidor.
  */
 export async function lookupCard(
@@ -125,20 +173,20 @@ export async function lookupCard(
   const limit = rateLimit(`lookup:${ip}`, 120, 60 * 5);
 
   if (!limit.ok) {
-    return formError("Demasiadas consultas seguidas. Esperá un momento.");
+    return formError("Demasiadas consultas seguidas. Espera un momento.");
   }
 
   const raw = formData.get("code");
 
   if (typeof raw !== "string" || raw.trim().length < 4) {
-    return formError("Ingresá el número de tarjeta o escaneá el QR.");
+    return formError("Ingresa el número de tarjeta o escanea el QR.");
   }
 
   const parsed = normalizeCardInput(raw);
 
   if (parsed.kind === "number" && !isValidCardNumber(parsed.value)) {
     return formError(
-      "El número no corresponde a una BarzuCard. Revisá los 16 dígitos.",
+      "El número no corresponde a una BarzuCard. Revisa los 16 dígitos.",
     );
   }
 
@@ -233,7 +281,7 @@ export async function lookupCard(
  * Registra el canje.
  *
  * Se vuelve a comprobar la elegibilidad dentro de una transacción, con el
- * contador de usos leído en ese mismo momento: sin esto, dos garzones podrían
+ * contador de usos leído en ese mismo momento: sin esto, dos personal de sala podrían
  * canjear a la vez una promoción de un solo uso.
  */
 export async function redeemPromotion(
@@ -254,7 +302,7 @@ export async function redeemPromotion(
   const limit = rateLimit(`redeem:${ip}`, 60, 60 * 5);
 
   if (!limit.ok) {
-    return formError("Demasiados canjes seguidos. Esperá un momento.");
+    return formError("Demasiados canjes seguidos. Espera un momento.");
   }
 
   try {
@@ -333,7 +381,7 @@ export async function redeemPromotion(
     return formError(
       error instanceof Error
         ? error.message
-        : "No se pudo registrar el canje. Probá de nuevo.",
+        : "No se pudo registrar el canje. Prueba de nuevo.",
     );
   }
 }

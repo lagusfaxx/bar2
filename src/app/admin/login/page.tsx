@@ -40,7 +40,7 @@ export default async function AdminLoginPage({
         <div className="card-bz p-7 sm:p-8">
           <h1 className="font-display text-2xl text-bone">Ingresar</h1>
           <p className="mt-2 text-sm text-muted">
-            Accedé con tu cuenta para administrar el contenido del sitio.
+            Accede con tu cuenta para administrar el contenido del sitio.
           </p>
 
           <div className="mt-7">
@@ -49,12 +49,12 @@ export default async function AdminLoginPage({
         </div>
 
         <p className="mt-8 text-center text-xs text-muted-dark">
-          ¿Sos parte del equipo de sala?{" "}
+          ¿Eres parte del equipo de sala?{" "}
           <Link
             href="/staff/login"
             className="text-crimson-bright underline-offset-4 hover:underline"
           >
-            Ingresá a la app de BarzuCard
+            Ingresa a la app de BarzuCard
           </Link>
         </p>
       </div>

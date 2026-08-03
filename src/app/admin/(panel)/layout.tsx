@@ -24,7 +24,7 @@ export default async function PanelLayout({
     redirect("/admin/login");
   }
 
-  // Los garzones solo acceden a la app de verificación de BarzuCard.
+  // Los personal de sala solo acceden a la app de verificación de BarzuCard.
   if (session.role === "STAFF") {
     redirect("/staff");
   }

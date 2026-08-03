@@ -53,7 +53,7 @@ export default async function LegalesPage() {
             </h2>
             <div className="mt-4 flex flex-col gap-4 text-sm leading-relaxed text-muted">
               <p>
-                Guardamos únicamente los datos que nos enviás de forma
+                Guardamos únicamente los datos que nos envías de forma
                 voluntaria: los del formulario de contacto y los del registro
                 del programa {settings.loyaltyTitle}. Los usamos para
                 responderte, gestionar tu tarjeta y, si lo autorizaste,
@@ -69,7 +69,7 @@ export default async function LegalesPage() {
                 calificaciones duplicadas. No permite identificarte.
               </p>
               <p>
-                Podés solicitar la baja de tu cuenta o la eliminación de tus
+                Puedes solicitar la baja de tu cuenta o la eliminación de tus
                 datos escribiendo a{" "}
                 {settings.email ? (
                   <a
@@ -98,7 +98,7 @@ export default async function LegalesPage() {
                     .map((paragraph, index) => <p key={index}>{paragraph}</p>)
                 ) : (
                   <p>
-                    Consultá las condiciones de cada promoción en la sección{" "}
+                    Consulta las condiciones de cada promoción en la sección{" "}
                     {settings.loyaltyTitle}.
                   </p>
                 )}

@@ -17,7 +17,7 @@ import { absoluteUrl } from "@/lib/utils";
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
   const title = "Cartelera";
-  const description = `Todos los shows en vivo, tributos, DJ sets y fiestas de ${settings.barName}. Consultá el calendario y reservá tu lugar.`;
+  const description = `Todos los shows en vivo, tributos, DJ sets y fiestas de ${settings.barName}. Consulta el calendario y reserva tu lugar.`;
 
   return {
     title,
@@ -74,7 +74,7 @@ export default async function EventosPage() {
             <span className="font-western text-crimson">BARZUO</span>
           </>
         }
-        lead={`Tributos, bandas en vivo, DJ sets y fiestas. Elegí la noche que más te guste y reservá tu mesa en ${settings.barName}.`}
+        lead={`Tributos, bandas en vivo, DJ sets y fiestas. Elige la noche que más te guste y reserva tu mesa en ${settings.barName}.`}
         image={settings.heroImageUrl ?? "/demo/hero.jpg"}
       />
 
@@ -99,8 +99,8 @@ export default async function EventosPage() {
       <Section id="calendario" className="container-bz border-t border-line">
         <SectionHeading
           eyebrow="Calendario"
-          title="Elegí tu noche"
-          lead="Los días marcados tienen función. Tocá uno para ver el detalle, o cambiá a la vista de lista."
+          title="Elige tu noche"
+          lead="Los días marcados tienen función. Toca uno para ver el detalle, o cambia a la vista de lista."
         />
 
         <div className="mt-12">
@@ -132,7 +132,7 @@ export default async function EventosPage() {
             <SectionHeading
               eyebrow="Ya pasaron"
               title="Noches que quedaron"
-              lead="Un repaso por los últimos shows. Si estuviste, podés dejar tu calificación."
+              lead="Un repaso por los últimos shows. Si estuviste, puedes dejar tu calificación."
             />
 
             <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

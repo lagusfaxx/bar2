@@ -65,7 +65,7 @@ export default async function StaffPage() {
             Verificar {settings.loyaltyTitle}
           </h1>
           <p className="mt-2 text-sm text-muted">
-            Escaneá el QR del cliente o cargá los 16 dígitos de la tarjeta.
+            Escanea el QR del cliente o carga los 16 dígitos de la tarjeta.
           </p>
           <p className="mt-3 text-xs text-muted-dark">
             {session.name} · {todayCount} canje{todayCount === 1 ? "" : "s"} hoy

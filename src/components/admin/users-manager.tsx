@@ -145,8 +145,8 @@ export function UsersManager({
         title={editing ? `Editar ${editing.name}` : "Nuevo usuario"}
         description={
           editing
-            ? "Dejá la contraseña vacía para conservar la actual."
-            : "Creá una cuenta para el equipo."
+            ? "Deja la contraseña vacía para conservar la actual."
+            : "Crea una cuenta para el equipo."
         }
         action={
           editing && (

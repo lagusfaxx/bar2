@@ -20,7 +20,7 @@ export default async function EditarCategoriaPage({
     <>
       <AdminHeader
         title={category.name}
-        description="Editá los datos de la categoría."
+        description="Edita los datos de la categoría."
         back={{ href: "/admin/carta", label: "Volver a la carta" }}
       />
       <MenuCategoryForm

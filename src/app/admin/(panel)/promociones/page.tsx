@@ -42,7 +42,7 @@ export default async function AdminPromocionesPage() {
         {promotions.length === 0 ? (
           <EmptyState
             title="Todavía no hay promociones"
-            description="Creá el primer beneficio para que los socios tengan algo que canjear."
+            description="Crea el primer beneficio para que los socios tengan algo que canjear."
             action={
               <ButtonLink href="/admin/promociones/nueva" size="sm">
                 <Plus className="size-4" aria-hidden />

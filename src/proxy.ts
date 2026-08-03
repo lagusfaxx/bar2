@@ -25,7 +25,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Panel administrativo y app de garzones
+  // Panel administrativo y app de personal de sala
   const isPanel = pathname.startsWith("/admin") || pathname.startsWith("/staff");
   const isLogin = pathname === "/admin/login" || pathname === "/staff/login";
 

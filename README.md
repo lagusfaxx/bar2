@@ -1,7 +1,7 @@
 # BARZUO — Web oficial, cartelera y CMS
 
 Sitio público y panel administrativo de **BARZUO**, restobar de música en vivo
-en Montevideo. Incluye la cartelera de eventos con calendario, la carta, la
+en Santiago de Chile. Incluye la cartelera de eventos con calendario, la carta, la
 galería, la ubicación y **BarzuCard**, el programa de fidelización con tarjeta
 QR y app de verificación para el equipo de sala.
 
@@ -53,11 +53,15 @@ cambiar un texto, subir un afiche o publicar un show.
 - **Galería**: subida con optimización automática, orden, destacados y
   asociación a un evento.
 - **Promociones**: beneficios de la BarzuCard con todas sus reglas de canje.
-- **Socios y tarjetas**: búsqueda, nivel, puntos, suspensión y regeneración del QR.
+- **Socios y tarjetas**: búsqueda, nivel, puntos, suspensión, regeneración del
+  QR y seguimiento del pago de la tarjeta física (pendiente, transferencia
+  informada, pagada, entregada).
 - **Canjes**: historial completo con comprobante y quién validó.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
-- **Ajustes**: identidad, portada, nosotros, contacto, SEO, redes y horarios.
+- **Ajustes**: identidad, portada (con video de fondo), textos de cada bloque
+  del inicio, nosotros, contacto, SEO, redes, horarios y precio, datos de
+  transferencia e instrucciones de retiro de la tarjeta física.
 - **Usuarios**: administradores, editores y equipo de sala.
 
 ### App de sala (`/staff`)
@@ -94,8 +98,8 @@ npm install
 
 # 2. Variables de entorno
 cp .env.example .env
-#    Editá al menos DATABASE_URL y AUTH_SECRET.
-#    Generá la clave con:  openssl rand -base64 48
+#    Edita al menos DATABASE_URL y AUTH_SECRET.
+#    Genera la clave con:  openssl rand -base64 48
 
 # 3. Base de datos
 createdb barzuo                # o la que uses en DATABASE_URL
@@ -108,26 +112,26 @@ npm run db:seed
 npm run dev
 ```
 
-Abrí <http://localhost:3000>.
+Abre <http://localhost:3000>.
 
 Accesos que crea el seed:
 
 | Rol | Email | Contraseña | Entra por |
 | --- | --- | --- | --- |
 | Administrador | `admin@barzuo.com` | `Barzuo2024!` | `/admin/login` |
-| Equipo de sala | `garzon@barzuo.com` | `Barzuo2024!` | `/staff/login` |
+| Equipo de sala | `sala@barzuo.com` | `Barzuo2024!` | `/staff/login` |
 | Socio de ejemplo | `sofia@ejemplo.com` | `Barzuo2024!` | `/barzucard/ingresar` |
 
-> Cambiá estas contraseñas antes de publicar el sitio.
+> Cambia estas contraseñas antes de publicar el sitio.
 
 ### Todo con Docker
 
 ```bash
-cp .env.example .env     # completá POSTGRES_PASSWORD y AUTH_SECRET
+cp .env.example .env     # completa POSTGRES_PASSWORD y AUTH_SECRET
 docker compose up --build
 ```
 
-La primera vez, poné `SEED_ON_START=true` en el `.env` para cargar el contenido
+La primera vez, pon `SEED_ON_START=true` en el `.env` para cargar el contenido
 de demostración.
 
 ---
@@ -139,8 +143,8 @@ de demostración.
 | `DATABASE_URL` | Sí | Conexión a PostgreSQL. |
 | `AUTH_SECRET` | Sí | Clave de firma de sesiones. **Mínimo 32 caracteres.** Al cambiarla se cierran todas las sesiones. |
 | `NEXT_PUBLIC_SITE_URL` | Sí en producción | URL pública sin barra final. Se usa en canonical, Open Graph, sitemap y en el QR de la tarjeta. |
-| `NEXT_PUBLIC_TIME_ZONE` | No | Zona horaria del local. Por defecto `America/Montevideo`. |
-| `NEXT_PUBLIC_CURRENCY` | No | Moneda de precios. Por defecto `UYU`. |
+| `NEXT_PUBLIC_TIME_ZONE` | No | Zona horaria del local. Por defecto `America/Santiago`. |
+| `NEXT_PUBLIC_CURRENCY` | No | Moneda de precios. Por defecto `CLP`. |
 | `UPLOAD_DIR` | No | Carpeta de las imágenes subidas. Por defecto `storage/uploads`; en Docker, `/app/storage/uploads`. |
 | `DATABASE_POOL_MAX` | No | Tamaño del pool. Por defecto 10. |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_NAME` | No | Primer administrador (seed y `npm run create:admin`). |
@@ -148,7 +152,7 @@ de demostración.
 | `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido al arrancar. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
-cambiás, hay que reconstruir la imagen.
+cambias, hay que reconstruir la imagen.
 
 ---
 
@@ -277,51 +281,51 @@ QR: el plástico anterior deja de validar sin cambiar el número.
 ### 1. Crear la base de datos
 
 En el proyecto de Coolify: **New Resource → Database → PostgreSQL 16**.
-Anotá la cadena de conexión interna, del estilo:
+Anota la cadena de conexión interna, del estilo:
 
 ```
 postgresql://postgres:CLAVE@nombre-del-servicio:5432/postgres
 ```
 
-> Si preferís que Coolify levante también la base, usá el `docker-compose.yml`
-> incluido (paso 2, opción B) y salteá este paso.
+> Si prefieres que Coolify levante también la base, usa el `docker-compose.yml`
+> incluido (paso 2, opción B) y sáltate este paso.
 
 ### 2. Crear la aplicación
 
 **Opción A — Dockerfile (recomendada).**
-**New Resource → Application → Public/Private Repository**, elegí este
-repositorio y la rama, y configurá:
+**New Resource → Application → Public/Private Repository**, elige este
+repositorio y la rama, y configura:
 
 - **Build Pack**: `Dockerfile`
 - **Dockerfile Location**: `/Dockerfile`
 - **Port**: `3000`
 - **Health Check Path**: `/api/health`
 
-**Opción B — Docker Compose.** Elegí `Docker Compose` como build pack y
+**Opción B — Docker Compose.** Elige `Docker Compose` como build pack y
 `/docker-compose.yml`. Levanta la app y PostgreSQL juntos.
 
 ### 3. Variables de entorno
 
-En **Environment Variables** cargá:
+En **Environment Variables** carga:
 
 ```
 DATABASE_URL=postgresql://postgres:CLAVE@servicio-db:5432/postgres
 AUTH_SECRET=<openssl rand -base64 48>
 NEXT_PUBLIC_SITE_URL=https://barzuo.com
-NEXT_PUBLIC_TIME_ZONE=America/Montevideo
-NEXT_PUBLIC_CURRENCY=UYU
+NEXT_PUBLIC_TIME_ZONE=America/Santiago
+NEXT_PUBLIC_CURRENCY=CLP
 UPLOAD_DIR=/app/storage/uploads
 ADMIN_EMAIL=hola@barzuo.com
 ADMIN_PASSWORD=<una contraseña fuerte>
 SEED_ON_START=true
 ```
 
-Marcá como **Build Variable** las tres `NEXT_PUBLIC_*`: Next las inserta en el
+Marca como **Build Variable** las tres `NEXT_PUBLIC_*`: Next las inserta en el
 bundle durante el build.
 
 ### 4. Dominio
 
-En **Domains** poné `https://barzuo.com`. Coolify emite el certificado con
+En **Domains** pon `https://barzuo.com`. Coolify emite el certificado con
 Let's Encrypt. El valor tiene que coincidir con `NEXT_PUBLIC_SITE_URL`, porque
 de ahí salen las URLs canónicas, el sitemap y el QR de las tarjetas.
 
@@ -338,24 +342,24 @@ NEXT_PUBLIC_SITE_URL: https://barzuo.203.0.113.45.sslip.io
 
 Los dos valores tienen que ser idénticos, incluido el `https://`.
 
-**Usá HTTPS.** Las cookies de sesión se marcan `secure` cuando el sitio se
+**Usa HTTPS.** Las cookies de sesión se marcan `secure` cuando el sitio se
 sirve por HTTPS, que es lo correcto. Si Let's Encrypt no llega a emitir el
-certificado y quedás en `http://`, poné también `NEXT_PUBLIC_SITE_URL` con
+certificado y quedas en `http://`, pon también `NEXT_PUBLIC_SITE_URL` con
 `http://`: la app detecta el esquema y emite las cookies sin `secure`, porque
 de lo contrario el navegador las descarta y el login del panel falla sin
 mostrar ningún error.
 
 #### Cuando llegue el dominio definitivo
 
-1. Agregá el dominio real en **Domains** (podés dejar el de sslip.io mientras
+1. Agrega el dominio real en **Domains** (puedes dejar el de sslip.io mientras
    propaga el DNS).
-2. Cambiá `NEXT_PUBLIC_SITE_URL` al dominio nuevo.
-3. **Redesplegá.** Esa variable se inserta en tiempo de build: sin un build
+2. Cambia `NEXT_PUBLIC_SITE_URL` al dominio nuevo.
+3. **Vuelve a desplegar.** Esa variable se inserta en tiempo de build: sin un build
    nuevo, el sitemap, las URLs canónicas y los QR siguen apuntando a la
    dirección vieja.
 
 > No imprimas las tarjetas físicas hasta tener el dominio definitivo: el QR
-> apunta a la URL del sitio. Si igual imprimís antes, las tarjetas siguen
+> apunta a la URL del sitio. Si igual imprimes antes, las tarjetas siguen
 > sirviendo — el equipo de sala las valida por los 16 dígitos, que no cambian —
 > pero el QR impreso deja de abrir la ficha.
 
@@ -371,7 +375,7 @@ redeploy**.
 
 ### 6. Deploy y migraciones
 
-Pulsá **Deploy**. El `entrypoint.sh` del contenedor:
+Pulsa **Deploy**. El `entrypoint.sh` del contenedor:
 
 1. espera a que PostgreSQL acepte conexiones,
 2. aplica las migraciones pendientes (`prisma migrate deploy`),
@@ -393,24 +397,24 @@ El mismo comando **restablece la contraseña** de un administrador existente.
 
 ### 8. Después del primer deploy
 
-1. Entrá a `/admin/login` y cambiá la contraseña en **Usuarios**.
-2. Cargá el logotipo, el favicon y los textos reales en **Ajustes**.
-3. Reemplazá los eventos y las fotos de demostración por los propios.
-4. Poné `SEED_ON_START=false` y volvé a desplegar.
+1. Entra a `/admin/login` y cambia la contraseña en **Usuarios**.
+2. Carga el logotipo, el favicon y los textos reales en **Ajustes**.
+3. Reemplaza los eventos y las fotos de demostración por los propios.
+4. Pon `SEED_ON_START=false` y vuelve a desplegar.
 
 ---
 
 ## Operación del día a día
 
-**Publicar un show.** Cartelera → *Nuevo evento*. Cargá título, artista,
+**Publicar un show.** Cartelera → *Nuevo evento*. Carga título, artista,
 categoría, fecha, entrada (libre o con precio) y el afiche vertical (5:7).
-Guardalo como borrador y marcá *Publicado* cuando esté listo.
+Guardalo como borrador y marca *Publicado* cuando esté listo.
 
 **Cambiar un texto del sitio.** Ajustes, en la pestaña correspondiente. Los
-cambios se ven en la web apenas guardás.
+cambios se ven en la web apenas guardas.
 
 **Moderar reseñas.** Las calificaciones del público quedan pendientes hasta que
-las aprobás en **Reseñas**.
+las apruebas en **Reseñas**.
 
 **Cuentas del equipo.** En **Usuarios**: `EDITOR` para quien gestiona contenido
 y `STAFF` para el personal de sala, que solo entra a la app de BarzuCard.
@@ -460,7 +464,7 @@ datos: al leer del caché serializa los valores y convierte los `Date` de Prisma
 en strings, lo que rompía las fichas de evento.
 
 **Zonas horarias.** Un show a las 22:30 tiene que verse a las 22:30 en
-Montevideo, sin importar dónde corra el servidor. Las fechas se guardan en UTC y
+Santiago, sin importar dónde corra el servidor. Las fechas se guardan en UTC y
 se convierten a la hora del local tanto al mostrarlas como al cargarlas desde el
 panel.
 

@@ -42,7 +42,7 @@ export function ShareButtons({ url, title, text }: ShareButtonsProps) {
     } catch {
       // Sin permiso de portapapeles (o contexto no seguro) mostramos el enlace
       // para que la persona pueda copiarlo a mano.
-      window.prompt("Copiá el enlace del evento:", url);
+      window.prompt("Copia el enlace del evento:", url);
     }
   };
 

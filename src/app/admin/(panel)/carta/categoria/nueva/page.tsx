@@ -8,7 +8,7 @@ export default function NuevaCategoriaPage() {
     <>
       <AdminHeader
         title="Nueva categoría"
-        description="Agrupá los productos de la carta por tipo."
+        description="Agrupa los productos de la carta por tipo."
         back={{ href: "/admin/carta", label: "Volver a la carta" }}
       />
       <MenuCategoryForm />

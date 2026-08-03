@@ -23,7 +23,9 @@ import { cn } from "@/lib/utils";
  * Herramienta de sala para verificar una BarzuCard y canjear promociones.
  *
  * Tres formas de identificar la tarjeta, en orden de comodidad:
- *  1. La cámara del propio teléfono, si el navegador expone BarcodeDetector.
+ *  1. La cámara del propio teléfono. Se usa BarcodeDetector cuando el navegador
+ *     lo trae (Chrome en Android) y, si no, un decodificador en JavaScript, que
+ *     es lo que hace funcionar el escaneo en el Safari del iPhone.
  *  2. La cámara nativa del sistema: el QR contiene la URL /staff/verificar/…
  *     y abre esta misma pantalla ya resuelta.
  *  3. Los 16 dígitos escritos a mano, con verificación de dígito de control.
@@ -38,7 +40,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
   const [scanError, setScanError] = useState<string | null>(null);
 
   /**
-   * Último canje confirmado. Se guarda acá arriba y no en la fila de la
+   * Último canje confirmado. Se guarda aquí arriba y no en la fila de la
    * promoción porque, al canjearse, esa fila pasa a "no disponibles" y se
    * desmonta: el comprobante tiene que sobrevivir para que el equipo de sala
    * pueda mostrárselo al cliente.
@@ -49,6 +51,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
   } | null>(null);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -80,6 +83,28 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
   const startCamera = useCallback(async () => {
     setScanError(null);
 
+    // Los navegadores solo entregan la camara en sitios seguros. Si el local
+    // todavia entra por http://, conviene decirlo con todas las letras: es la
+    // causa mas habitual de que el boton "no haga nada".
+    if (!window.isSecureContext) {
+      setScanError(
+        "La cámara solo funciona con https://. Mientras el sitio esté en http, abre la cámara del teléfono y apunta al QR de la tarjeta: se abre esta misma pantalla con los datos del socio.",
+      );
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setScanError(
+        "Este navegador no da acceso a la cámara. Abre la cámara del teléfono y apunta al QR de la tarjeta: se abre esta misma pantalla.",
+      );
+      return;
+    }
+
+    /**
+     * Lector de QR. Se prefiere BarcodeDetector porque lo resuelve el sistema
+     * operativo; cuando no existe —Safari, Firefox— se carga jsQR bajo demanda,
+     * para no sumar peso a quienes no lo necesitan.
+     */
     const Detector = (
       window as unknown as {
         BarcodeDetector?: new (options: { formats: string[] }) => {
@@ -88,17 +113,47 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
       }
     ).BarcodeDetector;
 
-    if (!Detector) {
-      setScanError(
-        "Este navegador no puede escanear desde la app. Usá la cámara del teléfono sobre el QR, o cargá los 16 dígitos.",
+    const native = Detector ? new Detector({ formats: ["qr_code"] }) : null;
+    const jsQR = native ? null : (await import("jsqr")).default;
+
+    const readFrame = async (video: HTMLVideoElement): Promise<string | null> => {
+      if (native) {
+        const codes = await native.detect(video);
+        return codes[0]?.rawValue ?? null;
+      }
+
+      if (!jsQR || !video.videoWidth) return null;
+
+      // Se decodifica sobre un lienzo reducido: alcanza para leer el QR y
+      // mantiene la busqueda fluida en telefonos modestos.
+      const canvas = (canvasRef.current ??= document.createElement("canvas"));
+      const side = Math.min(video.videoWidth, video.videoHeight, 640);
+      canvas.width = side;
+      canvas.height = side;
+
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) return null;
+
+      context.drawImage(
+        video,
+        (video.videoWidth - side) / 2,
+        (video.videoHeight - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        side,
+        side,
       );
-      return;
-    }
+
+      const image = context.getImageData(0, 0, side, side);
+      return jsQR(image.data, side, side, { inversionAttempts: "dontInvert" })?.data ?? null;
+    };
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         // La cámara trasera es la que apunta a la tarjeta del cliente.
-        video: { facingMode: "environment" },
+        video: { facingMode: { ideal: "environment" } },
       });
 
       streamRef.current = stream;
@@ -106,17 +161,18 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // iOS solo reproduce en linea y sin sonido; sin esto la imagen se
+        // abriria a pantalla completa y el escaneo no llegaria a empezar.
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
         await videoRef.current.play();
       }
-
-      const detector = new Detector({ formats: ["qr_code"] });
 
       const tick = async () => {
         if (!streamRef.current || !videoRef.current) return;
 
         try {
-          const codes = await detector.detect(videoRef.current);
-          const value = codes[0]?.rawValue;
+          const value = await readFrame(videoRef.current);
 
           if (value) {
             stopCamera();
@@ -132,9 +188,15 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
       };
 
       requestAnimationFrame(() => void tick());
-    } catch {
+    } catch (error) {
+      const denied =
+        error instanceof DOMException &&
+        (error.name === "NotAllowedError" || error.name === "SecurityError");
+
       setScanError(
-        "No pudimos acceder a la cámara. Revisá los permisos del navegador o cargá los dígitos a mano.",
+        denied
+          ? "El navegador bloqueó la cámara. Permítela para este sitio en los ajustes del teléfono y vuelve a intentarlo. Mientras tanto puedes escribir los 16 dígitos."
+          : "No pudimos abrir la cámara. Revisa que ninguna otra aplicación la esté usando, o escribe los 16 dígitos.",
       );
       stopCamera();
     }
@@ -249,7 +311,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
           className="pointer-events-none absolute inset-[18%] border-2 border-crimson/70"
         />
         <p className="absolute inset-x-0 bottom-0 bg-ink/80 py-3 text-center text-xs text-bone-dim">
-          Apuntá al código QR de la tarjeta
+          Apunta al código QR de la tarjeta
         </p>
       </div>
 
@@ -406,7 +468,7 @@ function CardResult({
               >
                 <span className="text-bone-dim">{redemption.title}</span>
                 <span className="font-mono text-muted-dark">
-                  {new Intl.DateTimeFormat("es-UY", {
+                  {new Intl.DateTimeFormat("es-CL", {
                     day: "2-digit",
                     month: "2-digit",
                     hour: "2-digit",

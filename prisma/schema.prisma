@@ -231,6 +231,14 @@ enum CardStatus {
   SUSPENDED
 }
 
+/// Estado del pago y la entrega de la tarjeta fisica.
+enum CardPaymentStatus {
+  PENDING // se registro pero todavia no pago
+  REPORTED // el socio aviso que transfirio; falta confirmar
+  PAID // pago confirmado; puede pasar a retirarla
+  DELIVERED // ya retiro la tarjeta fisica en el local
+}
+
 model Member {
   id           String    @id @default(cuid())
   email        String    @unique
@@ -267,12 +275,21 @@ model BarzuCard {
   issuedAt  DateTime  @default(now())
   printedAt DateTime? // fecha en que se imprimio la tarjeta fisica
 
+  // Pago y entrega de la tarjeta fisica (se abona por transferencia y se retira
+  // en el local). Los beneficios digitales funcionan desde el registro.
+  paymentStatus    CardPaymentStatus @default(PENDING)
+  paymentReference String? // numero de operacion o dato que deja el socio
+  reportedAt       DateTime? // cuando el socio aviso la transferencia
+  paidAt           DateTime? // cuando el local confirmo el pago
+  deliveredAt      DateTime? // cuando el socio retiro la tarjeta
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   redemptions Redemption[]
 
   @@index([status])
+  @@index([paymentStatus])
   @@map("barzu_cards")
 }
 
@@ -370,6 +387,24 @@ model SiteSettings {
   heroCtaHref           String? @default("/eventos")
   heroCtaSecondaryLabel String? @default("Ver la carta")
   heroCtaSecondaryHref  String? @default("/carta")
+  heroVideoPosterUrl    String? // primer fotograma mientras carga el video
+
+  // Portada: cintillo animado (una palabra o frase por linea)
+  marqueeText String? @db.Text
+
+  // Portada: titulos de cada bloque. Vacio = se usa el texto por defecto.
+  homeEventsEyebrow String? @default("Cartelera")
+  homeEventsTitle   String? @default("Lo que se viene")
+  homeEventsLead    String? @db.Text
+  homeMenuEyebrow   String? @default("La carta")
+  homeMenuTitle     String? @default("Para acompanar la noche")
+  homeMenuLead      String? @db.Text
+  homeLoyaltyTitle  String? @default("Tu tarjeta de beneficios")
+  homeGalleryEyebrow String? @default("Galeria")
+  homeGalleryTitle   String? @default("Noches que quedan")
+  homeGalleryLead    String? @db.Text
+  homeLocationEyebrow String? @default("Ubicacion")
+  homeLocationTitle   String? @default("Te esperamos")
 
   // Nosotros
   aboutTitle             String? @default("Nuestra historia")
@@ -379,10 +414,10 @@ model SiteSettings {
   aboutSecondaryImageUrl String?
 
   // Contacto y ubicacion
-  address     String @default("Av. Presidente Jose Batlle y Ordonez 3714")
-  addressCity String @default("Montevideo, Uruguay")
-  latitude    Float  @default(-34.8544)
-  longitude   Float  @default(-56.1712)
+  address     String @default("Av. Italia 1348, Providencia")
+  addressCity String @default("Santiago, Chile")
+  latitude    Float  @default(-33.4392)
+  longitude   Float  @default(-70.6250)
   phone       String?
   whatsapp    String?
   email       String?
@@ -393,7 +428,7 @@ model SiteSettings {
 
   // SEO global
   seoTitle          String  @default("BARZUO Restobar · Musica en vivo, tributos y cocteleria")
-  seoDescription    String  @default("BARZUO Restobar en Montevideo. Cartelera de shows en vivo, tributos, DJ y la mejor cocteleria de autor.") @db.Text
+  seoDescription    String  @default("BARZUO Restobar en Santiago. Cartelera de shows en vivo, tributos, DJ y la mejor cocteleria de autor.") @db.Text
   seoImageUrl       String?
   seoKeywords       String?
   googleAnalyticsId String?
@@ -403,6 +438,11 @@ model SiteSettings {
   loyaltyTitle       String  @default("BarzuCard")
   loyaltyDescription String? @db.Text
   loyaltyTerms       String? @db.Text
+
+  // Tarjeta fisica: se abona por transferencia y se retira en el local.
+  cardPriceCents  Int     @default(550000)
+  cardPaymentInfo String? @db.Text // datos de la transferencia
+  cardPickupInfo  String? @db.Text // como y cuando se retira
 
   updatedAt DateTime @updatedAt
 

@@ -12,6 +12,8 @@ type CardVisualProps = {
   qrDataUrl?: string;
   issuedAt?: Date;
   status?: string;
+  /** Nombre del local; el de fabrica es BARZUO. */
+  barName?: string;
   className?: string;
 };
 
@@ -33,6 +35,10 @@ const TIER_ACCENT: Record<string, string> = {
  * Se dibuja con HTML y no como imagen: se ve nítida en cualquier pantalla, se
  * adapta al ancho disponible y se puede imprimir tal cual (ver estilos de
  * impresión en globals.css).
+ *
+ * Jerarquia: el QR y el nombre del socio son lo que se mira en la barra, asi
+ * que llevan el tamano; el resto acompana. Se evitan los textos diminutos con
+ * mucho espaciado entre letras, que a este tamano se vuelven ilegibles.
  */
 export function CardVisual({
   cardNumber,
@@ -42,6 +48,7 @@ export function CardVisual({
   qrDataUrl,
   issuedAt,
   status = "ACTIVE",
+  barName = "BARZUO",
   className,
 }: CardVisualProps) {
   const suspended = status !== "ACTIVE";
@@ -49,7 +56,7 @@ export function CardVisual({
   return (
     <div
       className={cn(
-        "print-card relative aspect-[1.586/1] w-full overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-lift sm:p-7",
+        "print-card relative aspect-[1.586/1] w-full overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-lift sm:p-6",
         TIER_STYLES[tier] ?? TIER_STYLES.CLASICA,
         suspended && "grayscale",
         className,
@@ -65,69 +72,59 @@ export function CardVisual({
         }}
       />
 
-      <div className="relative flex h-full gap-4">
+      <div className="relative flex h-full items-stretch gap-4 sm:gap-5">
         <div className="flex min-w-0 flex-1 flex-col justify-between">
-          <div>
-            <p className="font-western text-lg leading-none text-crimson sm:text-2xl">
-              BAR<span className="text-bone">Z</span>UO
+          <div className="min-w-0">
+            <p className="truncate font-western text-xl leading-none text-crimson sm:text-2xl">
+              {barName}
             </p>
             <p
               className={cn(
-                "mt-1.5 text-[0.55rem] font-medium tracking-[0.24em] uppercase sm:text-[0.62rem]",
+                "mt-2 text-xs font-medium sm:text-sm",
                 TIER_ACCENT[tier] ?? TIER_ACCENT.CLASICA,
               )}
             >
-              BarzuCard · {TIER_LABELS[tier] ?? tier}
+              BarzuCard {TIER_LABELS[tier] ?? tier}
             </p>
           </div>
 
           <div className="min-w-0">
-            <p className="truncate font-mono text-[0.72rem] tracking-[0.16em] text-bone sm:text-sm">
+            <p className="truncate text-base leading-tight font-medium text-bone sm:text-lg">
+              {holder}
+            </p>
+
+            <p className="mt-1.5 truncate font-mono text-sm text-bone-dim sm:text-base">
               {formatCardNumber(cardNumber)}
             </p>
 
-            <div className="mt-2 flex items-end justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[0.5rem] tracking-[0.2em] text-muted uppercase">
-                  Socio
-                </p>
-                <p className="truncate text-xs text-bone-dim sm:text-sm">
-                  {holder}
-                </p>
-              </div>
-
-              <div className="shrink-0 text-right">
-                <p className="text-[0.5rem] tracking-[0.2em] text-muted uppercase">
-                  Puntos
-                </p>
-                <p className="font-display text-base text-bone sm:text-lg">
-                  {points}
-                </p>
-              </div>
-            </div>
-
-            {issuedAt && (
-              <p className="mt-2 text-[0.5rem] tracking-[0.16em] text-muted-dark uppercase">
-                Miembro desde{" "}
-                {new Intl.DateTimeFormat("es-UY", {
-                  month: "2-digit",
-                  year: "numeric",
-                }).format(issuedAt)}
-              </p>
-            )}
+            <p className="mt-2 text-xs text-muted sm:text-sm">
+              {points} {points === 1 ? "punto" : "puntos"}
+              {issuedAt && (
+                <>
+                  {" · "}
+                  socio desde{" "}
+                  {new Intl.DateTimeFormat("es-CL", {
+                    month: "2-digit",
+                    year: "numeric",
+                  }).format(issuedAt)}
+                </>
+              )}
+            </p>
           </div>
         </div>
 
         {qrDataUrl && (
           <div className="flex shrink-0 items-center">
-            <div className="rounded-lg bg-bone p-1.5 sm:p-2">
+            {/* El QR va sobre blanco puro: es lo que garantiza que lo lea
+                cualquier camara, incluso con la pantalla a media luz. */}
+            <div className="rounded-lg bg-white p-2">
               <Image
                 src={qrDataUrl}
                 alt="Código QR de la BarzuCard"
-                width={128}
-                height={128}
+                width={160}
+                height={160}
                 unoptimized
-                className="size-16 sm:size-24"
+                className="size-20 sm:size-28"
               />
             </div>
           </div>
@@ -136,7 +133,7 @@ export function CardVisual({
 
       {suspended && (
         <div className="absolute inset-0 flex items-center justify-center bg-ink/70">
-          <p className="border border-crimson px-4 py-2 text-xs tracking-[0.2em] text-crimson-bright uppercase">
+          <p className="border border-crimson px-4 py-2 text-sm text-crimson-bright">
             Tarjeta suspendida
           </p>
         </div>

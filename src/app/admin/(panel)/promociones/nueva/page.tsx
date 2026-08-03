@@ -9,7 +9,7 @@ export default function NuevaPromocionPage() {
     <>
       <AdminHeader
         title="Nueva promoción"
-        description="Definí el beneficio y las reglas con las que se puede canjear."
+        description="Define el beneficio y las reglas con las que se puede canjear."
         back={{ href: "/admin/promociones", label: "Volver a promociones" }}
       />
       <PromotionForm

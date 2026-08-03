@@ -17,6 +17,43 @@ import { Badge } from "@/components/ui/section";
 import { prisma } from "@/lib/prisma";
 import { dateParts, EVENT_CATEGORY_LABELS, formatDateTime } from "@/lib/format";
 
+/**
+ * Atajos con lenguaje llano. El panel lo usa gente que no trabaja con webs:
+ * cada tarjeta dice que se consigue, no como se llama la seccion.
+ */
+const TAREAS = [
+  {
+    href: "/admin/eventos/nuevo",
+    title: "Publicar un show",
+    text: "Carga el título, la fecha, el afiche y el precio. Queda en la cartelera al marcarlo como publicado.",
+  },
+  {
+    href: "/admin/carta",
+    title: "Cambiar la carta",
+    text: "Precios, platos y tragos. Cada producto se puede ocultar sin borrarlo si se acaba.",
+  },
+  {
+    href: "/admin/galeria",
+    title: "Subir fotos del local",
+    text: "Arrastra las fotos de la noche. Se optimizan solas para que la web siga siendo rápida.",
+  },
+  {
+    href: "/admin/ajustes",
+    title: "Editar la portada y los datos del bar",
+    text: "Textos del inicio, video de fondo, dirección, horarios, redes y datos de la tarjeta.",
+  },
+  {
+    href: "/admin/tarjetas",
+    title: "Revisar socios y pagos de la BarzuCard",
+    text: "Confirma las transferencias y marca las tarjetas entregadas.",
+  },
+  {
+    href: "/admin/promociones",
+    title: "Crear una promoción",
+    text: "2x1, descuentos o cortesías, con sus días y sus límites por tarjeta.",
+  },
+];
+
 export default async function AdminDashboard() {
   const now = new Date();
 
@@ -68,7 +105,7 @@ export default async function AdminDashboard() {
     <>
       <AdminHeader
         title="Panel de BARZUO"
-        description="Un vistazo general al contenido del sitio y a la actividad reciente."
+        description="Desde aquí se cambia todo lo que ve el público. Los cambios se publican al guardar: no hace falta avisar a nadie."
         action={
           <ButtonLink href="/admin/eventos/nuevo" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -76,6 +113,30 @@ export default async function AdminDashboard() {
           </ButtonLink>
         }
       />
+
+      {/* Guia breve, pensada para quien entra al panel por primera vez y no
+          tiene por que saber que hace cada seccion. */}
+      <Panel
+        title="¿Qué quieres hacer?"
+        description="Las tareas más habituales, con el camino completo."
+        className="mb-6"
+      >
+        <ul className="grid gap-3 sm:grid-cols-2">
+          {TAREAS.map((tarea) => (
+            <li key={tarea.href}>
+              <Link
+                href={tarea.href}
+                className="flex h-full flex-col gap-1 border border-line bg-ink px-4 py-3 transition-colors hover:border-crimson"
+              >
+                <span className="text-sm text-bone">{tarea.title}</span>
+                <span className="text-xs leading-relaxed text-muted">
+                  {tarea.text}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Panel>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
@@ -116,7 +177,7 @@ export default async function AdminDashboard() {
             <StatCard
               label="Reseñas por revisar"
               value={pendingRatings}
-              hint="Se publican recién cuando las aprobás"
+              hint="Se publican recién cuando las apruebas"
               href="/admin/resenas"
               icon={<MessageSquareQuote className="size-4" aria-hidden />}
               tone="crimson"
@@ -147,7 +208,7 @@ export default async function AdminDashboard() {
           {nextEvents.length === 0 ? (
             <EmptyState
               title="No hay eventos programados"
-              description="Cargá el primer show para que aparezca en la cartelera."
+              description="Carga el primer show para que aparezca en la cartelera."
               action={
                 <ButtonLink href="/admin/eventos/nuevo" size="sm">
                   <Plus className="size-4" aria-hidden />

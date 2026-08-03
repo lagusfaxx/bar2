@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { CardVisual } from "@/components/barzucard/card-visual";
+import { PrintButton } from "@/components/barzucard/print-button";
 import { getMemberSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
 import { formatCardNumber } from "@/lib/format";
@@ -52,15 +53,26 @@ export default async function ImprimirTarjetaPage() {
         </h1>
 
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted">
-          Imprimí esta página en tamaño real (sin ajuste de escala) sobre papel
-          grueso o cartulina. Recortá por el borde y, si querés que dure,
+          Imprime esta página en tamaño real (sin ajuste de escala) sobre papel
+          grueso o cartulina. Recorta por el borde y, si quieres que dure,
           plastificala. El QR sigue funcionando impreso.
         </p>
 
         <p className="mt-4 text-xs text-muted-dark">
-          Consejo: en el diálogo de impresión, desactivá &ldquo;Ajustar a la
-          página&rdquo; y activá &ldquo;Gráficos de fondo&rdquo;.
+          Consejo: en el diálogo de impresión, desactiva &ldquo;Ajustar a la
+          página&rdquo; y activa &ldquo;Gráficos de fondo&rdquo;.
         </p>
+
+        <div className="mt-6 flex flex-wrap gap-3">
+          <PrintButton />
+          <a
+            href="/barzucard/tarjeta/imagen"
+            download="barzucard.png"
+            className="inline-flex h-11 items-center gap-2 border border-line px-5 text-sm text-bone-dim transition-colors hover:border-crimson hover:text-bone"
+          >
+            Guardar como imagen
+          </a>
+        </div>
       </div>
 
       {/* 85,6 mm es el ancho estándar de una tarjeta. */}
@@ -74,25 +86,24 @@ export default async function ImprimirTarjetaPage() {
             qrDataUrl={qrDataUrl}
             issuedAt={card.issuedAt}
             status={card.status}
+            barName={settings.barName}
           />
         </div>
 
         {/* Dorso */}
         <div className="print-card flex aspect-[1.586/1] w-[85.6mm] flex-col justify-between rounded-2xl border border-line bg-ink p-4">
           <div>
-            <p className="font-western text-sm text-crimson">
-              BAR<span className="text-bone">Z</span>UO
-            </p>
+            <p className="font-western text-sm text-crimson">{settings.barName}</p>
             <p className="mt-0.5 text-[0.45rem] tracking-[0.2em] text-muted uppercase">
               {settings.address} · {settings.addressCity}
             </p>
           </div>
 
           <p className="text-[0.42rem] leading-relaxed text-muted-dark">
-            Tarjeta personal e intransferible. Presentala en el local para
+            Tarjeta personal e intransferible. Preséntala en el local para
             canjear los beneficios vigentes según sus condiciones. No es
             canjeable por dinero. BARZUO puede suspenderla ante un uso indebido.
-            Consultá los términos en {settings.email ?? "el sitio web"}.
+            Consulta los términos en {settings.email ?? "el sitio web"}.
           </p>
 
           <p className="font-mono text-[0.55rem] tracking-[0.14em] text-bone-dim">

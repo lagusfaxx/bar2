@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
       : undefined,
     openGraph: {
       type: "website",
-      locale: "es_UY",
+      locale: "es_CL",
       siteName: settings.barName,
       title: settings.seoTitle,
       description: settings.seoDescription,

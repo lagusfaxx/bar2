@@ -25,7 +25,7 @@ export default async function AdminResenasPage() {
     <>
       <AdminHeader
         title="Reseñas de eventos"
-        description="Las calificaciones del público se publican recién cuando las aprobás."
+        description="Las calificaciones del público se publican recién cuando las apruebas."
       />
 
       <div className="flex flex-col gap-6">
@@ -48,7 +48,7 @@ export default async function AdminResenasPage() {
           {approved.length === 0 ? (
             <EmptyState
               title="Todavía no publicaste ninguna reseña"
-              description="Aprobá las pendientes para que aparezcan en la ficha del evento."
+              description="Aprueba las pendientes para que aparezcan en la ficha del evento."
             />
           ) : (
             <ul className="flex flex-col gap-4">

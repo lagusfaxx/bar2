@@ -19,7 +19,7 @@ export default function NotFound() {
       </h1>
 
       <p className="mt-8 max-w-md text-base text-muted">
-        Esta página no existe o se mudó de lugar. Pero la noche sigue: mirá qué
+        Esta página no existe o se mudó de lugar. Pero la noche sigue: mira qué
         se viene en la cartelera.
       </p>
 
@@ -36,7 +36,7 @@ export default function NotFound() {
         href="/contacto"
         className="mt-10 text-sm text-muted-dark underline-offset-4 transition-colors hover:text-bone-dim hover:underline"
       >
-        ¿Buscabas algo puntual? Escribinos
+        ¿Buscabas algo puntual? Escríbenos
       </Link>
     </main>
   );

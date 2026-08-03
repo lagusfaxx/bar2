@@ -79,7 +79,7 @@ export default async function AdminCanjesPage() {
         {redemptions.length === 0 ? (
           <EmptyState
             title="Todavía no hay canjes"
-            description="Cuando el equipo de sala valide una BarzuCard, el movimiento queda registrado acá."
+            description="Cuando el equipo de sala valide una BarzuCard, el movimiento queda registrado aquí."
           />
         ) : (
           <TableWrap>

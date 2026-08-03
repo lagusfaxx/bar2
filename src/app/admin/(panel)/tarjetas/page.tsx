@@ -1,7 +1,8 @@
-import { Ban, CheckCircle2, Printer, RefreshCw } from "lucide-react";
+import { Ban, CheckCircle2, HandCoins, PackageCheck, Printer, RefreshCw } from "lucide-react";
 
 import {
   regenerateCardQr,
+  setCardPaymentStatus,
   setCardStatus,
   markCardPrinted,
 } from "@/app/actions/admin/loyalty";
@@ -22,6 +23,20 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Socios y tarjetas" };
 
+const PAYMENT_LABELS: Record<string, string> = {
+  PENDING: "Pago pendiente",
+  REPORTED: "Transferencia informada",
+  PAID: "Pagada, sin retirar",
+  DELIVERED: "Entregada",
+};
+
+const PAYMENT_TONE: Record<string, "muted" | "gilt" | "free" | "crimson"> = {
+  PENDING: "muted",
+  REPORTED: "gilt",
+  PAID: "crimson",
+  DELIVERED: "free",
+};
+
 export default async function AdminTarjetasPage({
   searchParams,
 }: {
@@ -30,7 +45,7 @@ export default async function AdminTarjetasPage({
   const { q } = await searchParams;
   const query = q?.trim() ?? "";
 
-  const [members, total, active, suspended] = await Promise.all([
+  const [members, total, active, suspended, awaitingPayment] = await Promise.all([
     prisma.member.findMany({
       where: query
         ? {
@@ -50,6 +65,7 @@ export default async function AdminTarjetasPage({
     prisma.member.count(),
     prisma.barzuCard.count({ where: { status: "ACTIVE" } }),
     prisma.barzuCard.count({ where: { status: "SUSPENDED" } }),
+    prisma.barzuCard.count({ where: { paymentStatus: "REPORTED" } }),
   ]);
 
   return (
@@ -59,10 +75,15 @@ export default async function AdminTarjetasPage({
         description="Todas las BarzuCard emitidas, con su nivel, puntos y estado."
       />
 
-      <div className="mb-6 grid gap-4 sm:grid-cols-3">
+      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Socios registrados" value={total} tone="gilt" />
         <StatCard label="Tarjetas activas" value={active} />
         <StatCard label="Suspendidas" value={suspended} tone={suspended > 0 ? "crimson" : "default"} />
+        <StatCard
+          label="Pagos por confirmar"
+          value={awaitingPayment}
+          tone={awaitingPayment > 0 ? "gilt" : "default"}
+        />
       </div>
 
       <Panel>
@@ -87,8 +108,8 @@ export default async function AdminTarjetasPage({
             title={query ? "Sin resultados" : "Todavía no hay socios"}
             description={
               query
-                ? "Probá con otro nombre, email o número de tarjeta."
-                : "Cuando alguien se registre en la web, su BarzuCard aparece acá."
+                ? "Prueba con otro nombre, email o número de tarjeta."
+                : "Cuando alguien se registre en la web, su BarzuCard aparece aquí."
             }
           />
         ) : (
@@ -102,6 +123,7 @@ export default async function AdminTarjetasPage({
                   <Th className="hidden lg:table-cell">Puntos</Th>
                   <Th className="hidden lg:table-cell">Canjes</Th>
                   <Th>Estado</Th>
+                  <Th>Tarjeta física</Th>
                   <Th className="text-right">Acciones</Th>
                 </tr>
               </thead>
@@ -159,7 +181,51 @@ export default async function AdminTarjetasPage({
 
                     <Td>
                       {member.card && (
+                        <>
+                          <Badge tone={PAYMENT_TONE[member.card.paymentStatus]}>
+                            {PAYMENT_LABELS[member.card.paymentStatus]}
+                          </Badge>
+                          {member.card.paymentReference && (
+                            <span className="mt-1 block max-w-40 truncate text-xs text-muted-dark">
+                              Op. {member.card.paymentReference}
+                            </span>
+                          )}
+                        </>
+                      )}
+                    </Td>
+
+                    <Td>
+                      {member.card && (
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* Un paso a la vez: cobrar y, cuando el socio pasa a
+                              buscarla, entregar. */}
+                          {member.card.paymentStatus !== "PAID" &&
+                            member.card.paymentStatus !== "DELIVERED" && (
+                              <ActionButton
+                                action={async () => {
+                                  "use server";
+                                  await setCardPaymentStatus(member.card!.id, "PAID");
+                                }}
+                                title="Confirmar que el pago llegó"
+                                aria-label="Confirmar pago de la tarjeta"
+                              >
+                                <HandCoins className="size-4" aria-hidden />
+                              </ActionButton>
+                            )}
+
+                          {member.card.paymentStatus === "PAID" && (
+                            <ActionButton
+                              action={async () => {
+                                "use server";
+                                await setCardPaymentStatus(member.card!.id, "DELIVERED");
+                              }}
+                              title="Marcar como entregada al socio"
+                              aria-label="Marcar tarjeta como entregada"
+                            >
+                              <PackageCheck className="size-4" aria-hidden />
+                            </ActionButton>
+                          )}
+
                           <ActionButton
                             action={async () => {
                               "use server";

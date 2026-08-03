@@ -160,6 +160,22 @@ export const settingsSchema = z.object({
   heroCtaHref: trimmed.max(200).optional().or(z.literal("")),
   heroCtaSecondaryLabel: trimmed.max(40).optional().or(z.literal("")),
   heroCtaSecondaryHref: trimmed.max(200).optional().or(z.literal("")),
+  heroVideoPosterUrl: optionalUrl,
+
+  marqueeText: trimmed.max(600).optional().or(z.literal("")),
+
+  homeEventsEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeEventsTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeEventsLead: trimmed.max(400).optional().or(z.literal("")),
+  homeMenuEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeMenuTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeMenuLead: trimmed.max(400).optional().or(z.literal("")),
+  homeLoyaltyTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeGalleryEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeGalleryTitle: trimmed.max(120).optional().or(z.literal("")),
+  homeGalleryLead: trimmed.max(400).optional().or(z.literal("")),
+  homeLocationEyebrow: trimmed.max(60).optional().or(z.literal("")),
+  homeLocationTitle: trimmed.max(120).optional().or(z.literal("")),
 
   aboutTitle: trimmed.max(120).optional().or(z.literal("")),
   aboutLead: trimmed.max(600).optional().or(z.literal("")),
@@ -188,6 +204,11 @@ export const settingsSchema = z.object({
   loyaltyTitle: trimmed.max(60),
   loyaltyDescription: trimmed.max(800).optional().or(z.literal("")),
   loyaltyTerms: trimmed.max(4000).optional().or(z.literal("")),
+
+  // El precio llega como texto del formulario ("5.500") y se guarda en centesimos.
+  cardPrice: trimmed.max(20).optional().or(z.literal("")),
+  cardPaymentInfo: trimmed.max(1200).optional().or(z.literal("")),
+  cardPickupInfo: trimmed.max(1200).optional().or(z.literal("")),
 });
 
 export const socialLinkSchema = z.object({
@@ -227,7 +248,7 @@ export const contactSchema = z.object({
   email: emailSchema,
   phone: trimmed.max(40).optional().or(z.literal("")),
   subject: trimmed.max(140).optional().or(z.literal("")),
-  message: trimmed.min(10, "Contanos un poco mas").max(2000),
+  message: trimmed.min(10, "Cuéntanos un poco mas").max(2000),
   // Campo trampa: los bots lo completan, las personas no lo ven.
   website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),
 });
@@ -238,7 +259,7 @@ export const eventRatingSchema = z.object({
   rating: z.coerce
     .number()
     .int()
-    .min(1, "Elegi una puntuacion")
+    .min(1, "Elige una puntuacion")
     .max(5, "La puntuacion maxima es 5"),
   comment: trimmed.max(600).optional().or(z.literal("")),
   website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),

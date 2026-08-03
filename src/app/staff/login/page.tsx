@@ -38,7 +38,7 @@ export default async function StaffLoginPage({
         <div className="card-bz p-7 sm:p-8">
           <h1 className="font-display text-2xl text-bone">Ingresar</h1>
           <p className="mt-2 text-sm text-muted">
-            Usá tu cuenta del equipo para validar tarjetas y canjear
+            Usa tu cuenta del equipo para validar tarjetas y canjear
             promociones.
           </p>
 

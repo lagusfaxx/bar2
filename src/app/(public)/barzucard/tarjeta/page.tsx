@@ -1,9 +1,11 @@
-import { LogOut, Printer, Sparkles, Star } from "lucide-react";
+import { Download, LogOut, Printer, Sparkles, Star } from "lucide-react";
+import Image from "next/image";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { logoutMember } from "@/app/actions/auth";
 import { CardVisual } from "@/components/barzucard/card-visual";
+import { PaymentPanel } from "@/components/barzucard/payment-panel";
 import { PromotionCard } from "@/components/barzucard/promotion-card";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,7 +14,7 @@ import { Section, SectionHeading, Badge } from "@/components/ui/section";
 import { getMemberSession } from "@/lib/auth";
 import { checkEligibility } from "@/lib/barzucard";
 import { getActivePromotions, getSettings } from "@/lib/content";
-import { formatDateTime, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, formatDateTime, formatPrice, TIER_LABELS } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cardQrDataUrl } from "@/lib/qr";
 
@@ -102,8 +104,8 @@ export default async function MiTarjetaPage({
         title="Tu BarzuCard"
         lead={
           bienvenida
-            ? "¡Bienvenido al programa! Esta es tu tarjeta: mostrá el QR en la barra para canjear beneficios."
-            : "Mostrá este QR en la barra para canjear tus beneficios."
+            ? "¡Bienvenido al programa! Esta es tu tarjeta: muestra el QR en la barra para canjear beneficios."
+            : "Muestra este QR en la barra para canjear tus beneficios."
         }
       />
 
@@ -111,6 +113,28 @@ export default async function MiTarjetaPage({
         <div className="grid gap-12 lg:grid-cols-[minmax(0,26rem)_1fr] lg:gap-16">
           {/* Tarjeta */}
           <div>
+            {/* El QR grande va primero: es lo unico que se usa en la barra, y
+                a media luz y con el telefono en la mano tiene que leerse de
+                una pasada. La tarjeta queda debajo, como respaldo visual. */}
+            <div className="print-hidden mb-8 flex flex-col items-center gap-4 rounded-2xl bg-white p-6 sm:p-8">
+              <Image
+                src={qrDataUrl}
+                alt="Código QR de tu BarzuCard"
+                width={512}
+                height={512}
+                unoptimized
+                className="h-auto w-full max-w-[17rem]"
+                priority
+              />
+              <p className="text-center font-mono text-base tracking-[0.12em] text-ink">
+                {formatCardNumber(card.cardNumber)}
+              </p>
+              <p className="text-center text-sm text-ink/70">
+                Muéstralo en la barra. Si el escáner falla, el equipo puede
+                escribir este número.
+              </p>
+            </div>
+
             <Reveal>
               <CardVisual
                 cardNumber={card.cardNumber}
@@ -120,42 +144,63 @@ export default async function MiTarjetaPage({
                 qrDataUrl={qrDataUrl}
                 issuedAt={card.issuedAt}
                 status={card.status}
+                barName={settings.barName}
               />
             </Reveal>
 
-            <div className="print-hidden mt-6 flex flex-wrap gap-3">
-              <ButtonLink href="/barzucard/promociones" size="sm" variant="outline">
-                Ver promociones
-              </ButtonLink>
+            {/* Guardar la imagen es lo mas parecido a "sumarla a la wallet"
+                que se puede ofrecer sin certificados de Apple y Google: queda
+                en la galeria del telefono y funciona sin conexion. */}
+            <div className="print-hidden mt-6 grid gap-3 sm:grid-cols-2">
+              <a
+                href="/barzucard/tarjeta/imagen"
+                download="barzucard.png"
+                className="inline-flex h-12 items-center justify-center gap-2 bg-crimson px-5 text-sm font-medium text-bone transition-colors hover:bg-crimson-bright"
+              >
+                <Download className="size-4" aria-hidden />
+                Guardar imagen
+              </a>
 
               <a
                 href="/barzucard/tarjeta/imprimir"
-                className="inline-flex h-9 items-center gap-2 border border-line px-4 text-[0.65rem] font-medium tracking-[0.18em] text-bone-dim uppercase transition-colors hover:border-crimson hover:text-bone"
+                className="inline-flex h-12 items-center justify-center gap-2 border border-line px-5 text-sm text-bone-dim transition-colors hover:border-crimson hover:text-bone"
               >
-                <Printer className="size-3.5" aria-hidden />
-                Versión para imprimir
+                <Printer className="size-4" aria-hidden />
+                Imprimir la tarjeta
               </a>
 
-              <form action={logoutMember}>
+              <ButtonLink href="/barzucard/promociones" variant="outline">
+                Ver promociones
+              </ButtonLink>
+
+              <form action={logoutMember} className="contents">
                 <button
                   type="submit"
-                  className="inline-flex h-9 items-center gap-2 border border-line px-4 text-[0.65rem] font-medium tracking-[0.18em] text-muted uppercase transition-colors hover:border-crimson hover:text-crimson-bright"
+                  className="inline-flex h-12 items-center justify-center gap-2 border border-line px-5 text-sm text-muted transition-colors hover:border-crimson hover:text-crimson-bright"
                 >
-                  <LogOut className="size-3.5" aria-hidden />
-                  Salir
+                  <LogOut className="size-4" aria-hidden />
+                  Cerrar sesión
                 </button>
               </form>
             </div>
 
             {card.status !== "ACTIVE" && (
               <p className="mt-6 border border-crimson/50 bg-crimson/10 px-4 py-3 text-sm text-crimson-bright">
-                Tu tarjeta está suspendida. Escribinos para regularizarla.
+                Tu tarjeta está suspendida. Escríbenos para regularizarla.
               </p>
             )}
           </div>
 
           {/* Estado del socio */}
           <div className="print-hidden flex flex-col gap-8">
+            <PaymentPanel
+              status={card.paymentStatus}
+              price={formatPrice(settings.cardPriceCents)}
+              paymentInfo={settings.cardPaymentInfo}
+              pickupInfo={settings.cardPickupInfo}
+              reference={card.paymentReference}
+            />
+
             <div className="grid gap-4 sm:grid-cols-3">
               <div className="card-bz p-5">
                 <p className="eyebrow text-muted">Nivel</p>
@@ -218,7 +263,7 @@ export default async function MiTarjetaPage({
 
               {card.redemptions.length === 0 ? (
                 <p className="card-bz mt-4 p-6 text-sm text-muted">
-                  Todavía no canjeaste ningún beneficio. Mostrá tu QR en la
+                  Todavía no canjeaste ningún beneficio. Muestra tu QR en la
                   barra para estrenar la tarjeta.
                 </p>
               ) : (
@@ -258,16 +303,16 @@ export default async function MiTarjetaPage({
       {/* Promociones disponibles para este socio */}
       <Section className="print-hidden container-bz border-t border-line">
         <SectionHeading
-          eyebrow="Disponibles para vos"
+          eyebrow="Disponibles para ti"
           title={
             available.length > 0
-              ? "Beneficios que podés canjear hoy"
+              ? "Beneficios que puedes canjear hoy"
               : "Sin beneficios disponibles ahora"
           }
           lead={
             available.length > 0
-              ? `Mostrá el QR de tu ${settings.loyaltyTitle} en la barra.`
-              : "Volvé a mirar más adelante: las promociones cambian seguido."
+              ? `Muestra el QR de tu ${settings.loyaltyTitle} en la barra.`
+              : "Vuelve a mirar más adelante: las promociones cambian seguido."
           }
         />
 

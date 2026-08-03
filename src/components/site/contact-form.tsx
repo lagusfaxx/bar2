@@ -29,7 +29,7 @@ export function ContactForm() {
       <div className="card-bz flex flex-col gap-4 p-8">
         <FormMessage state={state} />
         <p className="text-sm text-muted">
-          Si tu consulta es urgente, también podés llamarnos o escribirnos por
+          Si tu consulta es urgente, también puedes llamarnos o escribirnos por
           WhatsApp.
         </p>
       </div>
@@ -86,7 +86,7 @@ export function ContactForm() {
         required
         rows={6}
         maxLength={2000}
-        placeholder="Contanos día, horario y cantidad de personas si es una reserva."
+        placeholder="Cuéntanos día, horario y cantidad de personas si es una reserva."
         error={state.errors?.message}
       />
 

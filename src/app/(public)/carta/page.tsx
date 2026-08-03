@@ -43,7 +43,7 @@ export default async function CartaPage() {
         offers: {
           "@type": "Offer",
           price: (product.priceCents / 100).toFixed(2),
-          priceCurrency: process.env.NEXT_PUBLIC_CURRENCY ?? "UYU",
+          priceCurrency: process.env.NEXT_PUBLIC_CURRENCY ?? "CLP",
         },
       })),
     })),
@@ -66,7 +66,7 @@ export default async function CartaPage() {
       {menu.length === 0 ? (
         <Section className="container-bz">
           <p className="card-bz p-12 text-center text-muted">
-            Estamos actualizando la carta. Volvé en un rato.
+            Estamos actualizando la carta. Vuelve en un rato.
           </p>
         </Section>
       ) : (
@@ -189,7 +189,7 @@ export default async function CartaPage() {
 
           <div className="container-bz pb-24">
             <p className="border-t border-line pt-8 text-xs text-muted-dark">
-              Los precios están expresados en pesos uruguayos e incluyen
+              Los precios están expresados en pesos chilenos e incluyen
               impuestos. La carta puede variar según disponibilidad.
             </p>
           </div>

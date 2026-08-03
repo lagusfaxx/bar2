@@ -61,7 +61,7 @@ export default async function AdminMensajesPage({
         {messages.length === 0 ? (
           <EmptyState
             title={showArchived ? "No hay mensajes archivados" : "La bandeja está vacía"}
-            description="Los mensajes del formulario de contacto aparecen acá."
+            description="Los mensajes del formulario de contacto aparecen aquí."
           />
         ) : (
           <ul className="flex flex-col gap-4">

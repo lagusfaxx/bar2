@@ -40,7 +40,7 @@ export default async function AdminCartaPage() {
     <>
       <AdminHeader
         title="Carta"
-        description="Organizá las categorías y los productos que se muestran en la web."
+        description="Organiza las categorías y los productos que se muestran en la web."
         action={
           <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -52,7 +52,7 @@ export default async function AdminCartaPage() {
       {categories.length === 0 ? (
         <EmptyState
           title="La carta está vacía"
-          description="Creá la primera categoría (por ejemplo, Coctelería) y después cargá sus productos."
+          description="Crea la primera categoría (por ejemplo, Coctelería) y después carga sus productos."
           action={
             <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
               <Plus className="size-4" aria-hidden />

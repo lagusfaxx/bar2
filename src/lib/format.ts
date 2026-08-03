@@ -1,6 +1,6 @@
-const LOCALE = "es-UY";
-const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Montevideo";
-const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "UYU";
+const LOCALE = "es-CL";
+const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
+const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "CLP";
 
 /** Precios se guardan en centesimos para evitar errores de coma flotante. */
 export function formatPrice(cents: number | null | undefined) {

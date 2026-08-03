@@ -7,11 +7,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { getMemberSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
+import { formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Pedir mi BarzuCard",
   description:
-    "Registrate gratis y recibí tu BarzuCard con código QR y número único para canjear beneficios en BARZUO.",
+    "Regístrate gratis y recibe tu BarzuCard con código QR y número único para canjear beneficios en BARZUO.",
 };
 
 export default async function RegistroPage() {
@@ -26,8 +27,8 @@ export default async function RegistroPage() {
     <>
       <PageHeader
         eyebrow="Registro"
-        title="Pedí tu BarzuCard"
-        lead="Es gratis. Completá tus datos y te emitimos la tarjeta al instante, con su QR y su número único."
+        title="Pide tu BarzuCard"
+        lead="Completa tus datos y te emitimos la tarjeta al instante, con su QR y su número único. La cuenta y los beneficios digitales no tienen costo."
         image="/demo/promo-3.jpg"
       />
 
@@ -39,9 +40,9 @@ export default async function RegistroPage() {
 
           <aside className="lg:sticky lg:top-28 lg:self-start">
             <div className="card-bz p-6">
-              <h2 className="eyebrow mb-4 text-bone">¿Ya tenés cuenta?</h2>
+              <h2 className="eyebrow mb-4 text-bone">¿Ya tienes cuenta?</h2>
               <p className="text-sm text-muted">
-                Ingresá con tu email y accedé a tu tarjeta desde cualquier
+                Ingresa con tu email y accede a tu tarjeta desde cualquier
                 dispositivo.
               </p>
               <Link
@@ -53,10 +54,20 @@ export default async function RegistroPage() {
             </div>
 
             <div className="card-bz mt-6 p-6">
+              <h2 className="eyebrow mb-4 text-bone">La tarjeta física</h2>
+              <p className="text-sm leading-relaxed text-muted">
+                Si la quieres impresa, tiene un valor de{" "}
+                <span className="text-bone">{formatPrice(settings.cardPriceCents)}</span>
+                . Se paga por transferencia y se retira en el local; los datos
+                aparecen en tu tarjeta apenas te registras.
+              </p>
+            </div>
+
+            <div className="card-bz mt-6 p-6">
               <h2 className="eyebrow mb-4 text-bone">Tus datos</h2>
               <p className="text-sm leading-relaxed text-muted">
                 Usamos tu email solo para gestionar la tarjeta y, si lo
-                autorizás, avisarte de la cartelera. Podés darte de baja cuando
+                autorizas, avisarte de la cartelera. Puedes darte de baja cuando
                 quieras.
               </p>
               <Link

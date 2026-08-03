@@ -75,7 +75,7 @@ export default async function AdminEventosPage({
     <>
       <AdminHeader
         title="Cartelera"
-        description="Creá, editá y publicá los eventos que se muestran en la web."
+        description="Crea, edita y publica los eventos que se muestran en la web."
         action={
           <ButtonLink href="/admin/eventos/nuevo" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -105,7 +105,7 @@ export default async function AdminEventosPage({
         {events.length === 0 ? (
           <EmptyState
             title="No hay eventos en esta vista"
-            description="Probá con otro filtro o creá un evento nuevo."
+            description="Prueba con otro filtro o crea un evento nuevo."
             action={
               <ButtonLink href="/admin/eventos/nuevo" size="sm">
                 <Plus className="size-4" aria-hidden />

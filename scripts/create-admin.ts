@@ -31,7 +31,7 @@ async function main() {
 
   if (!email || !email.includes("@")) {
     throw new Error(
-      "Indicá un email válido (ADMIN_EMAIL o primer argumento del comando).",
+      "Indica un email válido (ADMIN_EMAIL o primer argumento del comando).",
     );
   }
 
@@ -50,7 +50,7 @@ async function main() {
   });
 
   console.log(`\nListo. Administrador disponible:\n  ${user.email}\n`);
-  console.log("Ingresá en /admin/login con esa cuenta.\n");
+  console.log("Ingresa en /admin/login con esa cuenta.\n");
 }
 
 main()

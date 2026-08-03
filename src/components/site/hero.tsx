@@ -17,6 +17,7 @@ type HeroProps = {
     heroSubtitle: string | null;
     heroImageUrl: string | null;
     heroVideoUrl: string | null;
+    heroVideoPosterUrl: string | null;
     heroCtaLabel: string | null;
     heroCtaHref: string | null;
     heroCtaSecondaryLabel: string | null;
@@ -48,7 +49,7 @@ export function Hero({ settings, nextEvent }: HeroProps) {
             muted
             loop
             playsInline
-            poster={background}
+            poster={settings.heroVideoPosterUrl ?? background}
             aria-hidden
           >
             <source src={settings.heroVideoUrl} />
@@ -200,7 +201,7 @@ export function Hero({ settings, nextEvent }: HeroProps) {
             aria-label="Ver la cartelera"
             className="hidden items-center gap-2 text-[0.65rem] tracking-[0.2em] text-muted uppercase transition-colors hover:text-bone sm:flex"
           >
-            Descubrí BARZUO
+            Descubre BARZUO
             <ChevronDown className="size-4 animate-bounce" aria-hidden />
           </a>
         </div>

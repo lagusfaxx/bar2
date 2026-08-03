@@ -1,46 +1,36 @@
 "use client";
 
-import { ImagePlus, Loader2, Trash2, X } from "lucide-react";
-import Image from "next/image";
+import { Film, Loader2, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 
-import { uploadImage } from "@/app/actions/admin/content";
-import { cn } from "@/lib/utils";
+import { uploadVideo } from "@/app/actions/admin/content";
 
-type ImageFieldProps = {
+type VideoFieldProps = {
   label: string;
   name: string;
   defaultValue?: string | null;
-  preset?: "poster" | "cover" | "gallery" | "product" | "logo";
   hint?: string;
   error?: string;
-  aspect?: string;
-  required?: boolean;
 };
 
 /**
- * Campo de imagen del panel: sube el archivo, muestra la vista previa y deja
- * la URL final en un input oculto para que la envíe el formulario que lo
- * contiene. También acepta pegar una URL externa a mano.
+ * Campo de video del panel, gemelo de ImageField: sube el archivo, muestra una
+ * vista previa reproducible y deja la URL en un input oculto que viaja con el
+ * formulario. Tambien acepta pegar la URL de un video alojado en otro sitio.
  */
-export function ImageField({
+export function VideoField({
   label,
   name,
   defaultValue,
-  preset = "gallery",
   hint,
   error,
-  aspect = "aspect-4/3",
-  required,
-}: ImageFieldProps) {
+}: VideoFieldProps) {
   const [url, setUrl] = useState(defaultValue ?? "");
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const hiddenRef = useRef<HTMLInputElement>(null);
 
-  // Cuando el formulario que contiene este campo se reinicia, la vista previa
-  // debe volver a su valor inicial.
   useEffect(() => {
     const form = hiddenRef.current?.form;
     if (!form) return;
@@ -55,15 +45,14 @@ export function ImageField({
 
     const data = new FormData();
     data.set("file", file);
-    data.set("preset", preset);
 
     startTransition(async () => {
-      const result = await uploadImage({ status: "idle" }, data);
+      const result = await uploadVideo({ status: "idle" }, data);
 
       if (result.status === "success" && typeof result.data?.url === "string") {
         setUrl(result.data.url);
       } else {
-        setMessage(result.message ?? "No pudimos subir la imagen.");
+        setMessage(result.message ?? "No pudimos subir el video.");
       }
     });
   };
@@ -75,33 +64,27 @@ export function ImageField({
         className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase"
       >
         {label}
-        {required && <span className="ml-1 text-crimson">*</span>}
       </label>
 
-      {/* La URL es lo que realmente viaja en el formulario. */}
       <input ref={hiddenRef} type="hidden" name={name} value={url} />
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <div
-          className={cn(
-            "relative w-full shrink-0 overflow-hidden border border-line bg-ink sm:w-48",
-            aspect,
-          )}
-        >
+        <div className="relative aspect-16/9 w-full shrink-0 overflow-hidden border border-line bg-ink sm:w-48">
           {url ? (
             <>
-              <Image
+              {/* Silenciado y en bucle, igual que en la portada. */}
+              <video
                 src={url}
-                alt=""
-                fill
-                sizes="192px"
-                className="object-cover"
-                unoptimized={url.startsWith("http")}
+                className="size-full object-cover"
+                muted
+                loop
+                playsInline
+                autoPlay
               />
               <button
                 type="button"
                 onClick={() => setUrl("")}
-                aria-label="Quitar imagen"
+                aria-label="Quitar video"
                 className="absolute top-2 right-2 flex size-8 items-center justify-center border border-line bg-ink/85 text-bone-dim transition-colors hover:border-crimson hover:text-crimson-bright"
               >
                 <X className="size-3.5" aria-hidden />
@@ -112,11 +95,9 @@ export function ImageField({
               {pending ? (
                 <Loader2 className="size-6 animate-spin" aria-hidden />
               ) : (
-                <ImagePlus className="size-6" aria-hidden />
+                <Film className="size-6" aria-hidden />
               )}
-              <span className="text-xs">
-                {pending ? "Subiendo…" : "Sin imagen"}
-              </span>
+              <span className="text-xs">{pending ? "Subiendo…" : "Sin video"}</span>
             </div>
           )}
         </div>
@@ -125,12 +106,11 @@ export function ImageField({
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
+            accept="video/mp4,video/webm,video/quicktime"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
               if (file) upload(file);
-              // Permite volver a elegir el mismo archivo tras un error.
               event.target.value = "";
             }}
           />
@@ -144,9 +124,9 @@ export function ImageField({
             {pending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
-              <ImagePlus className="size-4" aria-hidden />
+              <Film className="size-4" aria-hidden />
             )}
-            {url ? "Reemplazar imagen" : "Subir imagen"}
+            {url ? "Reemplazar video" : "Subir video"}
           </button>
 
           <input

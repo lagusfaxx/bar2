@@ -1,6 +1,8 @@
 "use server";
 
-import { fingerprint } from "@/lib/auth";
+import { revalidatePath } from "next/cache";
+
+import { fingerprint, getMemberSession } from "@/lib/auth";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
@@ -21,14 +23,14 @@ export async function submitContactMessage(
 
   if (!limit.ok) {
     return formError(
-      "Recibimos varios mensajes desde esta conexión. Probá de nuevo en unos minutos.",
+      "Recibimos varios mensajes desde esta conexión. Prueba de nuevo en unos minutos.",
     );
   }
 
   const parsed = contactSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá los datos del formulario.", fieldErrors(parsed.error));
+    return formError("Revisa los datos del formulario.", fieldErrors(parsed.error));
   }
 
   const { website, ...data } = parsed.data;
@@ -60,13 +62,13 @@ export async function submitEventRating(
   const limit = rateLimit(`rating:${ip}`, 8, 60 * 30);
 
   if (!limit.ok) {
-    return formError("Demasiadas calificaciones seguidas. Probá más tarde.");
+    return formError("Demasiadas calificaciones seguidas. Prueba más tarde.");
   }
 
   const parsed = eventRatingSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
-    return formError("Revisá tu calificación.", fieldErrors(parsed.error));
+    return formError("Revisa tu calificación.", fieldErrors(parsed.error));
   }
 
   const { website, eventId, authorName, rating, comment } = parsed.data;
@@ -91,7 +93,7 @@ export async function submitEventRating(
   // Solo tiene sentido calificar un show al que ya se pudo asistir.
   if (event.startsAt > new Date()) {
     return formError(
-      "Vas a poder calificar este evento una vez que se haya realizado.",
+      "Podrás calificar este evento una vez que se haya realizado.",
     );
   }
 
@@ -121,4 +123,61 @@ export async function submitEventRating(
   revalidateContent("events");
 
   return formSuccess("¡Gracias! Tu calificación se publica apenas la revisemos.");
+}
+
+/**
+ * El socio avisa que transfirió el valor de su tarjeta física.
+ *
+ * No confirma nada por sí solo: dejar el aviso solo mueve la tarjeta a
+ * "transferencia informada" para que el local la revise contra su banco y la
+ * confirme desde el panel.
+ */
+export async function reportCardTransfer(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await getMemberSession();
+
+  if (!session) {
+    return formError("Vuelve a iniciar sesión para avisar tu transferencia.");
+  }
+
+  const ip = await clientIp();
+  const limit = rateLimit(`transfer:${ip}`, 10, 60 * 15);
+
+  if (!limit.ok) {
+    return formError("Demasiados avisos seguidos. Prueba de nuevo en un rato.");
+  }
+
+  const reference = String(formData.get("paymentReference") ?? "")
+    .trim()
+    .slice(0, 120);
+
+  const card = await prisma.barzuCard.findUnique({
+    where: { memberId: session.memberId },
+    select: { id: true, paymentStatus: true },
+  });
+
+  if (!card) {
+    return formError("No encontramos tu tarjeta.");
+  }
+
+  if (card.paymentStatus === "PAID" || card.paymentStatus === "DELIVERED") {
+    return formSuccess("Tu pago ya estaba confirmado.");
+  }
+
+  await prisma.barzuCard.update({
+    where: { id: card.id },
+    data: {
+      paymentStatus: "REPORTED",
+      reportedAt: new Date(),
+      paymentReference: reference || null,
+    },
+  });
+
+  revalidatePath("/barzucard/tarjeta");
+
+  return formSuccess(
+    "¡Gracias! Vamos a revisar la transferencia y te avisamos cuando la tarjeta esté lista para retirar.",
+  );
 }

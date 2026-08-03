@@ -27,7 +27,7 @@ export default async function EditarProductoPage({
     <>
       <AdminHeader
         title={product.name}
-        description="Editá los datos del producto."
+        description="Edita los datos del producto."
         back={{ href: "/admin/carta", label: "Volver a la carta" }}
       />
       <MenuProductForm

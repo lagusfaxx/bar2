@@ -12,7 +12,7 @@ import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const description = `Reservá tu mesa, consultá por eventos privados o escribinos. Contacto de ${settings.barName}.`;
+  const description = `Reserva tu mesa, consulta por eventos privados o escríbenos. Contacto de ${settings.barName}.`;
 
   return {
     title: "Contacto",
@@ -41,7 +41,7 @@ export default async function ContactoPage() {
     <>
       <PageHeader
         eyebrow="Contacto"
-        title="Escribinos"
+        title="Escríbenos"
         lead={
           settings.reservationsNote ??
           "Reservas, eventos privados, propuestas de bandas o cualquier consulta."
@@ -53,7 +53,7 @@ export default async function ContactoPage() {
         <div className="grid gap-14 lg:grid-cols-[1fr_20rem] lg:gap-16">
           <Reveal>
             <h2 className="font-display text-2xl text-bone sm:text-3xl">
-              Contanos qué necesitás
+              Cuéntanos qué necesitas
             </h2>
             <p className="mt-3 text-sm text-muted">
               Respondemos de martes a sábado. Para reservas del mismo día,
