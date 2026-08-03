@@ -39,8 +39,9 @@ echo "  base de datos disponible."
 echo "→ Aplicando migraciones…"
 npx prisma migrate deploy
 
-# SEED_ON_START=true siembra el contenido de demostracion. El seed es
-# idempotente, pero conviene desactivarlo una vez cargado el contenido real.
+# SEED_ON_START=true siembra el contenido de demostracion en el primer
+# arranque. Si la base ya tiene contenido, el seed no hace nada: sembrar de
+# nuevo devolveria la portada, la galeria y la cartelera a la demo.
 if [ "$SEED_ON_START" = "true" ]; then
   echo "→ Sembrando contenido inicial…"
   npx tsx prisma/seed.ts
