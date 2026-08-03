@@ -34,6 +34,11 @@ model User {
   redemptions Redemption[] @relation("RedemptionStaff")
   auditLogs   AuditLog[]
 
+  openedSessions TableSession[] @relation("SessionOpenedBy")
+  orderItems     OrderItem[]    @relation("OrderItemCreatedBy")
+  tickets        OrderTicket[]  @relation("TicketCreatedBy")
+  payments       Payment[]      @relation("PaymentCashier")
+
   @@index([role])
   @@map("users")
 }
@@ -136,6 +141,10 @@ model MenuCategory {
   position    Int     @default(0)
   active      Boolean @default(true)
 
+  // A donde sale la comanda de esta categoria. Se define una vez por categoria
+  // y cada producto puede desviarse (ver MenuProduct.station).
+  station Station @default(COCINA)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -161,8 +170,22 @@ model MenuProduct {
   position  Int      @default(0)
   tags      String[] @default([]) // ej: "vegano", "picante", "sin gluten"
 
+  // Estacion propia, para los productos que no siguen a su categoria (un postre
+  // helado que arma la barra, un cafe que sale de cocina). Vacio = la categoria.
+  station Station?
+
+  // Precio promocional. Es la unica fuente del descuento: la carta de la web y
+  // el POS de los garzones leen lo mismo, asi que una promo publicada aparece
+  // sola en la comanda sin que nadie la cargue dos veces.
+  promoPriceCents Int?
+  promoLabel      String? // "Happy hour", "2x1 jueves"
+  promoStartsAt   DateTime?
+  promoEndsAt     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
 
   @@index([categoryId, position])
   @@index([available, featured])
@@ -266,7 +289,7 @@ model BarzuCard {
   // Identificador numerico legible (16 digitos) impreso en la tarjeta
   cardNumber String @unique
   // Token opaco que viaja dentro del QR (rotable si la tarjeta se pierde)
-  qrToken String @unique
+  qrToken    String @unique
 
   tier   CardTier   @default(CLASICA)
   status CardStatus @default(ACTIVE)
@@ -288,6 +311,7 @@ model BarzuCard {
 
   redemptions Redemption[]
   vouchers    PromotionVoucher[]
+  payments    Payment[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -377,7 +401,6 @@ enum VoucherStatus {
 
 /**
  * Cupon de un descuento concreto, elegido por el socio desde su BarzuCard.
- *
  * La tarjeta identifica a la persona; el cupon identifica que quiere canjear.
  * Separarlos evita que el equipo de sala tenga que adivinar la promocion: al
  * escanear el QR del cupon ya sabe cual es y solo confirma.
@@ -386,7 +409,7 @@ model PromotionVoucher {
   id String @id @default(cuid())
 
   // Codigo corto y legible, por si hay que dictarlo en la barra
-  code String @unique
+  code  String @unique
   // Token opaco que viaja dentro del QR del descuento
   token String @unique
 
@@ -441,16 +464,16 @@ model SiteSettings {
   marqueeText String? @db.Text
 
   // Portada: titulos de cada bloque. Vacio = se usa el texto por defecto.
-  homeEventsEyebrow String? @default("Cartelera")
-  homeEventsTitle   String? @default("Lo que se viene")
-  homeEventsLead    String? @db.Text
-  homeMenuEyebrow   String? @default("La carta")
-  homeMenuTitle     String? @default("Para acompanar la noche")
-  homeMenuLead      String? @db.Text
-  homeLoyaltyTitle  String? @default("Tu tarjeta de beneficios")
-  homeGalleryEyebrow String? @default("Galeria")
-  homeGalleryTitle   String? @default("Noches que quedan")
-  homeGalleryLead    String? @db.Text
+  homeEventsEyebrow   String? @default("Cartelera")
+  homeEventsTitle     String? @default("Lo que se viene")
+  homeEventsLead      String? @db.Text
+  homeMenuEyebrow     String? @default("La carta")
+  homeMenuTitle       String? @default("Para acompanar la noche")
+  homeMenuLead        String? @db.Text
+  homeLoyaltyTitle    String? @default("Tu tarjeta de beneficios")
+  homeGalleryEyebrow  String? @default("Galeria")
+  homeGalleryTitle    String? @default("Noches que quedan")
+  homeGalleryLead     String? @db.Text
   homeLocationEyebrow String? @default("Ubicacion")
   homeLocationTitle   String? @default("Te esperamos")
 
@@ -462,10 +485,10 @@ model SiteSettings {
   aboutSecondaryImageUrl String?
 
   // Contacto y ubicacion
-  address     String @default("Av. Italia 1348, Providencia")
-  addressCity String @default("Santiago, Chile")
-  latitude    Float  @default(-33.4392)
-  longitude   Float  @default(-70.6250)
+  address     String  @default("Av. Italia 1348, Providencia")
+  addressCity String  @default("Santiago, Chile")
+  latitude    Float   @default(-33.4392)
+  longitude   Float   @default(-70.6250)
   phone       String?
   whatsapp    String?
   email       String?
@@ -533,6 +556,252 @@ model ContactMessage {
 
   @@index([read, createdAt])
   @@map("contact_messages")
+}
+
+// ---------------------------------------------------------------------------
+// POS — mesas, comandas y cobros
+//
+// El garzon abre una mesa, identifica a los comensales por como se ven
+// ("polera azul"), les carga productos de la misma carta que publica la web y
+// manda la comanda. Cada producto sale impreso donde corresponde: la cocina
+// imprime lo suyo y la barra lo suyo.
+//
+// El cobro admite las dos formas que se dan en un bar: la mesa entera de una
+// vez, o cada comensal por separado. Cerrar el consumo de alguien no cierra la
+// mesa: puede seguir pidiendo y se le cobra de nuevo.
+// ---------------------------------------------------------------------------
+
+/**
+ * A donde sale impresa la comanda de un producto.
+ */
+enum Station {
+  BARRA // cervezas, tragos, jugos, bebidas
+  COCINA // comida
+}
+
+model PosTable {
+  id     String  @id @default(cuid())
+  number Int     @unique // el numero con el que se la nombra en el local
+  name   String? // "Terraza 2", cuando el numero no alcanza
+  zone   String? // salon, terraza, barra
+  seats  Int     @default(4)
+
+  active   Boolean @default(true)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sessions TableSession[]
+
+  @@index([active, position])
+  @@map("pos_tables")
+}
+
+enum TableSessionStatus {
+  OPEN
+  CLOSED
+}
+
+/**
+ * Un turno de mesa: desde que se sientan hasta que se van.
+ * Se mantiene OPEN mientras quede algo sin cobrar o el garzon no la cierre a
+ * mano, aunque algunos comensales ya hayan pagado lo suyo.
+ */
+model TableSession {
+  id      String   @id @default(cuid())
+  tableId String
+  table   PosTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+
+  // Correlativo legible del turno, para nombrarlo en voz alta: "M4-0312".
+  code   String             @unique
+  status TableSessionStatus @default(OPEN)
+
+  guests Int     @default(1)
+  note   String?
+
+  openedById String?
+  openedBy   User?   @relation("SessionOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
+
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
+
+  diners   Diner[]
+  items    OrderItem[]
+  tickets  OrderTicket[]
+  payments Payment[]
+
+  @@index([status, openedAt])
+  @@index([tableId, status])
+  @@map("pos_table_sessions")
+}
+
+/**
+ * Un comensal dentro de la mesa, identificado por como se ve.
+ * No se le pide el nombre a nadie: el garzon anota "polera azul" y con eso
+ * reparte los pedidos y despues cobra por separado.
+ */
+model Diner {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  label    String // "Polera azul", "Pelo largo", "El del cumpleanos"
+  color    String? // color de la etiqueta en la pantalla del garzon
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+
+  @@index([sessionId, position])
+  @@map("pos_diners")
+}
+
+enum OrderItemStatus {
+  DRAFT // cargado por el garzon, todavia sin mandar
+  SENT // ya salio en una comanda
+  CANCELLED
+}
+
+/**
+ * Una linea de la cuenta.
+ * Guarda copia del nombre y del precio: la carta se edita todo el tiempo y una
+ * cuenta abierta no puede cambiar de precio a mitad de la noche.
+ */
+model OrderItem {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Sin comensal = va a la cuenta general de la mesa (para picoteo compartido).
+  dinerId String?
+  diner   Diner?  @relation(fields: [dinerId], references: [id], onDelete: SetNull)
+
+  // Si el producto se borra de la carta, la linea sobrevive con su copia.
+  productId String?
+  product   MenuProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  name           String
+  unitPriceCents Int
+  quantity       Int     @default(1)
+  note           String? // "sin cebolla", "bien cocido"
+
+  // Descuento ya resuelto al cargar la linea (promo vigente de la carta).
+  discountCents Int     @default(0)
+  discountLabel String?
+
+  station Station
+  status  OrderItemStatus @default(DRAFT)
+
+  ticketId String?
+  ticket   OrderTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  // Se llena al cobrar. Vacio = todavia se debe.
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  createdById String?
+  createdBy   User?   @relation("OrderItemCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId, status])
+  @@index([dinerId])
+  @@index([paymentId])
+  @@map("pos_order_items")
+}
+
+enum TicketStatus {
+  PENDING // en cola, esperando que la impresora la retire
+  PRINTED
+  FAILED
+}
+
+/**
+ * Una comanda: lo que sale por una impresora.
+ * Se guarda en la base y queda PENDING hasta que el agente de impresion del
+ * local la retira. Asi un corte de red o una impresora sin papel no pierde el
+ * pedido: queda en cola y se reimprime.
+ */
+model OrderTicket {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Correlativo del dia, el numero que se canta: "comanda 42".
+  number  Int
+  station Station
+  status  TicketStatus @default(PENDING)
+
+  attempts  Int       @default(0)
+  lastError String?
+  printedAt DateTime?
+
+  createdById String?
+  createdBy   User?   @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+
+  @@index([status, createdAt])
+  @@index([station, status])
+  @@index([sessionId])
+  @@map("pos_order_tickets")
+}
+
+enum PaymentMethod {
+  EFECTIVO
+  DEBITO
+  CREDITO
+  TRANSFERENCIA
+  OTRO
+}
+
+/**
+ * Un cobro.
+ * Con comensal cobra solo lo suyo y la mesa sigue abierta; sin comensal cobra
+ * todo lo que quede pendiente. Un mismo comensal puede tener varios cobros si
+ * cerro, siguio tomando y volvio a cerrar.
+ */
+model Payment {
+  id        String       @id @default(cuid())
+  sessionId String
+  session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  // Vacio = se cobro la mesa completa.
+  dinerId String?
+  diner   Diner?  @relation(fields: [dinerId], references: [id], onDelete: SetNull)
+
+  code String @unique // comprobante que se le dice al cliente
+
+  // Sin propina: la deja el cliente en la terminal de cobro, no el POS.
+  subtotalCents Int
+  discountCents Int @default(0)
+  totalCents    Int
+
+  method PaymentMethod @default(EFECTIVO)
+
+  // BarzuCard presentada al pagar: es el momento natural para sumar puntos.
+  cardId String?
+  card   BarzuCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  cashierId String?
+  cashier   User?   @relation("PaymentCashier", fields: [cashierId], references: [id], onDelete: SetNull)
+
+  paidAt DateTime @default(now())
+
+  items OrderItem[]
+
+  @@index([sessionId])
+  @@index([paidAt])
+  @@index([cardId])
+  @@map("pos_payments")
 }
 
 model AuditLog {

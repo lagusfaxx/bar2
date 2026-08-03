@@ -23,6 +23,7 @@ export type CategoryValues = {
   imageUrl?: string | null;
   icon?: string | null;
   active?: boolean;
+  station?: "BARRA" | "COCINA";
 };
 
 export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
@@ -73,6 +74,17 @@ export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
             hint="Se muestra junto al título de la sección en la carta."
           />
 
+          <SelectField
+            label="Sale por la impresora de"
+            name="station"
+            defaultValue={category?.station ?? "COCINA"}
+            hint="Adónde va la comanda cuando el garzón manda un producto de esta categoría."
+            error={state.errors?.station}
+          >
+            <option value="COCINA">Cocina</option>
+            <option value="BARRA">Barra</option>
+          </SelectField>
+
           <CheckboxField
             label="Categoría visible en la web"
             name="active"
@@ -102,6 +114,11 @@ export type ProductValues = {
   available?: boolean;
   featured?: boolean;
   tags?: string[];
+  station?: "BARRA" | "COCINA" | "";
+  promoPrice?: string;
+  promoLabel?: string | null;
+  promoStartsAt?: string;
+  promoEndsAt?: string;
 };
 
 export function MenuProductForm({
@@ -215,6 +232,67 @@ export function MenuProductForm({
           <SubmitButton className="self-start" pendingLabel="Guardando…">
             Guardar producto
           </SubmitButton>
+        </div>
+      </Panel>
+
+      <Panel
+        title="Promoción"
+        description="El precio promocional rige en la carta de la web y en el POS de los garzones a la vez. No hay que cargarlo dos veces."
+      >
+        <div className="flex flex-col gap-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="Precio promocional"
+              name="promoPrice"
+              inputMode="decimal"
+              defaultValue={product?.promoPrice ?? ""}
+              placeholder="Vacío = sin promoción"
+              hint="Debe ser menor que el precio normal."
+              error={state.errors?.promoPrice}
+            />
+
+            <Field
+              label="Etiqueta"
+              name="promoLabel"
+              defaultValue={product?.promoLabel ?? ""}
+              maxLength={40}
+              placeholder="Happy hour"
+              hint="Se imprime en la cuenta junto al descuento."
+              error={state.errors?.promoLabel}
+            />
+          </div>
+
+          <div className="grid gap-5 sm:grid-cols-2">
+            <Field
+              label="Desde"
+              name="promoStartsAt"
+              type="datetime-local"
+              defaultValue={product?.promoStartsAt ?? ""}
+              hint="Vacío = ya está vigente."
+              error={state.errors?.promoStartsAt}
+            />
+
+            <Field
+              label="Hasta"
+              name="promoEndsAt"
+              type="datetime-local"
+              defaultValue={product?.promoEndsAt ?? ""}
+              hint="Vacío = sin fecha de término."
+              error={state.errors?.promoEndsAt}
+            />
+          </div>
+
+          <SelectField
+            label="Impresora"
+            name="station"
+            defaultValue={product?.station ?? ""}
+            hint="Vacío = sigue a su categoría. Se cambia solo para las excepciones."
+            error={state.errors?.station}
+          >
+            <option value="">Según la categoría</option>
+            <option value="COCINA">Cocina</option>
+            <option value="BARRA">Barra</option>
+          </SelectField>
         </div>
       </Panel>
     </form>

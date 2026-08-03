@@ -16,6 +16,7 @@
     "db:studio": "prisma studio",
     "create:admin": "tsx scripts/create-admin.ts",
     "artwork": "node scripts/generate-artwork.mjs",
+    "print:agent": "node scripts/print-agent.mjs",
     "build:next": "next build"
   },
   "dependencies": {

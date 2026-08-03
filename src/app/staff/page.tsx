@@ -1,4 +1,4 @@
-import { LogOut, Settings } from "lucide-react";
+import { ArrowRight, LogOut, Settings } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -75,6 +75,19 @@ export default async function StaffPage() {
         </div>
 
         <CardVerifier />
+
+        <Link
+          href="/staff/pos"
+          className="mt-8 flex items-center justify-between gap-3 border border-line bg-ink-soft px-4 py-4 transition-colors hover:border-crimson"
+        >
+          <span>
+            <span className="block font-display text-lg text-bone">Sala</span>
+            <span className="block text-xs text-muted">
+              Abrir mesas, tomar pedidos y cobrar
+            </span>
+          </span>
+          <ArrowRight className="size-5 shrink-0 text-muted" aria-hidden />
+        </Link>
       </main>
     </>
   );
