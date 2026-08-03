@@ -62,7 +62,7 @@ export function Account({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur-xl">
+      <header className="shrink-0 border-b border-line bg-ink pt-safe">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <Link
             href="/staff/pos"
@@ -98,7 +98,7 @@ export function Account({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-40 pt-4">
+      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
         {feedback.message && (
           <p
             role="status"
@@ -114,7 +114,7 @@ export function Account({
         )}
 
         {/* Pestanas: la mesa y cada comensal */}
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-2">
           {session.tabs.map((candidate) => {
             const active = candidate.dinerId === tab.dinerId;
 
@@ -355,9 +355,9 @@ export function Account({
         )}
       </main>
 
-      {/* Barra de acciones: siempre bajo el pulgar */}
+      {/* Barra de acciones: siempre bajo el pulgar, nunca flotando */}
       {!cerrada && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 backdrop-blur-xl">
+        <div className="shrink-0 border-t border-line bg-ink pb-safe">
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
             <button
               type="button"

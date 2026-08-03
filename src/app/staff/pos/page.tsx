@@ -28,7 +28,7 @@ export default async function PosPage() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur-xl">
+      <header className="shrink-0 border-b border-line bg-ink pt-safe">
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
           <Logo src={settings.logoUrl} name={settings.barName} variant="compact" />
 
@@ -55,7 +55,7 @@ export default async function PosPage() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 py-6 pb-safe">
         <h1 className="font-display text-2xl text-bone">Sala</h1>
         <p className="mt-2 text-sm text-muted">
           Toca una mesa para abrirla o para seguir su cuenta.

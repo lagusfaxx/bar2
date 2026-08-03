@@ -73,8 +73,8 @@ export function ProductPicker({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex flex-col bg-ink">
-      <header className="border-b border-line px-4 py-3">
+    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-ink">
+      <header className="shrink-0 border-b border-line px-4 py-3 pt-safe">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
@@ -110,12 +110,12 @@ export function ProductPicker({
       </header>
 
       {error && (
-        <p role="alert" className="border-b border-crimson/40 bg-crimson/10 px-4 py-2 text-sm text-crimson-bright">
+        <p role="alert" className="shrink-0 border-b border-crimson/40 bg-crimson/10 px-4 py-2 text-sm text-crimson-bright">
           {error}
         </p>
       )}
 
-      <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
         {results.length === 0 && (
           <p className="py-10 text-center text-sm text-muted">
             Nada con ese nombre en la carta.
@@ -177,7 +177,7 @@ export function ProductPicker({
         ))}
       </div>
 
-      <footer className="border-t border-line bg-ink-soft px-4 py-3">
+      <footer className="shrink-0 border-t border-line bg-ink-soft px-4 py-3 pb-safe">
         <button
           type="button"
           onClick={onClose}
