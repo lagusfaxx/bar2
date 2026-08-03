@@ -1396,6 +1396,30 @@ async function main() {
     `· Carta: ${MENU.length} categorías, ${MENU.reduce((n, c) => n + c.products.length, 0)} productos`,
   );
 
+  // Mesas del salon: sin ellas los garzones no tienen donde abrir una cuenta.
+  // Se ajustan despues desde el panel, en Sala → Mesas.
+  const mesas = [
+    ...Array.from({ length: 10 }, (_, index) => ({
+      number: index + 1,
+      zone: "Salón",
+      seats: 4,
+    })),
+    ...Array.from({ length: 4 }, (_, index) => ({
+      number: index + 11,
+      zone: "Terraza",
+      seats: 6,
+    })),
+  ];
+
+  for (const [index, mesa] of mesas.entries()) {
+    await prisma.posTable.upsert({
+      where: { number: mesa.number },
+      create: { ...mesa, position: index },
+      update: {},
+    });
+  }
+  console.log(`· ${mesas.length} mesas`);
+
   // Galería — vinculamos algunas fotos a eventos existentes.
   const eventsForGallery = await prisma.event.findMany({
     where: { slug: { in: EVENTS.slice(0, 4).map((e) => e.slug) } },

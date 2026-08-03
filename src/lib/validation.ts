@@ -95,6 +95,7 @@ export const menuCategorySchema = z.object({
   imageUrl: optionalUrl,
   icon: trimmed.max(40).optional().or(z.literal("")),
   active: z.coerce.boolean().default(true),
+  station: z.enum(["BARRA", "COCINA"]).default("COCINA"),
 });
 
 export const menuProductSchema = z.object({
@@ -107,6 +108,12 @@ export const menuProductSchema = z.object({
   available: z.coerce.boolean().default(true),
   featured: z.coerce.boolean().default(false),
   tags: trimmed.max(200).optional().or(z.literal("")),
+  // Vacio = el producto sigue la impresora de su categoria.
+  station: z.enum(["BARRA", "COCINA"]).optional().or(z.literal("")),
+  promoPrice: trimmed.max(20).optional().or(z.literal("")),
+  promoLabel: trimmed.max(40).optional().or(z.literal("")),
+  promoStartsAt: trimmed.optional().or(z.literal("")),
+  promoEndsAt: trimmed.optional().or(z.literal("")),
 });
 
 // --- Galeria -----------------------------------------------------------------
@@ -263,6 +270,46 @@ export const eventRatingSchema = z.object({
     .max(5, "La puntuacion maxima es 5"),
   comment: trimmed.max(600).optional().or(z.literal("")),
   website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),
+});
+
+// --- POS de sala -------------------------------------------------------------
+
+export const posOpenTableSchema = z.object({
+  tableId: trimmed.min(1, "Elige una mesa"),
+  guests: z.coerce.number().int().min(1, "Al menos una persona").max(40).default(1),
+  note: trimmed.max(200).optional().or(z.literal("")),
+});
+
+export const posDinerSchema = z.object({
+  sessionId: trimmed.min(1),
+  // Como se ve, no como se llama: "polera azul", "pelo largo".
+  label: trimmed.min(2, "Describe al comensal").max(40),
+  color: trimmed.max(20).optional().or(z.literal("")),
+});
+
+export const posItemSchema = z.object({
+  sessionId: trimmed.min(1),
+  productId: trimmed.min(1, "Elige un producto"),
+  dinerId: trimmed.max(40).optional().or(z.literal("")),
+  quantity: z.coerce.number().int().min(1).max(99).default(1),
+  note: trimmed.max(140).optional().or(z.literal("")),
+});
+
+export const posPaymentSchema = z.object({
+  sessionId: trimmed.min(1),
+  /** Vacio = se cobra la mesa completa. */
+  dinerId: trimmed.max(40).optional().or(z.literal("")),
+  method: z.enum(["EFECTIVO", "DEBITO", "CREDITO", "TRANSFERENCIA", "OTRO"]),
+  cardNumber: trimmed.max(25).optional().or(z.literal("")),
+});
+
+export const posTableSchema = z.object({
+  id: trimmed.max(40).optional().or(z.literal("")),
+  number: z.coerce.number().int().min(1, "Numero de mesa").max(999),
+  name: trimmed.max(60).optional().or(z.literal("")),
+  zone: trimmed.max(40).optional().or(z.literal("")),
+  seats: z.coerce.number().int().min(1).max(40).default(4),
+  active: z.coerce.boolean().default(true),
 });
 
 // --- Utilidades --------------------------------------------------------------

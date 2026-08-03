@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Banknote,
   CalendarDays,
   ExternalLink,
   Gift,
@@ -12,6 +13,7 @@ import {
   MessageSquareQuote,
   Settings,
   Star,
+  Table2,
   Ticket,
   UtensilsCrossed,
   Users,
@@ -42,6 +44,13 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
       { href: "/admin/eventos", label: "Cartelera", icon: CalendarDays },
       { href: "/admin/carta", label: "Carta", icon: UtensilsCrossed },
       { href: "/admin/galeria", label: "Galería", icon: Images },
+    ],
+  },
+  {
+    title: "Sala",
+    items: [
+      { href: "/admin/mesas", label: "Mesas", icon: Table2 },
+      { href: "/admin/caja", label: "Caja", icon: Banknote },
     ],
   },
   {

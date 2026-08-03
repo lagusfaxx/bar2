@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 
 import { MenuProductForm } from "@/components/admin/menu-forms";
 import { AdminHeader } from "@/components/admin/ui";
+import { toDateTimeLocal } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Editar producto" };
@@ -43,6 +44,14 @@ export default async function EditarProductoPage({
           available: product.available,
           featured: product.featured,
           tags: product.tags,
+          station: product.station ?? "",
+          promoPrice:
+            product.promoPriceCents !== null
+              ? (product.promoPriceCents / 100).toString()
+              : "",
+          promoLabel: product.promoLabel,
+          promoStartsAt: toDateTimeLocal(product.promoStartsAt),
+          promoEndsAt: toDateTimeLocal(product.promoEndsAt),
         }}
       />
     </>

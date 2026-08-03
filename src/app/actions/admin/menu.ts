@@ -48,6 +48,7 @@ export async function saveMenuCategory(
     imageUrl: input.imageUrl || null,
     icon: input.icon || null,
     active: input.active,
+    station: input.station,
   };
 
   if (categoryId) {
@@ -182,6 +183,35 @@ export async function saveMenuProduct(
     },
   );
 
+  // El precio promocional es opcional, pero si esta debe ser una rebaja real:
+  // uno mayor al de lista seria un aumento disfrazado de promocion.
+  let promoPriceCents: number | null = null;
+
+  if (input.promoPrice) {
+    try {
+      promoPriceCents = parsePriceToCents(input.promoPrice);
+    } catch {
+      return formError("El precio promocional no es válido.", {
+        promoPrice: "Precio inválido",
+      });
+    }
+
+    if (promoPriceCents >= priceCents) {
+      return formError("La promoción no rebaja el precio.", {
+        promoPrice: "Debe ser menor que el precio normal",
+      });
+    }
+  }
+
+  const promoStartsAt = input.promoStartsAt ? new Date(input.promoStartsAt) : null;
+  const promoEndsAt = input.promoEndsAt ? new Date(input.promoEndsAt) : null;
+
+  if (promoStartsAt && promoEndsAt && promoEndsAt <= promoStartsAt) {
+    return formError("La promoción termina antes de empezar.", {
+      promoEndsAt: "Debe ser posterior al inicio",
+    });
+  }
+
   const data = {
     categoryId: input.categoryId,
     slug,
@@ -191,6 +221,11 @@ export async function saveMenuProduct(
     imageUrl: input.imageUrl || null,
     available: input.available,
     featured: input.featured,
+    station: input.station || null,
+    promoPriceCents,
+    promoLabel: promoPriceCents !== null ? input.promoLabel || null : null,
+    promoStartsAt: promoPriceCents !== null ? promoStartsAt : null,
+    promoEndsAt: promoPriceCents !== null ? promoEndsAt : null,
     tags: input.tags
       ? input.tags
           .split(",")

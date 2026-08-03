@@ -20,10 +20,11 @@ cambiar un texto, subir un afiche o publicar un show.
 6. [Modelo de datos](#modelo-de-datos)
 7. [Rutas](#rutas)
 8. [Cómo funciona la BarzuCard](#cómo-funciona-la-barzucard)
-9. [Despliegue en Coolify](#despliegue-en-coolify)
-10. [Operación del día a día](#operación-del-día-a-día)
-11. [Comandos disponibles](#comandos-disponibles)
-12. [Decisiones técnicas](#decisiones-técnicas)
+9. [POS de sala](#pos-de-sala)
+10. [Despliegue en Coolify](#despliegue-en-coolify)
+11. [Operación del día a día](#operación-del-día-a-día)
+12. [Comandos disponibles](#comandos-disponibles)
+13. [Decisiones técnicas](#decisiones-técnicas)
 
 ---
 
@@ -67,10 +68,16 @@ cambiar un texto, subir un afiche o publicar un show.
 
 ### App de sala (`/staff`)
 
-Pensada para el teléfono. Lo habitual es escanear el QR del cupón que el socio
-eligió: la pantalla muestra qué descuento es, de quién y un único botón para
-confirmarlo. Como respaldo se puede buscar la tarjeta por QR o por número y
-elegir la promoción a mano.
+Pensada para el teléfono. Tiene dos partes:
+
+**BarzuCard.** Lo habitual es escanear el QR del cupón que el socio eligió: la
+pantalla muestra qué descuento es, de quién y un único botón para confirmarlo.
+Como respaldo se puede buscar la tarjeta por QR o por número y elegir la
+promoción a mano.
+
+**Sala (`/staff/pos`).** El POS: abrir mesas, repartir la cuenta entre los
+comensales, mandar comandas a cocina y barra, y cobrar. Ver
+[POS de sala](#pos-de-sala).
 
 ---
 
@@ -154,6 +161,7 @@ de demostración.
 | `STAFF_EMAIL`, `STAFF_PASSWORD` | No | Cuenta del equipo de sala que crea el seed. |
 | `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido de demostración al arrancar. No hace nada si la base ya tiene contenido. |
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
+| `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
 cambias, hay que reconstruir la imagen.
@@ -171,6 +179,7 @@ prisma/
 scripts/
   create-admin.ts        Crea o restablece un administrador
   generate-artwork.mjs   Genera la imaginería de demostración
+  print-agent.mjs        Agente de impresión de comandas (corre en el local)
 
 docker/
   entrypoint.sh          Espera la base, migra y arranca
@@ -179,8 +188,9 @@ src/
   app/
     (public)/            Web pública
     admin/               Panel: /admin/login y grupo (panel) protegido
-    staff/               App de verificación de BarzuCard
+    staff/               App de sala: BarzuCard y POS
     api/health/          Health check
+    api/pos/comandas/    Cola de comandas para el agente de impresión
     uploads/[...path]/   Sirve las imágenes del volumen
     actions/             Server Actions (públicas, auth y de admin)
     sitemap.ts robots.ts icon.tsx
@@ -194,6 +204,7 @@ src/
     content.ts           Consultas del contenido público
     cache.ts             Invalidación tras guardar en el CMS
     uploads.ts           Procesado y guardado de imágenes
+    pos.ts               Precios vigentes, cuentas y estado de las mesas
     validation.ts        Esquemas Zod
     format.ts            Fechas, precios y etiquetas en español
   proxy.ts               Protección de rutas (antes "middleware")
@@ -208,7 +219,7 @@ src/
 | `User` | Cuentas del panel. Roles `ADMIN`, `EDITOR` y `STAFF`. |
 | `Event` | Cartelera: fecha, puertas, entrada libre o con precio, afiche, SEO. |
 | `EventRating` | Calificaciones del público, moderadas antes de publicarse. |
-| `MenuCategory` / `MenuProduct` | Carta, con orden y disponibilidad. |
+| `MenuCategory` / `MenuProduct` | Carta, con orden, disponibilidad, precio promocional y estación de impresión. |
 | `GalleryImage` | Galería, opcionalmente asociada a un evento. |
 | `Media` | Registro de todo lo subido desde el CMS. |
 | `Member` | Socios de la BarzuCard. |
@@ -219,6 +230,12 @@ src/
 | `SiteSettings` | Fila única con todo el contenido editable del sitio. |
 | `SocialLink` / `OpeningHour` | Redes y horarios. |
 | `ContactMessage` | Mensajes del formulario. |
+| `PosTable` | Mesas del salón. |
+| `TableSession` | Un turno de mesa: desde que se sientan hasta que se van. |
+| `Diner` | Un comensal, identificado por cómo se ve ("polera azul"). |
+| `OrderItem` | Una línea de la cuenta, con copia del nombre y el precio del momento. |
+| `OrderTicket` | Una comanda encolada para su impresora. |
+| `Payment` | Un cobro: de un comensal o de la mesa entera. |
 | `AuditLog` | Historial de cambios del panel. |
 
 Los precios se guardan en **centésimos** (`Int`) para no arrastrar errores de
@@ -242,9 +259,10 @@ mostrarlas y al cargarlas desde el panel.
 `ajustes`, `usuarios` (solo `ADMIN`).
 
 **Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
-`/staff/canjear/[token]`.
+`/staff/canjear/[token]`, `/staff/pos`, `/staff/pos/[sessionId]`.
 
-**Servicio** — `/api/health`, `/uploads/*`.
+**Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
+impresión, autenticado con `PRINT_AGENT_TOKEN`).
 
 ---
 
@@ -304,6 +322,96 @@ límite.
 frente y el dorso en tamaño real (85,6 × 54 mm) para imprimir y plastificar. En
 el panel se puede marcar una tarjeta como impresa y, si se pierde, regenerar su
 QR: el plástico anterior deja de validar sin cambiar el número.
+
+---
+
+## POS de sala
+
+El sistema con el que los garzones toman los pedidos, desde su propio teléfono.
+Vive en `/staff/pos` y entra cualquier usuario del panel.
+
+### El servicio, de principio a fin
+
+1. **Abrir mesa.** Se toca una mesa libre y se indica cuánta gente se sentó.
+2. **Identificar a los comensales.** Se describen por cómo se ven —"polera
+   azul", "pelo largo"—, no por su nombre: es lo que sirve de verdad en una
+   mesa de desconocidos. Cada uno tiene su pestaña; lo que se pide para
+   compartir va a la cuenta de la mesa.
+3. **Cargar productos.** Se buscan en la misma carta que publica la web. Un
+   producto nuevo aparece solo, y uno agotado desaparece de las dos partes a
+   la vez. Si tiene precio promocional vigente, se aplica sin que nadie haga
+   nada.
+4. **Mandar la comanda.** Se arma una por estación: la comida sale por la
+   impresora de cocina y los tragos, cervezas y jugos por la de barra. Cada
+   comanda va agrupada por comensal, para que la barra arme los tragos
+   separados.
+5. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
+   a uno **no cierra la mesa**: los demás siguen consumiendo, y quien ya pagó
+   puede volver a pedir y se le hace otro cobro.
+6. **Cerrar la mesa** cuando no queda nada pendiente, y queda libre.
+
+Al cobrar se puede ingresar el número de una BarzuCard: suma **1 punto por
+cada $1.000** de consumo y recalcula el nivel del socio.
+
+No hay campo de propina: la deja el cliente en la terminal de cobro.
+
+### Adónde sale cada cosa
+
+El ruteo se define **por categoría** de la carta (Panel → Carta → categoría →
+*Sale por la impresora de*). Cada producto puede desviarse de su categoría para
+las excepciones: el café que sale de cocina, el postre helado que arma la barra.
+
+### Impresión
+
+La web corre en un servidor de internet y las impresoras están en la red del
+local, detrás del router: **el servidor no puede alcanzarlas**. Por eso las
+comandas se guardan en cola y un agente que corre *dentro del bar* las retira.
+
+Efecto secundario buscado: si se corta internet, se acaba el papel o alguien
+apaga la impresora, la comanda queda pendiente y se reintenta. No se pierde un
+pedido.
+
+**Qué hace falta**: impresoras térmicas de red que hablen ESC/POS (Epson
+TM-T20, Xprinter y similares) y un equipo encendido en el local — un PC de
+caja o una Raspberry Pi con Node 18+.
+
+```bash
+# En un equipo dentro del local
+BARZUO_URL=https://barzuo.com \
+PRINT_AGENT_TOKEN=el-mismo-token-del-servidor \
+PRINTER_COCINA=192.168.1.50 \
+PRINTER_BARRA=192.168.1.51 \
+npm run print:agent
+```
+
+Antes del primer servicio, para dejar las impresoras a punto:
+
+```bash
+npm run print:agent -- --test          # imprime una comanda de prueba
+npm run print:agent -- --test=render   # la muestra en pantalla, sin gastar papel
+```
+
+| Variable | Descripción |
+| --- | --- |
+| `BARZUO_URL` | URL pública del sitio. |
+| `PRINT_AGENT_TOKEN` | El mismo valor que en el servidor. |
+| `PRINTER_COCINA` / `PRINTER_BARRA` | `IP` o `IP:puerto` de cada impresora. Por defecto el puerto 9100. |
+| `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
+| `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
+
+Conviene dejarlo como servicio del sistema (`systemd`, `pm2`) para que arranque
+solo cuando se enciende el equipo.
+
+### Antes de usarlo
+
+1. **Crea las mesas** en Panel → Sala → Mesas. Con el salón vacío hay un atajo
+   para crearlas todas de una vez.
+2. **Revisa la estación de cada categoría**: la migración deja en barra las
+   categorías de trago de la carta y el resto en cocina.
+3. **Configura `PRINT_AGENT_TOKEN`** en el servidor y levanta el agente.
+
+El cierre del día está en Panel → Sala → Caja: lo vendido, cómo pagaron, cuánto
+se fue en promociones, los más vendidos y las mesas que siguen abiertas.
 
 ---
 
@@ -472,6 +580,9 @@ y `STAFF` para el personal de sala, que solo entra a la app de BarzuCard.
 | `npm run db:studio` | Prisma Studio. |
 | `npm run create:admin` | Crea o restablece un administrador. |
 | `npm run artwork` | Regenera la imaginería de demostración. |
+| `npm run print:agent` | Agente de impresión de comandas (se ejecuta en el local). |
+| `npm run print:agent -- --test` | Manda una comanda de prueba a las impresoras. |
+| `npm run print:agent -- --test=render` | Muestra esa comanda en pantalla, sin imprimir. |
 
 ---
 

@@ -8,6 +8,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Badge, Section } from "@/components/ui/section";
 import { getMenu, getSettings } from "@/lib/content";
 import { formatPrice } from "@/lib/format";
+import { priceFor } from "@/lib/pos";
 import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,7 +44,9 @@ export default async function CartaPage() {
         description: product.description ?? undefined,
         offers: {
           "@type": "Offer",
-          price: (product.priceCents / 100).toFixed(2),
+          price: (
+            (product.priceCents - priceFor(product).discountCents) / 100
+          ).toFixed(2),
           priceCurrency: process.env.NEXT_PUBLIC_CURRENCY ?? "CLP",
         },
       })),
@@ -154,8 +157,24 @@ export default async function CartaPage() {
                               className="hidden min-w-6 flex-1 translate-y-[-0.2rem] border-b border-dotted border-line sm:block"
                             />
 
-                            <span className="ml-auto font-display text-base text-bone tabular-nums sm:ml-0 sm:text-xl">
-                              {formatPrice(product.priceCents)}
+                            <span className="ml-auto font-display text-base tabular-nums sm:ml-0 sm:text-xl">
+                              {priceFor(product).discountCents > 0 ? (
+                                <>
+                                  <s className="mr-2 text-sm text-muted">
+                                    {formatPrice(product.priceCents)}
+                                  </s>
+                                  <span className="text-gilt-soft">
+                                    {formatPrice(
+                                      product.priceCents -
+                                        priceFor(product).discountCents,
+                                    )}
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="text-bone">
+                                  {formatPrice(product.priceCents)}
+                                </span>
+                              )}
                             </span>
                           </div>
 

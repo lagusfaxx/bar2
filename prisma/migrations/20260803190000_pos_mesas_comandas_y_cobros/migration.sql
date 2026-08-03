@@ -114,7 +114,6 @@ CREATE TABLE "pos_payments" (
     "code" TEXT NOT NULL,
     "subtotalCents" INTEGER NOT NULL,
     "discountCents" INTEGER NOT NULL DEFAULT 0,
-    "tipCents" INTEGER NOT NULL DEFAULT 0,
     "totalCents" INTEGER NOT NULL,
     "method" "PaymentMethod" NOT NULL DEFAULT 'EFECTIVO',
     "cardId" TEXT,
@@ -216,6 +215,7 @@ ALTER TABLE "pos_payments" ADD CONSTRAINT "pos_payments_cardId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "pos_payments" ADD CONSTRAINT "pos_payments_cashierId_fkey" FOREIGN KEY ("cashierId") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 
 
 -- Ruteo inicial de la carta real: todo lo que se sirve en la barra.

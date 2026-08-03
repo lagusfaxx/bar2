@@ -45,6 +45,8 @@ services:
       NEXT_PUBLIC_TIME_ZONE: ${NEXT_PUBLIC_TIME_ZONE:-America/Santiago}
       NEXT_PUBLIC_CURRENCY: ${NEXT_PUBLIC_CURRENCY:-CLP}
       UPLOAD_DIR: /app/storage/uploads
+      # Token del agente de impresion del local (POS).
+      PRINT_AGENT_TOKEN: ${PRINT_AGENT_TOKEN:-}
       # Contenido de demostración en el primer arranque.
       SEED_ON_START: ${SEED_ON_START:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@barzuo.com}

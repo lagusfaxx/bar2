@@ -780,9 +780,9 @@ model Payment {
 
   code String @unique // comprobante que se le dice al cliente
 
+  // Sin propina: la deja el cliente en la terminal de cobro, no el POS.
   subtotalCents Int
   discountCents Int @default(0)
-  tipCents      Int @default(0)
   totalCents    Int
 
   method PaymentMethod @default(EFECTIVO)
