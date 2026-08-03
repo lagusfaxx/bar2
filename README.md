@@ -36,7 +36,7 @@ cambiar un texto, subir un afiche o publicar un show.
 | Portada | `/` | Hero a pantalla completa, próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
 | Cartelera | `/eventos` | Destacados, calendario mensual navegable, vista alternativa en lista y agenda completa. |
 | Evento | `/eventos/[slug]` | Afiche, ficha (fecha, puertas, entrada, capacidad), descripción, galería, compartir, calificaciones y eventos relacionados. |
-| Carta | `/carta` | Categorías con navegación pegajosa, precios y etiquetas. |
+| Carta | `/carta` | La carta completa del local. Navegación pegajosa por categorías; en móvil cada categoría se pliega para que la página no se haga interminable. |
 | Nosotros | `/nosotros` | Historia, concepto, horarios y galería. |
 | Galería | `/galeria` | Mosaico tipo masonry con filtros y visor a pantalla completa. |
 | Ubicación | `/ubicacion` | Mapa centrado en el local, cómo llegar y datos de contacto. |
@@ -56,7 +56,8 @@ cambiar un texto, subir un afiche o publicar un show.
 - **Socios y tarjetas**: búsqueda, nivel, puntos, suspensión, regeneración del
   QR y seguimiento del pago de la tarjeta física (pendiente, transferencia
   informada, pagada, entregada).
-- **Canjes**: historial completo con comprobante y quién validó.
+- **Canjes**: historial completo con comprobante y quién validó, más los cupones
+  que los socios eligieron y todavía no se aplicaron.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
 - **Ajustes**: identidad, portada (con video de fondo), textos de cada bloque
@@ -66,8 +67,10 @@ cambiar un texto, subir un afiche o publicar un show.
 
 ### App de sala (`/staff`)
 
-Pensada para el teléfono, con una sola pantalla: buscar la tarjeta, ver qué
-puede canjear el cliente y confirmar el canje.
+Pensada para el teléfono. Lo habitual es escanear el QR del cupón que el socio
+eligió: la pantalla muestra qué descuento es, de quién y un único botón para
+confirmarlo. Como respaldo se puede buscar la tarjeta por QR o por número y
+elegir la promoción a mano.
 
 ---
 
@@ -211,6 +214,7 @@ src/
 | `BarzuCard` | Tarjeta: número único, token del QR, nivel y puntos. |
 | `Promotion` | Beneficios y sus reglas de canje. |
 | `Redemption` | Cada canje, con comprobante y quién lo validó. |
+| `PromotionVoucher` | Cupón del descuento que eligió el socio: código, QR propio y vigencia. |
 | `SiteSettings` | Fila única con todo el contenido editable del sitio. |
 | `SocialLink` / `OpeningHour` | Redes y horarios. |
 | `ContactMessage` | Mensajes del formulario. |
@@ -229,13 +233,15 @@ mostrarlas y al cargarlas desde el panel.
 `/barzucard/registro`, `/barzucard/ingresar`, `/barzucard/promociones`,
 `/sitemap.xml`, `/robots.txt`.
 
-**Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`.
+**Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`,
+`/barzucard/canje/[codigo]`.
 
 **Panel** (`ADMIN` o `EDITOR`) — `/admin` y sus secciones: `eventos`, `carta`,
 `galeria`, `promociones`, `tarjetas`, `canjes`, `resenas`, `mensajes`,
 `ajustes`, `usuarios` (solo `ADMIN`).
 
-**Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`.
+**Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
+`/staff/canjear/[token]`.
 
 **Servicio** — `/api/health`, `/uploads/*`.
 
@@ -247,22 +253,46 @@ mostrarlas y al cargarlas desde el panel.
 dígitos (prefijo `5210` + dígito verificador de Luhn, de modo que un error de
 tipeo se detecta antes de consultar la base) y un token opaco para el QR.
 
-**El QR** apunta a `/staff/verificar/<token>`. Escanearlo con la cámara del
-teléfono abre la ficha del socio ya resuelta, sin depender de que el navegador
-sepa leer códigos.
+**El QR de la tarjeta** apunta a `/staff/verificar/<token>`. Escanearlo con la
+cámara del teléfono abre la ficha del socio ya resuelta, sin depender de que el
+navegador sepa leer códigos.
 
-**Validación en el local.** El equipo de sala tiene tres caminos, en orden de
-comodidad:
+### El socio elige su descuento (camino principal)
+
+La tarjeta dice **quién** es el socio; no dice **qué** quiere canjear. Por eso
+el descuento tiene su propio QR:
+
+1. El socio entra a su BarzuCard (`/barzucard/tarjeta` o
+   `/barzucard/promociones`), ve solo los beneficios que puede usar hoy y toca
+   **"Quiero este descuento"**.
+2. Se emite un **cupón** con código legible (`BZD-XXXXXX`), token propio y
+   **30 minutos de vigencia**, y se abre `/barzucard/canje/<código>`: una
+   pantalla con el QR **de ese descuento**, la cuenta atrás y las condiciones.
+3. El equipo de sala escanea ese QR y cae directo en
+   `/staff/canjear/<token>`, con la promoción y el socio ya resueltos. Solo
+   confirma.
+
+Si el socio pide dos veces el mismo descuento y el cupón sigue vigente, se le
+devuelve el mismo: dos QR para lo mismo solo confunden en la barra. Puede
+cancelarlo cuando quiera y los cupones sin usar vencen solos. En el panel,
+`/admin/canjes` lista los cupones abiertos.
+
+### Validación por tarjeta (respaldo)
+
+Sigue disponible para la tarjeta física, el socio que no usa la web o el cupón
+vencido. El equipo de sala tiene tres caminos, en orden de comodidad:
 
 1. Escanear desde la propia app (donde el navegador lo permite).
 2. Escanear con la cámara nativa del teléfono, que abre el enlace del QR.
-3. Escribir los 16 dígitos.
+3. Escribir los 16 dígitos — o el código `BZD-XXXXXX` de un cupón, que también
+   deriva a la pantalla de ese descuento.
 
 La pantalla muestra las promociones que el socio **puede** canjear y, en una
 sección aparte, las que no, **con el motivo** ("Ya fue canjeada con esta
-tarjeta", "No disponible hoy", "Requiere BarzuCard plata"…). El canje pide una
-segunda confirmación y devuelve un comprobante corto (`BZ-XXXXXX`) que queda a
-la vista hasta la siguiente búsqueda.
+tarjeta", "No disponible hoy", "Requiere BarzuCard plata"…).
+
+En ambos caminos el canje pide una segunda confirmación y devuelve un
+comprobante corto (`BZ-XXXXXX`) que queda a la vista.
 
 **Reglas por promoción**: usos por tarjeta (o ilimitados), cupo total, nivel
 mínimo, días habilitados, costo en puntos y puntos que otorga. Se verifican

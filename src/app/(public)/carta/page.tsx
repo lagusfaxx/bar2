@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { MenuNav } from "@/components/menu/menu-nav";
+import { MenuSections } from "@/components/menu/menu-sections";
 import { PageHeader } from "@/components/ui/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { Badge, Section } from "@/components/ui/section";
@@ -11,7 +12,7 @@ import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const description = `Coctelería de autor, cervezas tiradas, destilados y cocina de bar en ${settings.barName}, ${settings.addressCity}.`;
+  const description = `Empanadas, pizzas a la piedra, chorrillanas, coctelería, cervezas y promos de barra en ${settings.barName}, ${settings.addressCity}.`;
 
   return {
     title: "La carta",
@@ -59,7 +60,7 @@ export default async function CartaPage() {
       <PageHeader
         eyebrow="La carta"
         title="Para acompañar la noche"
-        lead="Coctelería de autor, cervezas bien tiradas y cocina de bar hasta tarde. Todo pensado para compartir mientras suena la música."
+        lead="Cocina para compartir, pizzas a la piedra, coctelería clásica y las promos de la barra. Todo hasta que termina la noche."
         image={menu[0]?.imageUrl ?? "/demo/category-1.jpg"}
       />
 
@@ -78,114 +79,112 @@ export default async function CartaPage() {
             }))}
           />
 
-          <div className="pb-10">
-            {menu.map((category, categoryIndex) => (
-              <Section
-                key={category.id}
-                id={category.slug}
-                className={
-                  categoryIndex % 2 === 1
-                    ? "border-t border-line bg-ink-soft"
-                    : "border-t border-line"
-                }
-              >
-                <div className="container-bz">
-                  <div className="grid gap-10 lg:grid-cols-[20rem_1fr] lg:gap-16">
-                    {/* Presentación de la categoría */}
-                    <Reveal className="lg:sticky lg:top-28 lg:self-start">
-                      {category.imageUrl && (
-                        <div className="relative mb-6 aspect-4/3 overflow-hidden">
-                          <Image
-                            src={category.imageUrl}
-                            alt=""
-                            fill
-                            sizes="(max-width: 1024px) 90vw, 20rem"
-                            className="object-cover"
-                          />
-                          <div className="scrim absolute inset-0 opacity-70" />
-                        </div>
-                      )}
+          <MenuSections
+            sections={menu.map((category, categoryIndex) => ({
+              slug: category.slug,
+              name: category.name,
+              count: category.products.length,
 
-                      <p className="eyebrow mb-3 text-crimson-bright">
-                        {String(categoryIndex + 1).padStart(2, "0")}
-                      </p>
+              // Presentación de la categoría. La foto y el título grande son
+              // para la columna de escritorio: en el teléfono ese lugar ya lo
+              // ocupa la cabecera plegable.
+              aside: (
+                <Reveal
+                  key={`aside-${category.id}`}
+                  className="lg:sticky lg:top-28 lg:self-start"
+                >
+                  {category.imageUrl && (
+                    <div className="relative mb-6 hidden aspect-4/3 overflow-hidden lg:block">
+                      <Image
+                        src={category.imageUrl}
+                        alt=""
+                        fill
+                        sizes="20rem"
+                        className="object-cover"
+                      />
+                      <div className="scrim absolute inset-0 opacity-70" />
+                    </div>
+                  )}
 
-                      <h2 className="font-display text-[clamp(1.75rem,4vw,2.5rem)] leading-tight text-bone">
-                        {category.name}
-                      </h2>
+                  <p className="eyebrow mb-3 hidden text-crimson-bright lg:block">
+                    {String(categoryIndex + 1).padStart(2, "0")}
+                  </p>
 
-                      {category.description && (
-                        <p className="mt-4 text-sm leading-relaxed text-muted">
-                          {category.description}
-                        </p>
-                      )}
-                    </Reveal>
+                  <h2 className="hidden font-display text-[clamp(1.75rem,4vw,2.5rem)] leading-tight text-bone lg:block">
+                    {category.name}
+                  </h2>
 
-                    {/* Productos */}
-                    <ul className="flex flex-col">
-                      {category.products.map((product, index) => (
-                        <li key={product.id}>
-                          <Reveal
-                            delay={Math.min(index, 8) * 45}
-                            className="group flex items-start gap-5 border-b border-line py-6 transition-colors duration-500 hover:border-crimson/40"
-                          >
-                            {product.imageUrl && (
-                              <div className="relative size-20 shrink-0 overflow-hidden sm:size-24">
-                                <Image
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  fill
-                                  sizes="96px"
-                                  className="object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
-                                />
-                              </div>
-                            )}
+                  {category.description && (
+                    <p className="text-sm leading-relaxed text-muted lg:mt-4">
+                      {category.description}
+                    </p>
+                  )}
+                </Reveal>
+              ),
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-baseline gap-3">
-                                <h3 className="font-display text-lg leading-snug text-bone transition-colors group-hover:text-crimson-bright sm:text-xl">
-                                  {product.name}
-                                </h3>
+              items: (
+                <ul key={`items-${category.id}`} className="flex flex-col">
+                  {category.products.map((product, index) => (
+                    <li key={product.id}>
+                      <Reveal
+                        delay={Math.min(index, 8) * 45}
+                        className="group flex items-start gap-4 border-b border-line py-4 transition-colors duration-500 hover:border-crimson/40 sm:gap-5 sm:py-6"
+                      >
+                        {product.imageUrl && (
+                          <div className="relative hidden size-20 shrink-0 overflow-hidden sm:block sm:size-24">
+                            <Image
+                              src={product.imageUrl}
+                              alt={product.name}
+                              fill
+                              sizes="96px"
+                              className="object-cover transition-transform duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-110"
+                            />
+                          </div>
+                        )}
 
-                                {/* Línea punteada al estilo de una carta impresa. */}
-                                <span
-                                  aria-hidden
-                                  className="hidden min-w-6 flex-1 translate-y-[-0.2rem] border-b border-dotted border-line sm:block"
-                                />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-3">
+                            <h3 className="font-display text-base leading-snug text-bone transition-colors group-hover:text-crimson-bright sm:text-xl">
+                              {product.name}
+                            </h3>
 
-                                <span className="ml-auto font-display text-lg text-bone tabular-nums sm:ml-0 sm:text-xl">
-                                  {formatPrice(product.priceCents)}
-                                </span>
-                              </div>
+                            {/* Línea punteada al estilo de una carta impresa. */}
+                            <span
+                              aria-hidden
+                              className="hidden min-w-6 flex-1 translate-y-[-0.2rem] border-b border-dotted border-line sm:block"
+                            />
 
-                              {product.description && (
-                                <p className="mt-1.5 text-sm leading-relaxed text-muted">
-                                  {product.description}
-                                </p>
+                            <span className="ml-auto font-display text-base text-bone tabular-nums sm:ml-0 sm:text-xl">
+                              {formatPrice(product.priceCents)}
+                            </span>
+                          </div>
+
+                          {product.description && (
+                            <p className="mt-1 text-[0.82rem] leading-relaxed text-muted sm:mt-1.5 sm:text-sm">
+                              {product.description}
+                            </p>
+                          )}
+
+                          {(product.featured || product.tags.length > 0) && (
+                            <div className="mt-2 flex flex-wrap gap-2 sm:mt-3">
+                              {product.featured && (
+                                <Badge tone="gilt">Recomendado</Badge>
                               )}
-
-                              {(product.featured || product.tags.length > 0) && (
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {product.featured && (
-                                    <Badge tone="gilt">Recomendado</Badge>
-                                  )}
-                                  {product.tags.map((tag) => (
-                                    <Badge key={tag} tone="muted">
-                                      {tag}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              )}
+                              {product.tags.map((tag) => (
+                                <Badge key={tag} tone="muted">
+                                  {tag}
+                                </Badge>
+                              ))}
                             </div>
-                          </Reveal>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </Section>
-            ))}
-          </div>
+                          )}
+                        </div>
+                      </Reveal>
+                    </li>
+                  ))}
+                </ul>
+              ),
+            }))}
+          />
 
           <div className="container-bz pb-24">
             <p className="border-t border-line pt-8 text-xs text-muted-dark">

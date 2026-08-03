@@ -287,6 +287,7 @@ model BarzuCard {
   updatedAt DateTime @updatedAt
 
   redemptions Redemption[]
+  vouchers    PromotionVoucher[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -332,6 +333,7 @@ model Promotion {
   updatedAt DateTime @updatedAt
 
   redemptions Redemption[]
+  vouchers    PromotionVoucher[]
 
   @@index([active, position])
   @@map("promotions")
@@ -358,9 +360,55 @@ model Redemption {
 
   redeemedAt DateTime @default(now())
 
+  // Presente cuando el canje nacio de un cupon elegido por el socio
+  voucher PromotionVoucher?
+
   @@index([cardId, redeemedAt])
   @@index([promotionId])
   @@map("redemptions")
+}
+
+enum VoucherStatus {
+  PENDING // emitido, esperando que el equipo de sala lo valide
+  REDEEMED // ya se aplico en el local
+  EXPIRED // vencio sin usarse
+  CANCELLED // el socio lo dio de baja
+}
+
+/**
+ * Cupon de un descuento concreto, elegido por el socio desde su BarzuCard.
+ *
+ * La tarjeta identifica a la persona; el cupon identifica que quiere canjear.
+ * Separarlos evita que el equipo de sala tenga que adivinar la promocion: al
+ * escanear el QR del cupon ya sabe cual es y solo confirma.
+ */
+model PromotionVoucher {
+  id String @id @default(cuid())
+
+  // Codigo corto y legible, por si hay que dictarlo en la barra
+  code String @unique
+  // Token opaco que viaja dentro del QR del descuento
+  token String @unique
+
+  promotionId String
+  promotion   Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+
+  cardId String
+  card   BarzuCard @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  status    VoucherStatus @default(PENDING)
+  // Vigencia corta: el cupon se pide estando en el local
+  expiresAt DateTime
+
+  redemptionId String?     @unique
+  redemption   Redemption? @relation(fields: [redemptionId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cardId, status])
+  @@index([promotionId])
+  @@map("promotion_vouchers")
 }
 
 // ---------------------------------------------------------------------------

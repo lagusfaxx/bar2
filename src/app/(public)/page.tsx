@@ -93,9 +93,15 @@ export default async function HomePage() {
         />
 
         {upcoming.length > 0 ? (
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          // En el telefono los afiches se deslizan en horizontal: seis carteles
+          // apilados empujaban el resto del home fuera de la vista.
+          <div className="no-scrollbar -mx-5 mt-10 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-2 sm:mx-0 sm:mt-14 sm:grid sm:grid-cols-2 sm:gap-6 sm:overflow-visible sm:px-0 sm:pb-0 lg:grid-cols-3">
             {upcoming.slice(0, 6).map((event, index) => (
-              <Reveal key={event.id} delay={index * 70}>
+              <Reveal
+                key={event.id}
+                delay={index * 70}
+                className="w-[70%] shrink-0 snap-start sm:w-auto"
+              >
                 <EventCard event={event} priority={index < 3} />
               </Reveal>
             ))}
@@ -115,6 +121,71 @@ export default async function HomePage() {
           </Reveal>
         )}
       </Section>
+
+      {/* BarzuCard */}
+      {settings.loyaltyEnabled && (
+        <Section className="relative overflow-hidden border-y border-line">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-crimson/10 blur-[140px]"
+          />
+
+          <div className="container-bz grid items-center gap-14 lg:grid-cols-[1fr_auto]">
+            <div>
+              <SectionHeading
+                eyebrow={settings.loyaltyTitle}
+                title={
+                  settings.homeLoyaltyTitle ?? (
+                    <>
+                      Tu tarjeta de{" "}
+                      <span className="text-ember">beneficios</span> en{" "}
+                      {settings.barName}
+                    </>
+                  )
+                }
+                lead={settings.loyaltyDescription}
+              />
+
+              <Reveal delay={140} className="mt-10 flex flex-wrap gap-4">
+                <ButtonLink href="/barzucard/registro" size="lg">
+                  <Sparkles className="size-4" aria-hidden />
+                  Pedir mi {settings.loyaltyTitle}
+                </ButtonLink>
+                <ButtonLink
+                  href="/barzucard/promociones"
+                  size="lg"
+                  variant="outline"
+                >
+                  Ver promociones
+                </ButtonLink>
+              </Reveal>
+            </div>
+
+            {/* Maqueta de la tarjeta, no una foto: siempre nitida y editable. */}
+            <Reveal delay={200} className="mx-auto w-full max-w-sm">
+              <div className="relative aspect-[1.586/1] w-full rotate-[-4deg] overflow-hidden rounded-xl border border-gilt/30 bg-gradient-to-br from-surface-2 via-ink to-crimson-deep/40 p-6 shadow-lift transition-transform duration-700 hover:rotate-0">
+                <div className="flex h-full flex-col justify-between">
+                  <div className="flex items-start justify-between">
+                    <span className="font-western text-xl text-crimson">
+                      BAR<span className="text-bone">Z</span>UO
+                    </span>
+                    <Star className="size-5 text-gilt" aria-hidden />
+                  </div>
+
+                  <div>
+                    <p className="font-mono text-sm tracking-[0.2em] text-bone-dim">
+                      5210 •••• •••• 0001
+                    </p>
+                    <p className="eyebrow mt-2 text-gilt-soft">
+                      {settings.loyaltyTitle} · Clásica
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </Section>
+      )}
 
       {/* Nosotros */}
       <Section className="relative overflow-hidden border-y border-line bg-ink-soft">
@@ -184,7 +255,7 @@ export default async function HomePage() {
             title={settings.homeMenuTitle ?? "Para acompañar la noche"}
             lead={
               settings.homeMenuLead ??
-              "Coctelería de autor, cervezas de barril y cocina pensada para compartir."
+              "Cocina para compartir, coctelería clásica y las promos de la barra."
             }
             action={
               <ButtonLink href="/carta" variant="outline">
@@ -232,71 +303,6 @@ export default async function HomePage() {
                 </article>
               </Reveal>
             ))}
-          </div>
-        </Section>
-      )}
-
-      {/* BarzuCard */}
-      {settings.loyaltyEnabled && (
-        <Section className="relative overflow-hidden border-y border-line">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-crimson/10 blur-[140px]"
-          />
-
-          <div className="container-bz grid items-center gap-14 lg:grid-cols-[1fr_auto]">
-            <div>
-              <SectionHeading
-                eyebrow={settings.loyaltyTitle}
-                title={
-                  settings.homeLoyaltyTitle ?? (
-                    <>
-                      Tu tarjeta de{" "}
-                      <span className="text-ember">beneficios</span> en{" "}
-                      {settings.barName}
-                    </>
-                  )
-                }
-                lead={settings.loyaltyDescription}
-              />
-
-              <Reveal delay={140} className="mt-10 flex flex-wrap gap-4">
-                <ButtonLink href="/barzucard/registro" size="lg">
-                  <Sparkles className="size-4" aria-hidden />
-                  Pedir mi {settings.loyaltyTitle}
-                </ButtonLink>
-                <ButtonLink
-                  href="/barzucard/promociones"
-                  size="lg"
-                  variant="outline"
-                >
-                  Ver promociones
-                </ButtonLink>
-              </Reveal>
-            </div>
-
-            {/* Maqueta de la tarjeta, no una foto: siempre nitida y editable. */}
-            <Reveal delay={200} className="mx-auto w-full max-w-sm">
-              <div className="relative aspect-[1.586/1] w-full rotate-[-4deg] overflow-hidden rounded-xl border border-gilt/30 bg-gradient-to-br from-surface-2 via-ink to-crimson-deep/40 p-6 shadow-lift transition-transform duration-700 hover:rotate-0">
-                <div className="flex h-full flex-col justify-between">
-                  <div className="flex items-start justify-between">
-                    <span className="font-western text-xl text-crimson">
-                      BAR<span className="text-bone">Z</span>UO
-                    </span>
-                    <Star className="size-5 text-gilt" aria-hidden />
-                  </div>
-
-                  <div>
-                    <p className="font-mono text-sm tracking-[0.2em] text-bone-dim">
-                      5210 •••• •••• 0001
-                    </p>
-                    <p className="eyebrow mt-2 text-gilt-soft">
-                      {settings.loyaltyTitle} · Clásica
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </Reveal>
           </div>
         </Section>
       )}

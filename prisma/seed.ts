@@ -495,146 +495,613 @@ type SeedCategory = {
 
 const MENU: SeedCategory[] = [
   {
-    slug: "cocteleria-de-autor",
-    name: "Coctelería de autor",
-    description: "Tragos creados por nuestra barra, pensados para una noche larga.",
-    icon: "Martini",
+    slug: "empanadas",
+    name: "Empanadas",
+    description:
+      "Porciones de ocho unidades, recien fritas. Todas vienen con la salsa del chef.",
+    icon: "Croissant",
     image: 1,
     products: [
       {
-        name: "Zuo Negroni",
-        description: "Gin de la casa, vermouth rosso, bitter y un twist de naranja quemada.",
-        price: 890000,
-        featured: true,
+        name: "Empanadas de queso",
+        description: "Ocho unidades. Con salsa del chef.",
+        price: 660000,
         image: 1,
       },
       {
-        name: "Humo y Miel",
-        description: "Mezcal, miel de eucalipto, lima y un velo de humo de roble.",
-        price: 950000,
-        featured: true,
-        image: 2,
-        tags: ["ahumado"],
+        name: "Empanadas de queso y aceituna",
+        description: "Ocho unidades. Con salsa del chef.",
+        price: 850000,
       },
       {
-        name: "Italia 1348",
-        description: "Whisky, licor de café, naranja y espuma de cacao. El trago de la casa.",
-        price: 990000,
+        name: "Empanadas de queso y champiñón",
+        description: "Ocho unidades. Con salsa del chef.",
+        price: 850000,
+      },
+      {
+        name: "Empanadas de queso, camarón y ciboulette",
+        description: "Ocho unidades. Con salsa del chef.",
+        price: 950000,
+        featured: true,
+      },
+    ],
+  },
+  {
+    slug: "quesadillas",
+    name: "Quesadillas",
+    description: "A la plancha, para compartir. Todas vienen con la salsa del chef.",
+    icon: "Pizza",
+    image: 2,
+    products: [
+      {
+        name: "Quesadilla de pollo",
+        description: "Pollo, champiñón y pimentón.",
+        price: 899000,
+      },
+      {
+        name: "Quesadilla de carne",
+        description: "Carne, champiñón y pimentón.",
+        price: 1099000,
+        image: 2,
+      },
+      {
+        name: "Quesadilla de camarón",
+        description: "Camarón, aceitunas y pimentón.",
+        price: 1299000,
+      },
+    ],
+  },
+  {
+    slug: "charcuteria-y-frituras",
+    name: "Charcutería y frituras",
+    description: "Lo que se pide apenas llega la mesa, mientras arranca la noche.",
+    icon: "Utensils",
+    image: 3,
+    products: [
+      {
+        name: "Tabla de charcutería",
+        description:
+          "Queso, salame, jamón, aceitunas, galletas, tostadas y frutos secos. Con salsa del chef.",
+        price: 1050000,
         featured: true,
         image: 3,
       },
       {
-        name: "Jardín de Invierno",
-        description: "Gin, pepino, albahaca fresca y tónica artesanal.",
-        price: 850000,
-        image: 4,
-        tags: ["refrescante"],
+        name: "Porción de papas fritas",
+        description: "Cortadas y fritas en el momento.",
+        price: 700000,
       },
       {
-        name: "Clavel Rojo",
-        description: "Vodka, frutos rojos, hibisco y lima.",
-        price: 850000,
+        name: "Chorrillana clásica",
+        description:
+          "Carne, 700 gramos de papas fritas, cebolla caramelizada, vianesas, longanizas y huevo.",
+        price: 1399000,
+        featured: true,
+        image: 4,
+      },
+      {
+        name: "Chorrillana vegetariana",
+        description:
+          "Pimentón rojo, verde y amarillo, cebolla caramelizada, champiñón, callampas deshidratadas y crema.",
+        price: 1399000,
+        tags: ["vegetariano"],
+      },
+    ],
+  },
+  {
+    slug: "churrascos",
+    name: "Churrascos",
+    description: "Carne de res a la plancha en pan crujiente, con papas fritas.",
+    icon: "Sandwich",
+    image: 4,
+    products: [
+      {
+        name: "Chacarero",
+        description:
+          "Jugosa carne de res a la plancha con tomate, porotos verdes y ají verde. Acompañado de papas fritas.",
+        price: 1299000,
         image: 5,
       },
       {
-        name: "Última Canción",
-        description: "Maracuyá, jengibre, lima y soda. Sin alcohol, con la misma vuelta.",
-        price: 550000,
-        tags: ["sin alcohol"],
+        name: "Luco",
+        description:
+          "Jugosa carne de res a la plancha con queso derretido en un pan crujiente. Acompañado de papas fritas.",
+        price: 1299000,
       },
+      {
+        name: "Italiano",
+        description:
+          "Jugosa carne de res a la plancha cubierta con palta, tomate y mayonesa. Acompañado de papas fritas.",
+        price: 1299000,
+      },
+    ],
+  },
+  {
+    slug: "hamburguesas",
+    name: "Hamburguesas",
+    description: "Todas se sirven con papas fritas.",
+    icon: "Beef",
+    image: 5,
+    products: [
+      {
+        name: "Hamburguesa italiana",
+        description: "Tomate fresco, palta y mayo. Acompañada de papas fritas.",
+        price: 1199000,
+        featured: true,
+        image: 6,
+      },
+      {
+        name: "Hamburguesa luco",
+        description: "Queso derretido. Acompañada de papas fritas.",
+        price: 1199000,
+      },
+      {
+        name: "Hamburguesa vegetariana",
+        description:
+          "Carne de soya, tomate, palta y notmayo. Acompañada de papas fritas.",
+        price: 1199000,
+        tags: ["vegetariano"],
+      },
+    ],
+  },
+  {
+    slug: "pizzas-a-la-piedra",
+    name: "Pizzas a la piedra",
+    description: "Masa fina, horneada sobre piedra.",
+    icon: "Pizza",
+    image: 6,
+    products: [
+      {
+        name: "Pizza pepperoni",
+        description: "Pepperoni, aceitunas, queso y salsa pomodoro.",
+        price: 1350000,
+        featured: true,
+        image: 7,
+      },
+      {
+        name: "Pizza jamón serrano",
+        description: "Rúcula, jamón serrano, queso y salsa pomodoro.",
+        price: 1350000,
+      },
+      {
+        name: "Pizza champiñón",
+        description: "Champiñones, aceitunas, queso y salsa pomodoro.",
+        price: 1350000,
+      },
+      {
+        name: "Pizza carne mechada",
+        description: "Carne mechada, queso, palta y salsa pomodoro.",
+        price: 1350000,
+      },
+    ],
+  },
+  {
+    slug: "cortos-de-whisky",
+    name: "Cortos de whisky",
+    description: "Todos los cortos incluyen bebida.",
+    icon: "GlassWater",
+    image: 7,
+    products: [
+      {
+        name: "Jack Daniel's",
+        description: "Corto. Incluye bebida.",
+        price: 850000,
+        image: 8,
+      },
+      {
+        name: "Johnnie Walker etiqueta negra",
+        description: "Corto. Incluye bebida.",
+        price: 899000,
+        featured: true,
+      },
+      {
+        name: "Johnnie Walker etiqueta roja",
+        description: "Corto. Incluye bebida.",
+        price: 850000,
+      },
+      {
+        name: "Ballantine's",
+        description: "Corto. Incluye bebida.",
+        price: 750000,
+      },
+    ],
+  },
+  {
+    slug: "combinados-de-pisco",
+    name: "Combinados de pisco",
+    description: "Todos los combinados incluyen bebida.",
+    icon: "CupSoda",
+    image: 8,
+    products: [
+      {
+        name: "Pisco Mistral 35°",
+        description: "Combinado. Incluye bebida.",
+        price: 650000,
+      },
+      {
+        name: "Pisco Mistral 40°",
+        description: "Combinado. Incluye bebida.",
+        price: 750000,
+      },
+      {
+        name: "Pisco Alto del Carmen 35°",
+        description: "Combinado. Incluye bebida.",
+        price: 650000,
+      },
+      {
+        name: "Pisco Alto del Carmen 40°",
+        description: "Combinado. Incluye bebida.",
+        price: 750000,
+      },
+    ],
+  },
+  {
+    slug: "gin",
+    name: "Gin + bebida",
+    description: "Servidos en copa alta, con hielo y el garnish de la casa.",
+    icon: "Martini",
+    image: 9,
+    products: [
+      { name: "Gin Gora", description: "Con bebida.", price: 750000 },
+      { name: "Gin Beefeater", description: "Con bebida.", price: 750000 },
+      { name: "Gin Tanqueray", description: "Con bebida.", price: 850000 },
+      {
+        name: "Gin tropical",
+        description: "Gin, Red Bull tropical y sabor a elección.",
+        price: 900000,
+        featured: true,
+        image: 9,
+      },
+    ],
+  },
+  {
+    slug: "promos-de-la-barra",
+    name: "Promos de la barra",
+    description:
+      "Dos cortos y la bebida, para la mesa que se queda hasta el final del show.",
+    icon: "Sparkles",
+    image: 10,
+    products: [
+      {
+        name: "Promo Mistral 35°",
+        description: "Dos cortos + bebida.",
+        price: 1000000,
+      },
+      {
+        name: "Promo Pisco Alto del Carmen 35°",
+        description: "Dos cortos + bebida.",
+        price: 1000000,
+      },
+      {
+        name: "Promo Pisco Alto del Carmen 40°",
+        description: "Dos cortos + bebida.",
+        price: 1050000,
+      },
+      {
+        name: "Promo Johnnie Walker etiqueta roja",
+        description: "Dos cortos + bebida.",
+        price: 1350000,
+      },
+      {
+        name: "Promo Ballantine's",
+        description: "Dos cortos + bebida.",
+        price: 1099000,
+      },
+      {
+        name: "Promo ron Barceló",
+        description: "Un corto de ron Barceló + bebida.",
+        price: 650000,
+      },
+      {
+        name: "Promo doble ron Barceló",
+        description: "Dos cortos de ron Barceló + bebida.",
+        price: 1350000,
+      },
+      {
+        name: "Promo Gin Gora",
+        description: "Dos cortos + bebida o tónica.",
+        price: 1700000,
+        featured: true,
+        image: 10,
+      },
+    ],
+  },
+  {
+    slug: "cocteleria",
+    name: "Coctelería",
+    description: "Los clásicos de siempre, preparados a la vista en la barra.",
+    icon: "Martini",
+    image: 11,
+    products: [
+      { name: "Caipirinha", description: "Cachaça, lima y azúcar.", price: 600000 },
+      { name: "Ramazzotti", description: "Amaro italiano, con hielo.", price: 700000 },
+      { name: "Campari Spritz", description: "Campari, espumante y soda.", price: 750000 },
+      { name: "Daiquiri", description: "Ron, lima y azúcar.", price: 650000 },
+      {
+        name: "Daiquiri de sabores",
+        description: "Frambuesa, piña, frutilla, arándano, mango, papaya o maracuyá.",
+        price: 700000,
+      },
+      { name: "Mojito", description: "Ron, menta, lima y soda.", price: 650000 },
+      {
+        name: "Mojito de sabores",
+        description: "Frambuesa, piña, frutilla, arándano, mango, papaya o maracuyá.",
+        price: 700000,
+      },
+      {
+        name: "Pisco Sour Catedral",
+        description: "La versión de la casa, con pisco de 40°.",
+        price: 750000,
+        featured: true,
+        image: 11,
+      },
+      { name: "Pisco Sour", description: "Pisco, limón de pica y azúcar.", price: 650000 },
+      { name: "Piña Colada", description: "Ron, piña y crema de coco.", price: 650000 },
+      { name: "Aperol Spritz", description: "Aperol, espumante y soda.", price: 700000 },
+      { name: "Tequila Margarita", description: "Tequila, triple sec y lima.", price: 600000 },
+      { name: "Tequila Sunrise", description: "Tequila, naranja y granadina.", price: 650000 },
+      { name: "Pink Margarita", description: "Margarita con frutos rojos.", price: 650000 },
+      { name: "Tom Collins", description: "Gin, limón, azúcar y soda.", price: 650000 },
+      { name: "John Collins", description: "Whisky, limón, azúcar y soda.", price: 750000 },
+      { name: "Ruso Blanco", description: "Vodka, licor de café y crema.", price: 650000 },
+      { name: "Ruso Negro", description: "Vodka y licor de café.", price: 650000 },
+      { name: "Vodka Naranja", description: "Vodka y jugo de naranja.", price: 600000 },
+      { name: "Sangría", description: "Vino tinto y frutas.", price: 550000 },
+      {
+        name: "Whisky Sour",
+        description: "Whisky, limón y azúcar.",
+        price: 850000,
+        featured: true,
+      },
+      { name: "Fernet con bebida", description: "Fernet y bebida cola.", price: 650000 },
+      { name: "Moscow Mule", description: "Vodka, ginger beer y lima.", price: 650000 },
     ],
   },
   {
     slug: "cervezas",
     name: "Cervezas",
-    description: "Tiradas y en botella, con rotación semanal de artesanales.",
+    description:
+      "Schop tirado y botellas bien frías. Cualquiera se puede pedir chelada o michelada.",
     icon: "Beer",
-    image: 2,
-    products: [
-      { name: "Cerveza de barril rubia 500cc", description: "Lager clásica, del barril del día.", price: 450000, image: 6 },
-      { name: "Cerveza de barril IPA 500cc", description: "Amarga, cítrica y bien lupulada.", price: 550000, featured: true, image: 7 },
-      { name: "Cerveza de barril negra 500cc", description: "Stout suave, con notas de café y chocolate.", price: 550000 },
-      { name: "Artesanal de la semana", description: "Pregúntale al barman qué hay de barril hoy.", price: 590000 },
-      { name: "Cerveza en botella 330cc", description: "Nacional, bien fría.", price: 400000 },
-      { name: "Cerveza sin alcohol", description: "Botella 330cc.", price: 380000, tags: ["sin alcohol"] },
-    ],
-  },
-  {
-    slug: "destilados",
-    name: "Destilados",
-    description: "Whiskys, gins, rones y mezcales por copa.",
-    icon: "GlassWater",
-    image: 3,
-    products: [
-      { name: "Whisky single malt 12 años", description: "Por copa de 50cc.", price: 1190000, image: 8 },
-      { name: "Whisky blended", description: "Por copa de 50cc.", price: 690000 },
-      { name: "Gin premium", description: "Con tónica y garnish a elección.", price: 850000 },
-      { name: "Ron añejo", description: "Por copa de 50cc.", price: 750000 },
-      { name: "Mezcal artesanal", description: "Con naranja y sal de gusano.", price: 1050000, tags: ["ahumado"] },
-      { name: "Tequila reposado", description: "Por copa de 50cc, para cerrar la noche.", price: 650000 },
-    ],
-  },
-  {
-    slug: "tablas",
-    name: "Tablas para compartir",
-    description: "Para la previa del show, entre varios.",
-    icon: "Utensils",
-    image: 4,
+    image: 12,
     products: [
       {
-        name: "Tabla BARZUO",
-        description: "Fiambres, quesos, aceitunas, frutos secos y pan de masa madre. Para 3 o 4.",
-        price: 2290000,
+        name: "Schop Kunstmann",
+        description: "Chelada $6.500 · Michelada $6.700.",
+        price: 570000,
         featured: true,
-        image: 9,
+        image: 12,
       },
-      { name: "Tabla de quesos", description: "Cinco quesos, dulce de leche y nueces. Para 2 o 3.", price: 1890000, image: 10 },
-      { name: "Tabla vegetariana", description: "Hummus, babaganoush, vegetales asados y pan pita.", price: 1690000, tags: ["vegetariano"] },
-      { name: "Tabla de la casa", description: "Chorizo, queso de cabra, aceitunas y papas rústicas.", price: 1990000 },
-    ],
-  },
-  {
-    slug: "cocina",
-    name: "Cocina",
-    description: "Platos de bar bien resueltos, hasta el cierre de cocina.",
-    icon: "ChefHat",
-    image: 5,
-    products: [
-      { name: "Hamburguesa BARZUO", description: "Doble medallón, cheddar, tocino y salsa de la casa. Con papas fritas.", price: 1390000, featured: true, image: 11 },
-      { name: "Lomo salteado", description: "Con papas fritas, huevo y cebolla caramelizada.", price: 1350000, image: 12 },
-      { name: "Costillar braseado", description: "Ocho horas de cocción, puré rústico y cebolla caramelizada.", price: 1590000 },
-      { name: "Calamares apanados", description: "Con alioli de limón.", price: 1290000 },
-      { name: "Bowl vegetariano", description: "Quinoa, vegetales asados, palta y semillas.", price: 1190000, tags: ["vegetariano", "sin gluten"] },
-      { name: "Papas BARZUO", description: "Con cheddar, tocino y cebolla verde.", price: 890000, image: 13 },
+      {
+        name: "Schop Heineken",
+        description: "Chelada $5.300 · Michelada $5.500.",
+        price: 450000,
+      },
+      {
+        name: "Royal Guard",
+        description: "Chelada $4.300 · Michelada $4.500.",
+        price: 350000,
+      },
+      {
+        name: "Corona",
+        description: "Chelada $4.300 · Michelada $4.500.",
+        price: 350000,
+      },
     ],
   },
   {
     slug: "vinos",
     name: "Vinos",
-    description: "Selección corta y bien elegida, por copa y por botella.",
+    description: "Botellas de gran reserva y reserva, seleccionadas para la mesa.",
     icon: "Wine",
-    image: 6,
+    image: 13,
     products: [
-      { name: "Tinto reserva (copa)", description: "Corte de la casa.", price: 650000, image: 14 },
-      { name: "Tinto reserva (botella)", description: "750cc.", price: 2800000 },
-      { name: "Sauvignon blanc (copa)", description: "Fresco y cítrico.", price: 600000 },
-      { name: "Espumante brut (copa)", description: "Método tradicional.", price: 700000 },
+      {
+        name: "Santa Ema",
+        description: "Gran reserva. Botella.",
+        price: 1800000,
+        featured: true,
+        image: 13,
+      },
+      {
+        name: "Pérez Cruz",
+        description: "Gran reserva. Botella.",
+        price: 1800000,
+      },
+      {
+        name: "Casillero del Diablo",
+        description: "Reserva. Botella.",
+        price: 1300000,
+      },
+      {
+        name: "Doña Dominga",
+        description: "Reserva. Botella.",
+        price: 1300000,
+      },
+      {
+        name: "Undurraga Brut",
+        description: "Reserva. Espumante. Botella.",
+        price: 1300000,
+      },
     ],
   },
   {
     slug: "sin-alcohol",
-    name: "Bebidas sin alcohol",
-    description: "Para acompañar sin resignar nada.",
-    icon: "CupSoda",
-    image: 7,
+    name: "Sin alcohol",
+    description:
+      "Cervezas y coctelería sin alcohol, con la misma preparación de barra.",
+    icon: "GlassWater",
+    image: 14,
     products: [
-      { name: "Limonada de la casa", description: "Con menta y jengibre.", price: 450000, tags: ["sin alcohol"] },
-      { name: "Gaseosas", description: "Línea completa, 500cc.", price: 300000, tags: ["sin alcohol"] },
-      { name: "Agua mineral", description: "Con o sin gas, 500cc.", price: 280000, tags: ["sin alcohol"] },
-      { name: "Café expreso", description: "De grano tostado en Santiago.", price: 290000, tags: ["sin alcohol"] },
+      {
+        name: "Mahou 0,0 (lata)",
+        description: "Sin alcohol. Chelada $4.300 · Michelada $4.700.",
+        price: 350000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Mahou 0,0 (botellín)",
+        description: "Sin alcohol. Chelada $4.800 · Michelada $5.200.",
+        price: 400000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Royal 0,0 (botellín)",
+        description: "Sin alcohol. Chelada $4.800 · Michelada $5.200.",
+        price: 400000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Cristal 0,0 (botellín)",
+        description: "Sin alcohol. Chelada $4.800 · Michelada $5.200.",
+        price: 400000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Corona 0,0 (botellín)",
+        description: "Sin alcohol. Chelada $4.800 · Michelada $5.200.",
+        price: 400000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Heineken 0,0 (botellín)",
+        description: "Sin alcohol. Chelada $4.800 · Michelada $5.200.",
+        price: 400000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Primavera",
+        description: "Cóctel sin alcohol de frutas frescas.",
+        price: 500000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Piña colada sin alcohol",
+        description: "Piña y crema de coco.",
+        price: 500000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Frambuesa colada",
+        description: "Frambuesa, piña y crema de coco.",
+        price: 550000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Daiquiri de sabor sin alcohol",
+        description: "Frambuesa, piña, frutilla, arándano, mango, papaya o maracuyá.",
+        price: 500000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Mojito sin alcohol",
+        description: "Menta, lima y soda.",
+        price: 550000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Mojito de sabores sin alcohol",
+        description: "Frambuesa, piña, frutilla, arándano, mango, papaya o maracuyá.",
+        price: 600000,
+        tags: ["sin alcohol"],
+      },
+    ],
+  },
+  {
+    slug: "bebidas-y-jugos",
+    name: "Bebidas y jugos",
+    description: "Para acompañar la mesa o cortar un trago.",
+    icon: "CupSoda",
+    image: 15,
+    products: [
+      { name: "Coca-Cola", description: "Normal.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Coca-Cola Zero", description: "Sin azúcar.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Sprite", description: "Normal.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Sprite Zero", description: "Sin azúcar.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Fanta", description: "Normal.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Agua tónica", description: "Para cortar gin o pisco.", price: 250000, tags: ["sin alcohol"] },
+      { name: "Red Bull", description: "Lata.", price: 350000, tags: ["sin alcohol"] },
+      { name: "Score", description: "Lata.", price: 350000, tags: ["sin alcohol"] },
+      {
+        name: "Jugos naturales",
+        description: "Frambuesa, frutilla, piña, papaya, arándano, maracuyá o mango.",
+        price: 350000,
+        tags: ["sin alcohol"],
+      },
+      { name: "Limonada", description: "Recién exprimida.", price: 300000, tags: ["sin alcohol"] },
+      {
+        name: "Limonada de menta y jengibre",
+        description: "Con menta fresca y jengibre.",
+        price: 350000,
+        featured: true,
+        image: 14,
+        tags: ["sin alcohol"],
+      },
+      { name: "Agua mineral", description: "Con o sin gas.", price: 250000, tags: ["sin alcohol"] },
     ],
   },
 ];
+
+/**
+ * Restos de la carta de demostracion anterior.
+ *
+ * Al reemplazarla por la carta real quedaron categorias que ya no existen y,
+ * en las que conservaron el slug (cervezas, vinos, sin-alcohol), productos
+ * inventados mezclados con los de verdad. El seed hace upsert, no borra: sin
+ * esta limpieza una base sembrada antes mostraria las dos cartas a la vez.
+ *
+ * Se enumeran los slugs exactos a proposito. Borrar "todo lo que no este en
+ * MENU" arrasaria con lo que el local haya cargado despues desde el panel.
+ */
+const LEGACY_MENU_CATEGORIES = [
+  "cocteleria-de-autor",
+  "destilados",
+  "tablas",
+  "cocina",
+];
+
+// Se listan las dos variantes que llego a tener la carta de demostracion: la
+// primera y la localizada a Chile, que renombro varios productos.
+const LEGACY_MENU_PRODUCTS = [
+  "cervezas-chopp-rubia-500cc",
+  "cervezas-chopp-ipa-500cc",
+  "cervezas-chopp-negra-500cc",
+  "cervezas-cerveza-de-barril-rubia-500cc",
+  "cervezas-cerveza-de-barril-ipa-500cc",
+  "cervezas-cerveza-de-barril-negra-500cc",
+  "cervezas-artesanal-de-la-semana",
+  "cervezas-cerveza-en-botella-340cc",
+  "cervezas-cerveza-en-botella-330cc",
+  "cervezas-cerveza-sin-alcohol",
+  "vinos-tannat-reserva-copa",
+  "vinos-tannat-reserva-botella",
+  "vinos-tinto-reserva-copa",
+  "vinos-tinto-reserva-botella",
+  "vinos-sauvignon-blanc-copa",
+  "vinos-espumante-brut-copa",
+  "sin-alcohol-limonada-de-la-casa",
+  "sin-alcohol-refrescos",
+  "sin-alcohol-gaseosas",
+  "sin-alcohol-agua-mineral",
+  "sin-alcohol-cafe-expreso",
+];
+
+async function removeLegacyMenu() {
+  // Las categorias arrastran sus productos por la relacion en cascada.
+  const categories = await prisma.menuCategory.deleteMany({
+    where: { slug: { in: LEGACY_MENU_CATEGORIES } },
+  });
+
+  const products = await prisma.menuProduct.deleteMany({
+    where: { slug: { in: LEGACY_MENU_PRODUCTS } },
+  });
+
+  if (categories.count > 0 || products.count > 0) {
+    console.log(
+      `· Carta anterior retirada: ${categories.count} categorías y ${products.count} productos de demostración`,
+    );
+  }
+}
 
 const GALLERY = [
   { file: 1, alt: "Público durante un show en vivo en BARZUO", caption: "Sábado de tributo", tag: "shows", featured: true },
@@ -891,6 +1358,8 @@ async function main() {
       });
     }
   }
+  await removeLegacyMenu();
+
   console.log(
     `· Carta: ${MENU.length} categorías, ${MENU.reduce((n, c) => n + c.products.length, 0)} productos`,
   );

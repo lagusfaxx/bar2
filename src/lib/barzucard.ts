@@ -77,21 +77,70 @@ export function generateQrToken() {
   return randomBytes(24).toString("base64url");
 }
 
-/** Codigo corto e irrepetible del comprobante de canje (ej. "BZ-7K4M2Q"). */
-export function generateReceiptCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sin I, O, 0, 1
+/** Alfabeto de los codigos que se leen en voz alta: sin I, O, 0 ni 1. */
+const READABLE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function readableCode(length: number) {
   let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += alphabet[randomInt(0, alphabet.length)];
+  for (let i = 0; i < length; i++) {
+    code += READABLE_ALPHABET[randomInt(0, READABLE_ALPHABET.length)];
   }
-  return `BZ-${code}`;
+  return code;
 }
 
-/** Normaliza lo que escribe el personal de sala: acepta espacios, guiones y la URL del QR. */
+/** Codigo corto e irrepetible del comprobante de canje (ej. "BZ-7K4M2Q"). */
+export function generateReceiptCode() {
+  return `BZ-${readableCode(6)}`;
+}
+
+/**
+ * Codigo del cupon de descuento (ej. "BZD-4K7P2M").
+ *
+ * Se distingue a simple vista del comprobante: el cupon es lo que el socio
+ * muestra antes del canje, el comprobante lo que queda despues.
+ */
+export function generateVoucherCode() {
+  return `BZD-${readableCode(6)}`;
+}
+
+/** Token opaco del QR del cupon. */
+export function generateVoucherToken() {
+  return randomBytes(24).toString("base64url");
+}
+
+/**
+ * Vigencia del cupon.
+ *
+ * El socio lo emite estando en el local, con el personal de sala cerca. Media hora
+ * alcanza de sobra y evita que queden cupones abiertos de otra noche.
+ */
+export const VOUCHER_TTL_MINUTES = 30;
+
+export function voucherExpiry(from: Date = new Date()) {
+  return new Date(from.getTime() + VOUCHER_TTL_MINUTES * 60 * 1000);
+}
+
+/**
+ * Normaliza lo que escribe o escanea el personal de sala.
+ *
+ * Puede llegar el numero de tarjeta, el QR de la tarjeta o el QR de un cupon de
+ * descuento: los tres entran por el mismo campo y aca se decide cual es.
+ */
 export function normalizeCardInput(raw: string) {
   const trimmed = raw.trim();
 
-  // Si escanea el QR, el valor puede llegar como URL completa.
+  // QR de un cupon: lleva directo a la pantalla de ese descuento.
+  const fromVoucherUrl = trimmed.match(/\/canjear\/([A-Za-z0-9_-]+)/);
+  if (fromVoucherUrl) {
+    return { kind: "voucher" as const, value: fromVoucherUrl[1]! };
+  }
+
+  // Codigo del cupon dictado o tipeado a mano.
+  if (/^BZD-[A-Z0-9]{6}$/i.test(trimmed)) {
+    return { kind: "voucherCode" as const, value: trimmed.toUpperCase() };
+  }
+
+  // Si escanea el QR de la tarjeta, el valor puede llegar como URL completa.
   const fromUrl = trimmed.match(/\/verificar\/([A-Za-z0-9_-]+)/);
   if (fromUrl) return { kind: "token" as const, value: fromUrl[1]! };
 
@@ -100,7 +149,7 @@ export function normalizeCardInput(raw: string) {
     return { kind: "number" as const, value: digits };
   }
 
-  // Cualquier otra cosa se interpreta como token del QR.
+  // Cualquier otra cosa se interpreta como token del QR de la tarjeta.
   return { kind: "token" as const, value: trimmed };
 }
 

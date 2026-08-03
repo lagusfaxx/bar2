@@ -112,15 +112,18 @@ export function SiteHeader({
           </nav>
 
           <div className="flex items-center gap-3">
+            {/* En el telefono queda solo el simbolo: la BarzuCard es lo que mas
+                se busca desde el movil y no puede depender de abrir el menu. */}
             {loyaltyEnabled && (
               <ButtonLink
                 href="/barzucard"
                 size="sm"
                 variant="outline"
-                className="hidden sm:inline-flex"
+                aria-label={loyaltyTitle}
+                className="max-sm:h-11 max-sm:w-11 max-sm:px-0"
               >
                 <Sparkles className="size-3.5" aria-hidden />
-                {loyaltyTitle}
+                <span className="max-sm:sr-only">{loyaltyTitle}</span>
               </ButtonLink>
             )}
 

@@ -23,3 +23,24 @@ export async function cardQrDataUrl(qrToken: string) {
     },
   });
 }
+
+/**
+ * QR de un cupon de descuento, distinto del de la tarjeta.
+ *
+ * El de la tarjeta dice quien es el socio; este dice ademas que eligio canjear.
+ * Al escanearlo, el equipo de sala cae en la pantalla de ese descuento y solo
+ * tiene que confirmar: no tiene que adivinar la promocion ni buscarla en una
+ * lista. Se genera mas grande porque se escanea desde la pantalla del cliente,
+ * a veces con brillo bajo.
+ */
+export async function voucherQrDataUrl(token: string) {
+  return QRCode.toDataURL(absoluteUrl(`/staff/canjear/${token}`), {
+    errorCorrectionLevel: "Q",
+    margin: 1,
+    width: 640,
+    color: {
+      dark: "#08070aff",
+      light: "#f4efe7ff",
+    },
+  });
+}

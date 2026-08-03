@@ -184,6 +184,29 @@ export async function lookupCard(
 
   const parsed = normalizeCardInput(raw);
 
+  // Cupón de descuento: el socio ya eligió la promoción, así que la búsqueda
+  // por tarjeta no aplica. Se deriva a la pantalla de ese cupón.
+  if (parsed.kind === "voucher") {
+    return formSuccess("Cupón detectado.", {
+      redirectTo: `/staff/canjear/${parsed.value}`,
+    });
+  }
+
+  if (parsed.kind === "voucherCode") {
+    const voucher = await prisma.promotionVoucher.findUnique({
+      where: { code: parsed.value },
+      select: { token: true },
+    });
+
+    if (!voucher) {
+      return formError("No encontramos ningún cupón con ese código.");
+    }
+
+    return formSuccess("Cupón detectado.", {
+      redirectTo: `/staff/canjear/${voucher.token}`,
+    });
+  }
+
   if (parsed.kind === "number" && !isValidCardNumber(parsed.value)) {
     return formError(
       "El número no corresponde a una BarzuCard. Revisa los 16 dígitos.",
@@ -275,6 +298,138 @@ export async function lookupCard(
   return formSuccess("Tarjeta encontrada.", {
     lookup: result as unknown as Record<string, unknown>,
   });
+}
+
+// --- Canje de un cupón elegido por el socio ---------------------------------
+
+/**
+ * Confirma el canje de un cupón.
+ *
+ * Comparte transacción y reglas con el canje clásico: lo único que cambia es
+ * quién eligió la promoción. El paso del cupón a `REDEEMED` ocurre dentro de la
+ * misma transacción y sobre una fila que todavía estaba en `PENDING`, de modo
+ * que dos escaneos simultáneos del mismo QR no pueden canjearlo dos veces.
+ */
+export async function redeemVoucher(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await requireStaff();
+
+  const token = formData.get("token");
+
+  if (typeof token !== "string" || !token) {
+    return formError("Faltan datos del cupón.");
+  }
+
+  const ip = await clientIp();
+  const limit = rateLimit(`redeem:${ip}`, 60, 60 * 5);
+
+  if (!limit.ok) {
+    return formError("Demasiados canjes seguidos. Espera un momento.");
+  }
+
+  try {
+    const receipt = await prisma.$transaction(async (tx) => {
+      const voucher = await tx.promotionVoucher.findUnique({
+        where: { token },
+        include: { promotion: true, card: true },
+      });
+
+      if (!voucher) throw new Error("El cupón no existe.");
+      if (voucher.status === "REDEEMED") {
+        throw new Error("Este cupón ya fue canjeado.");
+      }
+      if (voucher.status !== "PENDING") {
+        throw new Error("Este cupón ya no está activo.");
+      }
+      if (voucher.expiresAt < new Date()) {
+        await tx.promotionVoucher.update({
+          where: { id: voucher.id },
+          data: { status: "EXPIRED" },
+        });
+        throw new Error("El cupón venció. Pídele al socio que lo emita de nuevo.");
+      }
+
+      const used = await tx.redemption.count({
+        where: { cardId: voucher.cardId, promotionId: voucher.promotionId },
+      });
+
+      const eligibility = checkEligibility({
+        promotion: voucher.promotion,
+        card: voucher.card,
+        redemptionsForThisPromotion: used,
+      });
+
+      if (!eligibility.ok) throw new Error(eligibility.reason);
+
+      const receiptCode = generateReceiptCode();
+
+      const redemption = await tx.redemption.create({
+        data: {
+          cardId: voucher.cardId,
+          promotionId: voucher.promotionId,
+          staffUserId: session.userId,
+          receiptCode,
+          pointsSpent: voucher.promotion.pointsCost,
+          pointsEarned: voucher.promotion.pointsReward,
+        },
+        select: { id: true },
+      });
+
+      // Solo prospera si el cupón sigue pendiente: si otro escaneo se adelantó,
+      // no actualiza ninguna fila y la transacción se deshace entera.
+      const claimed = await tx.promotionVoucher.updateMany({
+        where: { id: voucher.id, status: "PENDING" },
+        data: { status: "REDEEMED", redemptionId: redemption.id },
+      });
+
+      if (claimed.count === 0) {
+        throw new Error("Este cupón ya fue canjeado.");
+      }
+
+      await tx.promotion.update({
+        where: { id: voucher.promotionId },
+        data: { redeemedCount: { increment: 1 } },
+      });
+
+      const points =
+        voucher.card.points -
+        voucher.promotion.pointsCost +
+        voucher.promotion.pointsReward;
+
+      await tx.barzuCard.update({
+        where: { id: voucher.cardId },
+        data: { points, tier: tierForPoints(points) },
+      });
+
+      return { receiptCode, points, title: voucher.promotion.title };
+    });
+
+    await recordAudit(
+      session.userId,
+      "redeem",
+      "Redemption",
+      undefined,
+      `Canje ${receipt.receiptCode} desde cupón del socio`,
+    );
+
+    revalidatePath("/admin/canjes");
+    revalidatePath("/barzucard/tarjeta");
+    revalidateContent("promotions");
+
+    return formSuccess(`Canje confirmado · ${receipt.receiptCode}`, {
+      receiptCode: receipt.receiptCode,
+      title: receipt.title,
+      points: receipt.points,
+    });
+  } catch (error) {
+    return formError(
+      error instanceof Error
+        ? error.message
+        : "No se pudo registrar el canje. Prueba de nuevo.",
+    );
+  }
 }
 
 /**

@@ -18,30 +18,47 @@ export default async function AdminCanjesPage() {
   const since = new Date();
   since.setDate(since.getDate() - 30);
 
-  const [redemptions, total, lastMonth, topPromotions] = await Promise.all([
-    prisma.redemption.findMany({
-      orderBy: { redeemedAt: "desc" },
-      take: 200,
-      include: {
-        promotion: { select: { title: true, type: true, value: true } },
-        card: {
-          select: {
-            cardNumber: true,
-            member: { select: { fullName: true, email: true } },
+  const [redemptions, total, lastMonth, topPromotions, openVouchers] =
+    await Promise.all([
+      prisma.redemption.findMany({
+        orderBy: { redeemedAt: "desc" },
+        take: 200,
+        include: {
+          promotion: { select: { title: true, type: true, value: true } },
+          card: {
+            select: {
+              cardNumber: true,
+              member: { select: { fullName: true, email: true } },
+            },
+          },
+          staffUser: { select: { name: true } },
+        },
+      }),
+      prisma.redemption.count(),
+      prisma.redemption.count({ where: { redeemedAt: { gte: since } } }),
+      prisma.redemption.groupBy({
+        by: ["promotionId"],
+        _count: { promotionId: true },
+        orderBy: { _count: { promotionId: "desc" } },
+        take: 1,
+      }),
+
+      // Cupones que los socios eligieron y todavía no se aplicaron en el local.
+      prisma.promotionVoucher.findMany({
+        where: { status: "PENDING", expiresAt: { gt: new Date() } },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+        include: {
+          promotion: { select: { title: true } },
+          card: {
+            select: {
+              cardNumber: true,
+              member: { select: { fullName: true } },
+            },
           },
         },
-        staffUser: { select: { name: true } },
-      },
-    }),
-    prisma.redemption.count(),
-    prisma.redemption.count({ where: { redeemedAt: { gte: since } } }),
-    prisma.redemption.groupBy({
-      by: ["promotionId"],
-      _count: { promotionId: true },
-      orderBy: { _count: { promotionId: "desc" } },
-      take: 1,
-    }),
-  ]);
+      }),
+    ]);
 
   const topPromotion = topPromotions[0]
     ? await prisma.promotion.findUnique({
@@ -74,6 +91,57 @@ export default async function AdminCanjesPage() {
           }
         />
       </div>
+
+      {/* Cupones abiertos: el socio ya eligió el descuento y espera aplicarlo.
+          Sirve para ver, en plena noche, qué está por canjearse en la barra. */}
+      {openVouchers.length > 0 && (
+        <Panel
+          className="mb-6"
+          title={`Cupones esperando canje (${openVouchers.length})`}
+          description="Elegidos por el socio desde su BarzuCard. Vencen solos si no se usan."
+        >
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Cupón</Th>
+                  <Th>Promoción</Th>
+                  <Th className="hidden md:table-cell">Socio</Th>
+                  <Th className="hidden lg:table-cell">Tarjeta</Th>
+                  <Th>Vence</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {openVouchers.map((voucher) => (
+                  <tr key={voucher.id}>
+                    <Td className="font-mono text-xs whitespace-nowrap text-gilt-soft">
+                      {voucher.code}
+                    </Td>
+
+                    <Td>
+                      <span className="block max-w-56 truncate text-sm text-bone">
+                        {voucher.promotion.title}
+                      </span>
+                    </Td>
+
+                    <Td className="hidden max-w-48 truncate text-sm text-bone-dim md:table-cell">
+                      {voucher.card.member.fullName}
+                    </Td>
+
+                    <Td className="hidden font-mono text-xs whitespace-nowrap text-muted lg:table-cell">
+                      {formatCardNumber(voucher.card.cardNumber)}
+                    </Td>
+
+                    <Td className="whitespace-nowrap text-xs text-muted">
+                      {formatDateTime(voucher.expiresAt)}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </Panel>
+      )}
 
       <Panel>
         {redemptions.length === 0 ? (

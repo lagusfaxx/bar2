@@ -10,6 +10,7 @@ import {
   Search,
   Star,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 
 import { lookupCard, redeemPromotion, type CardLookup } from "@/app/actions/admin/loyalty";
@@ -22,6 +23,12 @@ import { cn } from "@/lib/utils";
 /**
  * Herramienta de sala para verificar una BarzuCard y canjear promociones.
  *
+ * El camino habitual es otro: el socio elige el descuento en su BarzuCard y
+ * muestra el QR de ese cupón, que lleva directo a la pantalla de confirmación.
+ * Esta pantalla es el respaldo para cuando eso no pasa —tarjeta física, socio
+ * que no sabe usar la web, cupón vencido— y por eso sigue permitiendo elegir la
+ * promoción a mano.
+ *
  * Tres formas de identificar la tarjeta, en orden de comodidad:
  *  1. La cámara del propio teléfono. Se usa BarcodeDetector cuando el navegador
  *     lo trae (Chrome en Android) y, si no, un decodificador en JavaScript, que
@@ -30,9 +37,12 @@ import { cn } from "@/lib/utils";
  *     y abre esta misma pantalla ya resuelta.
  *  3. Los 16 dígitos escritos a mano, con verificación de dígito de control.
  *
- * La decisión de si una promoción se puede canjear la toma siempre el servidor.
+ * Si lo escaneado resulta ser el cupón de un descuento, se deriva a la
+ * pantalla de ese cupón. La decisión de si una promoción se puede canjear la
+ * toma siempre el servidor.
  */
 export function CardVerifier({ initial }: { initial?: CardLookup }) {
+  const router = useRouter();
   const [state, setState] = useState<FormState>(IDLE);
   const [lookup, setLookup] = useState<CardLookup | null>(initial ?? null);
   const [pending, startTransition] = useTransition();
@@ -65,6 +75,15 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
 
     startTransition(async () => {
       const result = await lookupCard(IDLE, formData);
+
+      // Si lo escaneado era el cupón de un descuento, la promoción ya está
+      // elegida: se va derecho a confirmarla en vez de listar la tarjeta.
+      const redirectTo = result.data?.redirectTo;
+      if (result.status === "success" && typeof redirectTo === "string") {
+        router.push(redirectTo);
+        return;
+      }
+
       setState(result);
 
       const found = result.data?.lookup as CardLookup | undefined;
@@ -220,7 +239,7 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
           htmlFor="code"
           className="text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase"
         >
-          Número de tarjeta o QR
+          Número de tarjeta, QR o código de cupón
         </label>
 
         <div className="flex gap-2">
@@ -228,10 +247,9 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
             ref={inputRef}
             id="code"
             name="code"
-            inputMode="numeric"
             autoComplete="off"
             enterKeyHint="search"
-            placeholder="5210 •••• •••• ••••"
+            placeholder="5210 •••• •••• ••••  ·  BZD-••••••"
             defaultValue={initial?.card.cardNumber}
             className="min-w-0 flex-1 border border-line bg-ink-soft px-4 py-4 font-mono text-lg tracking-[0.12em] text-bone placeholder:text-muted-dark focus:border-crimson focus:outline-none"
           />
@@ -405,9 +423,14 @@ function CardResult({
 
       {/* Promociones disponibles */}
       <div>
-        <h2 className="mb-3 text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+        <h2 className="mb-1.5 text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
           Disponibles ({eligible.length})
         </h2>
+
+        <p className="mb-3 text-xs text-muted-dark">
+          Preguntale al cliente cuál quiere usar. Si lo elige desde su BarzuCard
+          y te muestra el QR del cupón, esto no hace falta.
+        </p>
 
         {eligible.length === 0 ? (
           <p className="border border-line bg-ink-soft px-5 py-6 text-sm text-muted">

@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 
 import { PromotionCard } from "@/components/barzucard/promotion-card";
+import { PromotionPicker } from "@/components/barzucard/promotion-picker";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { Section } from "@/components/ui/section";
+import { getMemberSession } from "@/lib/auth";
+import { checkEligibility } from "@/lib/barzucard";
 import { getActivePromotions, getSettings } from "@/lib/content";
+import { prisma } from "@/lib/prisma";
 import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,17 +29,55 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function PromocionesPage() {
-  const [promotions, settings] = await Promise.all([
+  const [promotions, settings, session] = await Promise.all([
     getActivePromotions(),
     getSettings(),
+    getMemberSession(),
   ]);
+
+  /**
+   * Para un socio con sesión abierta cada promoción trae su botón: puede pedir
+   * el cupón acá mismo, sin pasar antes por la tarjeta.
+   */
+  const card = session
+    ? await prisma.barzuCard.findUnique({
+        where: { memberId: session.memberId },
+        select: { id: true, tier: true, status: true, points: true },
+      })
+    : null;
+
+  const usageByPromotion = new Map<string, number>();
+
+  if (card) {
+    const usage = await prisma.redemption.groupBy({
+      by: ["promotionId"],
+      where: { cardId: card.id },
+      _count: { promotionId: true },
+    });
+
+    for (const entry of usage) {
+      usageByPromotion.set(entry.promotionId, entry._count.promotionId);
+    }
+  }
+
+  const canRedeem = (promotionId: string) => {
+    if (!card) return false;
+    const promotion = promotions.find((item) => item.id === promotionId);
+    if (!promotion) return false;
+
+    return checkEligibility({
+      promotion,
+      card,
+      redemptionsForThisPromotion: usageByPromotion.get(promotionId) ?? 0,
+    }).ok;
+  };
 
   return (
     <>
       <PageHeader
         eyebrow={settings.loyaltyTitle}
         title="Promociones vigentes"
-        lead="Presenta el QR de tu BarzuCard en la barra y el equipo valida el beneficio al instante."
+        lead="Elige el beneficio que quieras usar desde tu BarzuCard: te damos un QR de ese descuento y el personal de sala solo lo confirma."
         image="/demo/promo-5.jpg"
       >
         <ButtonLink href="/barzucard/tarjeta" size="lg">
@@ -47,8 +89,16 @@ export default async function PromocionesPage() {
         {promotions.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {promotions.map((promotion, index) => (
-              <Reveal key={promotion.id} delay={Math.min(index, 8) * 70}>
-                <PromotionCard promotion={promotion} />
+              <Reveal
+                key={promotion.id}
+                delay={Math.min(index, 8) * 70}
+                className="h-full"
+              >
+                {canRedeem(promotion.id) ? (
+                  <PromotionPicker promotion={promotion} />
+                ) : (
+                  <PromotionCard promotion={promotion} />
+                )}
               </Reveal>
             ))}
           </div>

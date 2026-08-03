@@ -1,4 +1,4 @@
-import { Download, LogOut, Printer, Sparkles, Star } from "lucide-react";
+import { Download, LogOut, Printer, QrCode, Sparkles, Star } from "lucide-react";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -6,7 +6,8 @@ import { redirect } from "next/navigation";
 import { logoutMember } from "@/app/actions/auth";
 import { CardVisual } from "@/components/barzucard/card-visual";
 import { PaymentPanel } from "@/components/barzucard/payment-panel";
-import { PromotionCard } from "@/components/barzucard/promotion-card";
+import { PromotionPicker } from "@/components/barzucard/promotion-picker";
+import { VoucherCountdown } from "@/components/barzucard/voucher-countdown";
 import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { Reveal } from "@/components/ui/reveal";
@@ -17,6 +18,7 @@ import { getActivePromotions, getSettings } from "@/lib/content";
 import { formatCardNumber, formatDateTime, formatPrice, TIER_LABELS } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cardQrDataUrl } from "@/lib/qr";
+import { getActiveVoucher } from "@/lib/vouchers";
 
 export const metadata: Metadata = {
   title: "Mi BarzuCard",
@@ -75,8 +77,12 @@ export default async function MiTarjetaPage({
   }
 
   const card = member.card;
-  const qrDataUrl = await cardQrDataUrl(card.qrToken);
   const progress = nextTierProgress(card.points);
+
+  const [qrDataUrl, activeVoucher] = await Promise.all([
+    cardQrDataUrl(card.qrToken),
+    getActiveVoucher(card.id),
+  ]);
 
   // Cuántas veces usó cada promoción, para mostrar cuáles siguen disponibles.
   const usage = await prisma.redemption.groupBy({
@@ -104,10 +110,33 @@ export default async function MiTarjetaPage({
         title="Tu BarzuCard"
         lead={
           bienvenida
-            ? "¡Bienvenido al programa! Esta es tu tarjeta: muestra el QR en la barra para canjear beneficios."
-            : "Muestra este QR en la barra para canjear tus beneficios."
+            ? "¡Bienvenido al programa! Esta es tu tarjeta. Para usar un beneficio, elígelo abajo y te damos un QR propio de ese descuento."
+            : "Elige abajo el beneficio que quieras usar: te damos un QR de ese descuento para mostrar en la barra."
         }
       />
+
+      {/* Cupón abierto: es lo primero que hay que ver al volver a esta pantalla. */}
+      {activeVoucher && (
+        <div className="print-hidden container-bz -mt-8 sm:-mt-10">
+          <Reveal className="flex flex-wrap items-center justify-between gap-4 border border-gilt/40 bg-gilt/8 px-5 py-4">
+            <div className="min-w-0">
+              <p className="eyebrow text-gilt-soft">Cupón listo para mostrar</p>
+              <p className="mt-1.5 truncate font-display text-lg text-bone">
+                {activeVoucher.promotion.title}
+              </p>
+              <VoucherCountdown
+                expiresAt={activeVoucher.expiresAt.toISOString()}
+                className="mt-1 block text-xs text-muted"
+              />
+            </div>
+
+            <ButtonLink href={`/barzucard/canje/${activeVoucher.code}`} size="sm">
+              <QrCode className="size-3.5" aria-hidden />
+              Ver mi cupón
+            </ButtonLink>
+          </Reveal>
+        </div>
+      )}
 
       <Section className="container-bz">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,26rem)_1fr] lg:gap-16">
@@ -311,7 +340,7 @@ export default async function MiTarjetaPage({
           }
           lead={
             available.length > 0
-              ? `Muestra el QR de tu ${settings.loyaltyTitle} en la barra.`
+              ? "Elige el que quieras usar: te generamos un QR de ese descuento para mostrar en la barra."
               : "Vuelve a mirar más adelante: las promociones cambian seguido."
           }
         />
@@ -319,8 +348,8 @@ export default async function MiTarjetaPage({
         {available.length > 0 && (
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {available.map((promotion, index) => (
-              <Reveal key={promotion.id} delay={index * 70}>
-                <PromotionCard promotion={promotion} />
+              <Reveal key={promotion.id} delay={index * 70} className="h-full">
+                <PromotionPicker promotion={promotion} />
               </Reveal>
             ))}
           </div>

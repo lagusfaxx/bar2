@@ -230,7 +230,7 @@ async function main() {
   }
 
   // Categorias de la carta
-  for (let i = 1; i <= 7; i++) {
+  for (let i = 1; i <= 15; i++) {
     push(await render(`category-${i}.jpg`, 1000, 750, 7000 + i * 61, PALETTE_NAMES[i % PALETTE_NAMES.length], {
       beams: 1,
       blobs: 3,
