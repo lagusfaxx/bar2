@@ -236,6 +236,7 @@ export default async function CashPage() {
                   <Th>Mesa</Th>
                   <Th>Cuenta</Th>
                   <Th>Forma</Th>
+                  <Th>Cobró</Th>
                   <Th className="text-right">Total</Th>
                 </tr>
               </thead>
@@ -251,6 +252,7 @@ export default async function CashPage() {
                     <Td>{payment.session.table.number}</Td>
                     <Td>{payment.diner?.label ?? "Mesa completa"}</Td>
                     <Td>{METHOD_LABELS[payment.method] ?? payment.method}</Td>
+                    <Td>{payment.cashier?.name ?? "—"}</Td>
                     <Td className="text-right font-display text-bone">
                       {formatPrice(payment.totalCents)}
                     </Td>

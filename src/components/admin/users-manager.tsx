@@ -36,7 +36,7 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_HINTS: Record<string, string> = {
   ADMIN: "Acceso total, incluida la gestión de usuarios.",
   EDITOR: "Gestiona contenido, no gestiona usuarios.",
-  STAFF: "Solo la app de verificación de BarzuCard.",
+  STAFF: "Solo la app de sala: mesas, comandas, cobro y BarzuCard.",
 };
 
 export function UsersManager({

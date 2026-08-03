@@ -29,7 +29,7 @@ export default async function StaffLoginPage({
           <Logo
             src={settings.logoUrl}
             name={settings.barName}
-            tagline="Verificación de BarzuCard"
+            tagline="App de sala"
             variant="stacked"
             className="text-4xl"
           />
@@ -38,8 +38,8 @@ export default async function StaffLoginPage({
         <div className="card-bz p-7 sm:p-8">
           <h1 className="font-display text-2xl text-bone">Ingresar</h1>
           <p className="mt-2 text-sm text-muted">
-            Usa tu cuenta del equipo para validar tarjetas y canjear
-            promociones.
+            Usa tu cuenta del equipo para atender las mesas, cobrar y validar
+            tarjetas BarzuCard.
           </p>
 
           <div className="mt-7">
