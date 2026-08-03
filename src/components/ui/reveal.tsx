@@ -8,6 +8,14 @@ type RevealProps = {
   children: ReactNode;
   /** Retraso en ms, para escalonar elementos de una misma fila. */
   delay?: number;
+  /**
+   * Aparece solo atenuando la opacidad, sin subir desde abajo.
+   *
+   * Es lo que corresponde en los carruseles horizontales: ahi el movimiento
+   * vertical se nota como un salto y, si el elemento es punto de enganche del
+   * scroll, desplaza los puntos de snap mientras dura la animacion.
+   */
+  fade?: boolean;
   className?: string;
   as?: ElementType;
 };
@@ -22,6 +30,7 @@ type RevealProps = {
 export function Reveal({
   children,
   delay = 0,
+  fade = false,
   className,
   as: Tag = "div",
 }: RevealProps) {
@@ -56,6 +65,7 @@ export function Reveal({
     <Tag
       ref={ref}
       data-reveal={visible ? "in" : ""}
+      data-reveal-fade={fade ? "" : undefined}
       style={delay ? ({ "--reveal-delay": `${delay}ms` } as React.CSSProperties) : undefined}
       className={cn(className)}
     >

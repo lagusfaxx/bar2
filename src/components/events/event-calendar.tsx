@@ -225,7 +225,10 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                       aria-selected={isSelected}
                       className={cn(
                         // 44px minimo: objetivo tactil comodo en movil.
-                        "relative flex aspect-square min-h-11 flex-col items-center justify-center gap-1 border text-sm transition-all duration-300",
+                        // Solo color y sombra: con `transition-all`, cualquier
+                        // propiedad que cambie al seleccionar el dia se anima,
+                        // incluidas las que afectan al tamano de la celda.
+                        "relative flex aspect-square min-h-11 flex-col items-center justify-center gap-1 border text-sm transition-[background-color,border-color,color,box-shadow] duration-300",
                         hasEvents
                           ? "cursor-pointer border-crimson/35 bg-crimson/8 text-bone hover:border-crimson hover:bg-crimson/20"
                           : "border-transparent text-muted-dark",

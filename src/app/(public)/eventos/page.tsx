@@ -96,6 +96,7 @@ export default async function EventosPage() {
               <Reveal
                 key={event.id}
                 delay={index * 80}
+                fade
                 className="w-[70%] shrink-0 snap-start sm:w-auto"
               >
                 <EventCard event={event} priority={index === 0} />
@@ -173,7 +174,8 @@ export default async function EventosPage() {
                 <Reveal
                   key={event.id}
                   delay={index * 70}
-                  className="w-[70%] shrink-0 snap-start sm:w-auto"
+                  fade
+                className="w-[70%] shrink-0 snap-start sm:w-auto"
                 >
                   <EventCard event={event} className="opacity-80 hover:opacity-100" />
                 </Reveal>

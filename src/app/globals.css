@@ -351,6 +351,19 @@
     opacity: 1;
     transform: none;
   }
+
+  /*
+   * Variante sin desplazamiento, para los carruseles que se deslizan en
+   * horizontal.
+   *
+   * Una tarjeta que ademas es punto de anclaje del scroll no puede llevar un
+   * transform: el navegador calcula los puntos de enganche sobre la caja ya
+   * transformada, asi que mientras la animacion corre los puntos se mueven
+   * bajo el dedo y el carrusel salta. Aca solo se atenua la opacidad.
+   */
+  [data-reveal][data-reveal-fade] {
+    transform: none;
+  }
 }
 
 /* Respeta la preferencia del sistema de reducir movimiento. */

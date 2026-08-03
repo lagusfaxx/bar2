@@ -100,6 +100,7 @@ export default async function HomePage() {
               <Reveal
                 key={event.id}
                 delay={index * 70}
+                fade
                 className="w-[70%] shrink-0 snap-start sm:w-auto"
               >
                 <EventCard event={event} priority={index < 3} />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -15,6 +15,7 @@ type MenuNavProps = {
  */
 export function MenuNav({ categories }: MenuNavProps) {
   const [active, setActive] = useState(categories[0]?.slug ?? "");
+  const trackRef = useRef<HTMLUListElement>(null);
 
   useEffect(() => {
     const sections = categories
@@ -41,11 +42,27 @@ export function MenuNav({ categories }: MenuNavProps) {
     return () => observer.disconnect();
   }, [categories]);
 
-  // Mantiene el chip activo dentro del área visible del carrusel.
+  /**
+   * Mantiene el chip activo dentro del área visible del carrusel.
+   *
+   * Se mueve `scrollLeft` a mano en lugar de usar `scrollIntoView`: ese método
+   * desplaza también a los ancestros que puedan desplazarse —incluida la
+   * página— así que al bajar por la carta el navegador movía el scroll
+   * vertical por su cuenta, peleando con el dedo. Aquí solo se toca la barra.
+   */
   useEffect(() => {
-    document
-      .querySelector(`[data-menu-chip="${active}"]`)
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    const track = trackRef.current;
+    const chip = track?.querySelector<HTMLElement>(`[data-menu-chip="${active}"]`);
+
+    if (!track || !chip) return;
+
+    const target =
+      chip.offsetLeft - track.clientWidth / 2 + chip.offsetWidth / 2;
+
+    track.scrollTo({
+      left: Math.max(0, target),
+      behavior: "smooth",
+    });
   }, [active]);
 
   return (
@@ -54,7 +71,10 @@ export function MenuNav({ categories }: MenuNavProps) {
       className="sticky top-18 z-30 border-y border-line bg-ink/92 backdrop-blur-xl sm:top-20"
     >
       <div className="container-bz">
-        <ul className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto py-3">
+        <ul
+          ref={trackRef}
+          className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto overscroll-x-contain py-3"
+        >
           {categories.map((category) => (
             <li key={category.slug} className="shrink-0">
               <a
