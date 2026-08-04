@@ -59,6 +59,8 @@ services:
     volumes:
       # Las imágenes subidas desde el CMS deben sobrevivir a los redeploys.
       - barzuo-uploads:/app/storage
+      # Y las versiones ya optimizadas, para no reprocesarlas tras cada deploy.
+      - barzuo-image-cache:/app/.next/cache
     healthcheck:
       test:
         - CMD
@@ -73,3 +75,4 @@ services:
 volumes:
   barzuo-db:
   barzuo-uploads:
+  barzuo-image-cache:

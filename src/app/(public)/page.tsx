@@ -103,7 +103,7 @@ export default async function HomePage() {
                 fade
                 className="w-[70%] shrink-0 snap-start sm:w-auto"
               >
-                <EventCard event={event} priority={index < 3} />
+                <EventCard event={event} priority={index === 0} />
               </Reveal>
             ))}
           </div>

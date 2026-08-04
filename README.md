@@ -545,13 +545,23 @@ mostrar ningún error.
 
 ### 5. Almacenamiento de imágenes
 
-**Persistent Storage → Add**:
+**Persistent Storage → Add**, dos volúmenes:
 
-- **Name**: `barzuo-uploads`
-- **Mount Path**: `/app/storage`
+| Name | Mount Path | Para qué |
+| --- | --- | --- |
+| `barzuo-uploads` | `/app/storage` | Las imágenes que se suben desde el CMS. |
+| `barzuo-image-cache` | `/app/.next/cache` | Las versiones ya optimizadas de esas imágenes. |
 
-Sin este volumen, las imágenes que se suban desde el CMS **se pierden en cada
-redeploy**.
+Sin el primero, lo que se suba desde el CMS **se pierde en cada redeploy**.
+
+El segundo no es imprescindible pero se nota: Next reescala y reencoda cada
+imagen la primera vez que alguien la pide. Sin volumen, ese trabajo vuelve a
+cero después de publicar, así que la primera visita espera a que se procese
+toda la portada y el servidor se lleva ese golpe entero. Con el volumen, se
+hace una vez y ya.
+
+> No cambies el **Name** de un volumen una vez creado: renombrarlo hace que
+> Coolify monte uno nuevo y vacío, y el anterior queda huérfano.
 
 ### 6. Deploy y migraciones
 

@@ -129,6 +129,15 @@ RUN chmod +x ./entrypoint.sh
 RUN mkdir -p /app/storage/uploads && chown -R nextjs:nodejs /app/storage
 VOLUME ["/app/storage"]
 
+# Cache del optimizador de imagenes.
+#
+# Next reescala y reencoda cada imagen la primera vez que alguien la pide, y
+# guarda el resultado aca. Sin volumen, ese trabajo vuelve a cero en cada
+# deploy: el primero que entra despues de publicar espera a que sharp procese
+# toda la portada, y el servidor se lleva ese golpe entero.
+RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next
+VOLUME ["/app/.next/cache"]
+
 USER nextjs
 EXPOSE 3000
 
