@@ -22,7 +22,7 @@ function DateBlock({ date, className }: { date: Date; className?: string }) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center border border-bone/15 bg-ink/80 px-3 py-2 text-center backdrop-blur-md",
+        "flex flex-col items-center border border-bone/15 bg-ink/85 px-3 py-2 text-center sm:bg-ink/80 sm:backdrop-blur-md",
         className,
       )}
     >
@@ -121,7 +121,10 @@ export function EventCard({
             src={image}
             alt={`Afiche de ${event.title}`}
             fill
-            priority={priority}
+            // Inmediata pero sin precarga: el primer afiche esta arriba, pero
+            // por debajo de la portada. Precargarlo le robaria prioridad a la
+            // imagen que ocupa la pantalla entera.
+            loading={priority ? "eager" : "lazy"}
             sizes="(max-width: 640px) 88vw, (max-width: 1024px) 45vw, 30vw"
             className="object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06]"
           />

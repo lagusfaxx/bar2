@@ -153,7 +153,7 @@ export default async function MiTarjetaPage({
                 height={512}
                 unoptimized
                 className="h-auto w-full max-w-[17rem]"
-                priority
+                preload
               />
               <p className="text-center font-mono text-base tracking-[0.12em] text-ink">
                 {formatCardNumber(card.cardNumber)}

@@ -21,7 +21,7 @@ export default async function StaffLoginPage({
     <main className="relative flex flex-1 items-center justify-center overflow-hidden px-5 py-16">
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1/3 left-1/2 -z-10 size-[30rem] -translate-x-1/2 rounded-full bg-crimson/12 blur-[130px]"
+        className="pointer-events-none absolute top-1/3 left-1/2 -z-10 size-[30rem] -translate-x-1/2 rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.12),transparent)]"
       />
 
       <div className="w-full max-w-sm">

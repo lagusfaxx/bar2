@@ -68,7 +68,7 @@ export function MenuNav({ categories }: MenuNavProps) {
   return (
     <nav
       aria-label="Categorías de la carta"
-      className="sticky top-18 z-30 border-y border-line bg-ink/92 backdrop-blur-xl sm:top-20"
+      className="sticky top-18 z-30 border-y border-line bg-ink/97 sm:top-20 lg:bg-ink/92 lg:backdrop-blur-xl"
     >
       <div className="container-bz">
         <ul

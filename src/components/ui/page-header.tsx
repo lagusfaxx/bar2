@@ -37,15 +37,21 @@ export function PageHeader({
             src={image}
             alt=""
             fill
-            priority
+            // `priority` quedo obsoleto en Next 16 a favor de `preload`, que
+            // dice lo que hace: mete un <link rel="preload"> en la cabecera.
+            // Aca corresponde, porque esta imagen es lo mas grande de la
+            // primera pantalla en todas las paginas internas.
+            preload
             sizes="100vw"
             className="object-cover opacity-45"
           />
         )}
         <div className="absolute inset-0 bg-gradient-to-b from-ink via-ink/70 to-ink" />
+        {/* Halo pintado con un degradado, no con `blur`: mismo resultado sin
+            hacerle desenfocar 36rem de superficie al telefono. */}
         <div
           aria-hidden
-          className="absolute -top-40 left-1/2 size-[36rem] -translate-x-1/2 rounded-full bg-crimson/12 blur-[130px]"
+          className="absolute -top-40 left-1/2 size-[36rem] -translate-x-1/2 rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.12),transparent)]"
         />
       </div>
 

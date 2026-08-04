@@ -72,14 +72,22 @@ export function Hero({ settings, nextEvent }: HeroProps) {
         />
       </div>
 
-      {/* Brasas: dos halos que respiran muy lentamente. */}
+      {/*
+        Brasas: dos halos que respiran muy lentamente.
+
+        El difuminado esta pintado en el propio degradado y no con `blur`. Un
+        `blur-[120px]` sobre un circulo de 32rem obliga al navegador a
+        desenfocar una superficie enorme, y en un telefono ese trabajo cae
+        justo encima del primer dibujado de la portada. Un
+        `radial-gradient` da el mismo halo sin pasar por el filtro.
+      */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-32 -left-24 -z-10 size-[32rem] rounded-full bg-crimson/18 blur-[120px] animate-ember"
+        className="pointer-events-none absolute -top-32 -left-24 -z-10 size-[32rem] animate-ember rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.18),transparent)]"
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute -right-32 bottom-0 -z-10 size-[30rem] rounded-full bg-crimson-deep/25 blur-[130px] animate-ember [animation-delay:2.5s]"
+        className="pointer-events-none absolute -right-32 bottom-0 -z-10 size-[30rem] animate-ember rounded-full [animation-delay:2.5s] [background:radial-gradient(circle_closest-side,rgb(107_10_17/0.25),transparent)]"
       />
 
       <div className="container-bz flex flex-1 flex-col items-center justify-center py-32 text-center sm:py-36">
@@ -139,7 +147,13 @@ export function Hero({ settings, nextEvent }: HeroProps) {
       </div>
 
       {/* Pie del hero: proximo show y señal de scroll. */}
-      <div className="relative z-10 border-t border-bone/10 bg-ink/45 backdrop-blur-md">
+      {/*
+        En telefono la franja va opaca en vez de translucida. `backdrop-blur`
+        obliga al navegador a desenfocar lo que hay debajo en cada cuadro del
+        scroll, y aca debajo hay una foto a pantalla completa. En pantalla
+        grande, donde eso sobra de potencia, se conserva el vidrio.
+      */}
+      <div className="relative z-10 border-t border-bone/10 bg-ink/85 sm:bg-ink/45 sm:backdrop-blur-md">
         <div className="container-bz flex flex-col items-center gap-4 py-5 sm:flex-row sm:justify-between">
           {nextEvent ? (
             <Link

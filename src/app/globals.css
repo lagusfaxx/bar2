@@ -77,15 +77,23 @@
   }
 }
 
+/*
+ * Respiracion de las brasas.
+ *
+ * Solo opacidad. Antes tambien escalaba, y esos halos son superficies enormes
+ * —de 30 a 40 rem— con un difuminado grande encima: escalarlas obliga al
+ * telefono a volver a dibujar el degradado completo en cada cuadro, sesenta
+ * veces por segundo, mientras todavia esta pintando la portada. La opacidad,
+ * en cambio, la resuelve el compositor sin redibujar nada. A simple vista es
+ * el mismo latido.
+ */
 @keyframes ember {
   0%,
   100% {
     opacity: 0.35;
-    transform: scale(1);
   }
   50% {
     opacity: 0.6;
-    transform: scale(1.08);
   }
 }
 
@@ -104,12 +112,18 @@
     color-scheme: dark;
   }
 
+  /*
+   * Sin `text-rendering: optimizeLegibility`. Obliga al navegador a cargar la
+   * tabla de ligaduras y kerning de cada fuente antes de pintar la primera
+   * letra, y en un telefono eso retrasa el texto sin que se note la mejora al
+   * tamaño en que se lee. El sitio ya usa la tipografia del sistema para el
+   * cuerpo, que viene con el kerning resuelto.
+   */
   body {
     background-color: var(--color-ink);
     color: var(--color-bone);
     font-family: var(--font-sans);
     font-synthesis-weight: none;
-    text-rendering: optimizeLegibility;
     overflow-x: clip;
   }
 
@@ -337,33 +351,53 @@
    Revelado al hacer scroll (ver components/ui/reveal.tsx)
    -------------------------------------------------------------------------- */
 
+/*
+ * El revelado lo maneja el navegador, no JavaScript.
+ *
+ * Antes cada bloque nacia con `opacity: 0` y solo se encendia cuando React
+ * terminaba de hidratar y un IntersectionObserver decidia que estaba a la
+ * vista. En un telefono de gama media eso son varios segundos con la pagina
+ * entregada, pintada y en negro: el HTML ya habia llegado, pero todo lo que
+ * hay debajo de la portada seguia invisible esperando al JavaScript. De ahi
+ * el "se ve negro y despues carga de golpe" — y con la red mala, o con el
+ * JavaScript caido, no cargaba nunca.
+ *
+ * Ahora la animacion la conduce el propio scroll (`animation-timeline: view()`)
+ * y no hay estado ni observador ni cliente de por medio. Lo importante es lo
+ * que pasa donde eso no existe: como el `opacity: 0` vive dentro del
+ * `@supports`, un navegador que no lo entienda no oculta nada. El contenido
+ * se ve apenas llega el HTML, con animacion o sin ella; nunca al reves.
+ */
 @layer components {
-  [data-reveal] {
-    opacity: 0;
-    transform: translate3d(0, 28px, 0);
-    transition:
-      opacity 0.9s var(--ease-out-expo),
-      transform 0.9s var(--ease-out-expo);
-    transition-delay: var(--reveal-delay, 0ms);
-    will-change: opacity, transform;
-  }
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      [data-reveal] {
+        animation-name: reveal;
+        animation-fill-mode: both;
+        animation-timing-function: var(--ease-out-expo);
+        animation-timeline: view();
+        /*
+         * Empieza cuando asoma el primer pixel y termina poco despues. El
+         * escalonado de una misma fila se logra corriendo el tramo entero
+         * (--reveal-shift), porque `animation-delay` no significa nada cuando
+         * quien marca el tiempo es el scroll y no el reloj.
+         */
+        animation-range: entry 0% cover calc(24% + var(--reveal-shift, 0%));
+      }
 
-  [data-reveal="in"] {
-    opacity: 1;
-    transform: none;
-  }
-
-  /*
-   * Variante sin desplazamiento, para los carruseles que se deslizan en
-   * horizontal.
-   *
-   * Una tarjeta que ademas es punto de anclaje del scroll no puede llevar un
-   * transform: el navegador calcula los puntos de enganche sobre la caja ya
-   * transformada, asi que mientras la animacion corre los puntos se mueven
-   * bajo el dedo y el carrusel salta. Aca solo se atenua la opacidad.
-   */
-  [data-reveal][data-reveal-fade] {
-    transform: none;
+      /*
+       * Variante sin desplazamiento, para los carruseles horizontales.
+       *
+       * Una tarjeta que ademas es punto de anclaje del scroll no puede llevar
+       * un transform: el navegador calcula los puntos de enganche sobre la
+       * caja ya transformada, asi que mientras la animacion corre los puntos
+       * se mueven bajo el dedo y el carrusel salta. Aca solo se atenua la
+       * opacidad.
+       */
+      [data-reveal="fade"] {
+        animation-name: fade-in;
+      }
+    }
   }
 }
 
@@ -379,11 +413,6 @@
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-
-  [data-reveal] {
-    opacity: 1;
-    transform: none;
   }
 }
 
