@@ -34,7 +34,7 @@ cambiar un texto, subir un afiche o publicar un show.
 
 | Sección | Ruta | Descripción |
 | --- | --- | --- |
-| Portada | `/` | Hero a pantalla completa, próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
+| Portada | `/` | Hero a pantalla completa (con variante vertical para el teléfono), próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
 | Cartelera | `/eventos` | Destacados, calendario mensual navegable, vista alternativa en lista y agenda completa. |
 | Evento | `/eventos/[slug]` | Afiche, ficha (fecha, puertas, entrada, capacidad), descripción, galería, compartir, calificaciones y eventos relacionados. |
 | Carta | `/carta` | La carta completa del local. Navegación pegajosa por categorías; en móvil cada categoría se pliega para que la página no se haga interminable. |
@@ -61,7 +61,8 @@ cambiar un texto, subir un afiche o publicar un show.
   que los socios eligieron y todavía no se aplicaron.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
-- **Ajustes**: identidad, portada (con video de fondo), textos de cada bloque
+- **Ajustes**: identidad, portada (imagen horizontal, imagen vertical para el
+  teléfono y video de fondo), textos de cada bloque
   del inicio, nosotros, contacto, SEO, redes, horarios y precio, datos de
   transferencia e instrucciones de retiro de la tarjeta física.
 - **Usuarios**: administradores, editores y equipo de sala.
@@ -162,6 +163,7 @@ de demostración.
 | `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido de demostración al arrancar. No hace nada si la base ya tiene contenido. |
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 | `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, al guardar en el panel se purga el caché de Cloudflare y el cambio se ve al instante. Sin ellas hay que esperar a que venza la copia (1 hora) o purgar a mano. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
 cambias, hay que reconstruir la imagen.
@@ -594,8 +596,20 @@ origen lejos, ahí se van varios segundos.
 Eso cubre el HTML —que ya viaja con `s-maxage=60`— y las imágenes de
 `/_next/image`, que llevan un año de caché por su nombre con hash.
 
-Los cambios del CMS tardan como mucho un minuto en verse. Si tienes prisa,
-**Caching → Configuration → Purge Everything**.
+**La copia dura una hora a propósito.** Con un minuto, un sitio con poco
+tráfico casi nunca la encuentra vigente: cada visita cae justo después de que
+venció y espera el viaje entero al servidor, que es lo que se quería evitar.
+Y `stale-while-revalidate` no rescata a ese visitante, porque Cloudflare solo
+lo respeta en el plan Enterprise.
+
+Para que los cambios del panel se sigan viendo al instante, configura
+`CLOUDFLARE_ZONE_ID` y `CLOUDFLARE_API_TOKEN`: al guardar, la app purga el
+caché sola. El token se crea en **My Profile → API Tokens** con el permiso
+*Zone → Cache Purge → Purge*.
+
+Sin esas variables el sitio funciona igual, pero un cambio tarda hasta una
+hora en verse, o hay que purgar a mano en **Caching → Configuration → Purge
+Everything**.
 
 > **Nunca** incluyas `/admin`, `/staff`, `/barzucard` ni `/api`: leen cookies
 > de sesión y cachearlas mostraría la sesión de una persona a otra. Por eso la

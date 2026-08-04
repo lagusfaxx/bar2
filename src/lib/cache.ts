@@ -1,5 +1,7 @@
 import { revalidatePath } from "next/cache";
 
+import { purgeEdgeCache } from "@/lib/cloudflare";
+
 /**
  * Invalidacion del contenido publico.
  *
@@ -51,4 +53,9 @@ export function revalidateContent(...areas: ContentArea[]) {
   }
 
   revalidatePath("/sitemap.xml");
+
+  // Cloudflare guarda el HTML publico durante horas. Sin este aviso, un cambio
+  // del panel tardaria todo ese tiempo en verse. No se espera la respuesta: el
+  // guardado no depende de que Cloudflare conteste.
+  void purgeEdgeCache();
 }

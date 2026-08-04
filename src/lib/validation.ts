@@ -162,6 +162,7 @@ export const settingsSchema = z.object({
   heroEyebrow: trimmed.max(60).optional().or(z.literal("")),
   heroSubtitle: trimmed.max(400).optional().or(z.literal("")),
   heroImageUrl: optionalUrl,
+  heroImageMobileUrl: optionalUrl,
   heroVideoUrl: optionalUrl,
   heroCtaLabel: trimmed.max(40).optional().or(z.literal("")),
   heroCtaHref: trimmed.max(200).optional().or(z.literal("")),

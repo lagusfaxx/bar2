@@ -453,6 +453,9 @@ model SiteSettings {
   heroSubtitle          String? @db.Text
   heroEyebrow           String? @default("EST. 2024")
   heroImageUrl          String?
+  /// Variante vertical para telefonos. Sin ella, la horizontal se recorta a
+  /// la franja central, que suele ser la parte mas oscura y peor encuadrada.
+  heroImageMobileUrl    String?
   heroVideoUrl          String?
   heroCtaLabel          String? @default("Ver cartelera")
   heroCtaHref           String? @default("/eventos")
