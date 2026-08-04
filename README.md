@@ -563,29 +563,43 @@ hace una vez y ya.
 > No cambies el **Name** de un volumen una vez creado: renombrarlo hace que
 > Coolify monte uno nuevo y vacío, y el anterior queda huérfano.
 
-### 6. Cache en Cloudflare (recomendado)
+### 6. Cache en Cloudflare (importante)
 
-Las páginas públicas se arman contra la base de datos en cada visita. Medido
-contra producción son entre 0,3 y 0,5 s de servidor, más el viaje de ida y
-vuelta desde el teléfono del visitante. En un móvil se nota.
+Cloudflare cachea **por extensión de archivo**. Con la configuración por
+defecto guarda los `.js` y `.css`, pero **no el HTML ni las imágenes
+optimizadas**, porque `/_next/image?url=…` no termina en `.jpg`.
 
-La app ya envía la cabecera que hace falta
-(`s-maxage=60, stale-while-revalidate=600`), pero **Cloudflare no cachea HTML
-salvo que se lo pidas**. En el panel de Cloudflare:
+Medido contra producción, la diferencia es toda la historia:
+
+| Recurso | Estado en Cloudflare | TTFB |
+| --- | --- | --- |
+| `/_next/static/…css` | `HIT` (desde el borde) | **0,23 s** |
+| `/` (el HTML) | `DYNAMIC` (va al servidor) | 1,03 s |
+| `/carta` | `DYNAMIC` | 0,35 s |
+| `/_next/image?…` | `DYNAMIC` | ~1,0 s |
+
+La portada tiene 19 imágenes. Sin esta regla, cada visita hace 19 viajes hasta
+el servidor de origen, más el del HTML. Desde un teléfono en Chile, con el
+origen lejos, ahí se van varios segundos.
 
 **Caching → Cache Rules → Create rule**
 
-- **If**: `URI Path` `equals` `/` — o, para cubrir todas, `Hostname equals barzuo.cl`
-  y `URI Path does not start with` `/admin`, `/staff`, `/api`, `/barzucard`
-- **Then**: *Eligible for cache*, y **Edge TTL → Use cache-control header**
+- **If**: `Hostname equals barzuo.cl`
+  **AND** `URI Path does not start with` `/admin`
+  **AND** `URI Path does not start with` `/staff`
+  **AND** `URI Path does not start with` `/api`
+  **AND** `URI Path does not start with` `/barzucard`
+- **Then**: *Eligible for cache* → **Edge TTL: Use cache-control header**
 
-Con eso el HTML se sirve desde el nodo de Cloudflare más cercano y el teléfono
-deja de esperar al servidor. Un cambio en el CMS tarda como mucho un minuto en
-verse; si tienes prisa, **Caching → Configuration → Purge Everything**.
+Eso cubre el HTML —que ya viaja con `s-maxage=60`— y las imágenes de
+`/_next/image`, que llevan un año de caché por su nombre con hash.
 
-> **Nunca** incluyas `/admin`, `/staff`, `/barzucard` ni `/api` en la regla:
-> esas rutas leen cookies de sesión y cachearlas mostraría la sesión de una
-> persona a otra.
+Los cambios del CMS tardan como mucho un minuto en verse. Si tienes prisa,
+**Caching → Configuration → Purge Everything**.
+
+> **Nunca** incluyas `/admin`, `/staff`, `/barzucard` ni `/api`: leen cookies
+> de sesión y cachearlas mostraría la sesión de una persona a otra. Por eso la
+> regla las excluye explícitamente.
 
 ### 7. Deploy y migraciones
 

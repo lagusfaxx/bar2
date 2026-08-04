@@ -31,7 +31,8 @@
   --color-gilt-soft: #e8cf7a;
 
   --font-display: var(--font-display), "Playfair Display", Georgia, serif;
-  --font-sans: var(--font-sans), ui-sans-serif, system-ui, sans-serif;
+  /* Texto corriente: la fuente del sistema, sin descarga (ver lib/fonts.ts). */
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-western: var(--font-western), var(--font-display), Georgia, serif;
 
   --radius-card: 0.25rem;
