@@ -28,8 +28,8 @@ export default async function AdminPromocionesPage() {
   return (
     <>
       <AdminHeader
-        title="Promociones BarzuCard"
-        description="Los beneficios que los socios pueden canjear en el local."
+        title="Promociones"
+        description="Los beneficios que los socios pueden pedir en el local mostrando su BarzuCard."
         action={
           <ButtonLink href="/admin/promociones/nueva" size="sm">
             <Plus className="size-4" aria-hidden />

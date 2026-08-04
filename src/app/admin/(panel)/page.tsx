@@ -1,6 +1,5 @@
 import {
   CalendarDays,
-  Gift,
   Images,
   Mail,
   MessageSquareQuote,
@@ -20,37 +19,42 @@ import { dateParts, EVENT_CATEGORY_LABELS, formatDateTime } from "@/lib/format";
 /**
  * Atajos con lenguaje llano. El panel lo usa gente que no trabaja con webs:
  * cada tarjeta dice que se consigue, no como se llama la seccion.
+ *
+ * Estan numeradas y ordenadas por lo que mas se hace en la semana. Antes esta
+ * misma lista convivia con un panel de "Accesos rapidos" que llevaba a los
+ * mismos cuatro sitios con otro nombre y otro icono: quien no conoce el panel
+ * no ve dos atajos comodos, ve dos menus distintos y no sabe cual es el bueno.
  */
 const TAREAS = [
   {
     href: "/admin/eventos/nuevo",
     title: "Publicar un show",
-    text: "Carga el título, la fecha, el afiche y el precio. Queda en la cartelera al marcarlo como publicado.",
+    text: "El título, la fecha, el afiche y el precio. Aparece en la web cuando lo marcas como publicado.",
   },
   {
     href: "/admin/carta",
-    title: "Cambiar la carta",
-    text: "Precios, platos y tragos. Cada producto se puede ocultar sin borrarlo si se acaba.",
+    title: "Cambiar precios o platos",
+    text: "Si algo se acabó, se oculta con un clic y vuelve cuando quieras. No hace falta borrarlo.",
   },
   {
     href: "/admin/galeria",
-    title: "Subir fotos del local",
-    text: "Arrastra las fotos de la noche. Se optimizan solas para que la web siga siendo rápida.",
+    title: "Subir las fotos de la noche",
+    text: "Arrástralas y listo. Se achican solas para que la web siga cargando rápido en los teléfonos.",
   },
   {
     href: "/admin/ajustes",
-    title: "Editar la portada y los datos del bar",
-    text: "Textos del inicio, video de fondo, dirección, horarios, redes y datos de la tarjeta.",
+    title: "Cambiar la portada, la dirección o los horarios",
+    text: "Todo lo que dice la web sobre el bar: textos del inicio, teléfono, dirección, redes y horarios.",
   },
   {
     href: "/admin/tarjetas",
-    title: "Revisar socios y pagos de la BarzuCard",
-    text: "Confirma las transferencias y marca las tarjetas entregadas.",
+    title: "Confirmar el pago de una BarzuCard",
+    text: "Cuando alguien transfiere, aquí marcas que llegó la plata y que le entregaste la tarjeta.",
   },
   {
     href: "/admin/promociones",
     title: "Crear una promoción",
-    text: "2x1, descuentos o cortesías, con sus días y sus límites por tarjeta.",
+    text: "2x1, descuentos o cortesías, con los días en que valen y cuántas veces puede usarla cada socio.",
   },
 ];
 
@@ -105,20 +109,21 @@ export default async function AdminDashboard() {
     <>
       <AdminHeader
         title="Panel de BARZUO"
-        description="Desde aquí se cambia todo lo que ve el público. Los cambios se publican al guardar: no hace falta avisar a nadie."
+        description="Desde aquí se cambia todo lo que ve el público en la web. Lo que guardes se ve al instante: no hay que avisarle a nadie ni publicar aparte."
         action={
           <ButtonLink href="/admin/eventos/nuevo" size="sm">
             <Plus className="size-4" aria-hidden />
-            Nuevo evento
+            Publicar un show
           </ButtonLink>
         }
       />
 
       {/* Guia breve, pensada para quien entra al panel por primera vez y no
-          tiene por que saber que hace cada seccion. */}
+          tiene por que saber que hace cada seccion. Va arriba de todo a
+          proposito: es lo que la mayoria viene a hacer. */}
       <Panel
         title="¿Qué quieres hacer?"
-        description="Las tareas más habituales, con el camino completo."
+        description="Toca la tarea y te lleva directo al lugar donde se hace."
         className="mb-6"
       >
         <ul className="grid gap-3 sm:grid-cols-2">
@@ -126,9 +131,9 @@ export default async function AdminDashboard() {
             <li key={tarea.href}>
               <Link
                 href={tarea.href}
-                className="flex h-full flex-col gap-1 border border-line bg-ink px-4 py-3 transition-colors hover:border-crimson"
+                className="flex h-full flex-col gap-1 border border-line bg-ink px-4 py-4 transition-colors hover:border-crimson"
               >
-                <span className="text-sm text-bone">{tarea.title}</span>
+                <span className="text-base text-bone">{tarea.title}</span>
                 <span className="text-xs leading-relaxed text-muted">
                   {tarea.text}
                 </span>
@@ -140,17 +145,17 @@ export default async function AdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          label="Próximos eventos"
+          label="Shows por venir"
           value={upcomingCount}
-          hint={`${publishedCount} publicados · ${draftCount} en borrador`}
+          hint={`${publishedCount} se ven en la web · ${draftCount} sin publicar`}
           href="/admin/eventos"
           icon={<CalendarDays className="size-4" aria-hidden />}
           tone="crimson"
         />
         <StatCard
-          label="Carta"
+          label="Productos en la carta"
           value={productCount}
-          hint={`${categoryCount} categorías`}
+          hint={`repartidos en ${categoryCount} categorías`}
           href="/admin/carta"
           icon={<UtensilsCrossed className="size-4" aria-hidden />}
         />
@@ -161,9 +166,9 @@ export default async function AdminDashboard() {
           icon={<Images className="size-4" aria-hidden />}
         />
         <StatCard
-          label="Socios BarzuCard"
+          label="Socios con BarzuCard"
           value={memberCount}
-          hint={`${redemptionCount} canjes realizados`}
+          hint={`usaron ${redemptionCount} promociones · ${promotionCount} activas`}
           href="/admin/tarjetas"
           icon={<Ticket className="size-4" aria-hidden />}
           tone="gilt"
@@ -175,9 +180,9 @@ export default async function AdminDashboard() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {pendingRatings > 0 && (
             <StatCard
-              label="Reseñas por revisar"
+              label="Opiniones esperando tu visto bueno"
               value={pendingRatings}
-              hint="Se publican recién cuando las apruebas"
+              hint="Nadie las ve en la web hasta que las apruebes"
               href="/admin/resenas"
               icon={<MessageSquareQuote className="size-4" aria-hidden />}
               tone="crimson"
@@ -185,7 +190,7 @@ export default async function AdminDashboard() {
           )}
           {unreadMessages > 0 && (
             <StatCard
-              label="Mensajes sin leer"
+              label="Mensajes de clientes sin leer"
               value={unreadMessages}
               href="/admin/mensajes"
               icon={<Mail className="size-4" aria-hidden />}
@@ -197,8 +202,8 @@ export default async function AdminDashboard() {
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
         <Panel
-          title="Próximas fechas"
-          description="Los eventos más cercanos en el calendario."
+          title="Los próximos shows"
+          description="Toca uno para editarlo. Los que dicen «Borrador» todavía no se ven en la web."
           action={
             <ButtonLink href="/admin/eventos" size="sm" variant="ghost">
               Ver todos
@@ -208,7 +213,7 @@ export default async function AdminDashboard() {
           {nextEvents.length === 0 ? (
             <EmptyState
               title="No hay eventos programados"
-              description="Carga el primer show para que aparezca en la cartelera."
+              description="Publica el primero y aparecerá en la web enseguida."
               action={
                 <ButtonLink href="/admin/eventos/nuevo" size="sm">
                   <Plus className="size-4" aria-hidden />
@@ -260,69 +265,39 @@ export default async function AdminDashboard() {
           )}
         </Panel>
 
-        <div className="flex flex-col gap-6">
-          <Panel title="Accesos rápidos">
-            <div className="grid grid-cols-2 gap-3">
-              <QuickLink href="/admin/eventos/nuevo" icon={<CalendarDays className="size-4" aria-hidden />}>
-                Nuevo evento
-              </QuickLink>
-              <QuickLink href="/admin/carta" icon={<UtensilsCrossed className="size-4" aria-hidden />}>
-                Editar carta
-              </QuickLink>
-              <QuickLink href="/admin/galeria" icon={<Images className="size-4" aria-hidden />}>
-                Subir fotos
-              </QuickLink>
-              <QuickLink href="/admin/promociones" icon={<Gift className="size-4" aria-hidden />}>
-                Promociones
-              </QuickLink>
-            </div>
-
-            <p className="mt-5 border-t border-line pt-4 text-xs text-muted-dark">
-              {promotionCount} promociones activas en la BarzuCard.
+        {/*
+          "Actividad reciente" sonaba a registro tecnico y nadie lo miraba.
+          Sirve para una sola cosa muy concreta, que es la que ahora dice el
+          titulo: enterarse de que toco otra persona del equipo, y poder
+          preguntarle. Se queda solo, sin el panel de "Accesos rapidos" que
+          repetia por tercera vez los mismos enlaces.
+        */}
+        <Panel
+          title="Últimos cambios del equipo"
+          description="Quién cambió qué y cuándo, por si algo apareció distinto."
+        >
+          {audit.length === 0 ? (
+            <p className="text-sm text-muted">
+              Todavía nadie ha cambiado nada.
             </p>
-          </Panel>
-
-          <Panel title="Actividad reciente">
-            {audit.length === 0 ? (
-              <p className="text-sm text-muted">Todavía no hay movimientos.</p>
-            ) : (
-              <ul className="flex flex-col gap-3">
-                {audit.map((entry) => (
-                  <li key={entry.id} className="text-xs">
-                    <p className="text-bone-dim">
-                      {entry.summary ?? `${entry.action} · ${entry.entity}`}
-                    </p>
-                    <p className="text-muted-dark">
-                      {entry.user?.name ?? "Sistema"} ·{" "}
-                      {formatDateTime(entry.createdAt)}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Panel>
-        </div>
+          ) : (
+            <ul className="flex flex-col gap-3">
+              {audit.map((entry) => (
+                <li key={entry.id} className="text-xs">
+                  <p className="text-bone-dim">
+                    {entry.summary ?? `${entry.action} · ${entry.entity}`}
+                  </p>
+                  <p className="text-muted-dark">
+                    {entry.user?.name ?? "Sistema"} ·{" "}
+                    {formatDateTime(entry.createdAt)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
       </div>
     </>
   );
 }
 
-function QuickLink({
-  href,
-  icon,
-  children,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex flex-col gap-2 border border-line p-4 text-xs text-muted transition-colors hover:border-crimson/50 hover:text-bone"
-    >
-      <span className="text-crimson">{icon}</span>
-      {children}
-    </Link>
-  );
-}

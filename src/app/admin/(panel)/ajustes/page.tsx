@@ -19,8 +19,8 @@ export default async function AdminAjustesPage() {
   return (
     <>
       <AdminHeader
-        title="Ajustes del sitio"
-        description="Textos, imágenes, contacto y SEO de la web pública. No hace falta tocar código."
+        title="Datos del bar y portada"
+        description="Todo lo que la web dice sobre el bar: la foto y los textos del inicio, la dirección, el teléfono, los horarios y las redes."
       />
 
       <div className="flex flex-col gap-8">

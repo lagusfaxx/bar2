@@ -17,8 +17,8 @@ export default async function TablesPage() {
   return (
     <>
       <AdminHeader
-        title="Mesas"
-        description="El salón tal como lo ven los garzones en su teléfono."
+        title="Mesas del salón"
+        description="Estas son las mesas que los garzones ven en su teléfono para tomar los pedidos."
       />
 
       <TablesManager

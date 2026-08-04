@@ -24,8 +24,8 @@ export default async function AdminResenasPage() {
   return (
     <>
       <AdminHeader
-        title="Reseñas de eventos"
-        description="Las calificaciones del público se publican recién cuando las apruebas."
+        title="Opiniones por aprobar"
+        description="Lo que el público escribió sobre los shows. No se ve en la web hasta que tú la apruebes."
       />
 
       <div className="flex flex-col gap-6">

@@ -74,8 +74,8 @@ export default async function AdminEventosPage({
   return (
     <>
       <AdminHeader
-        title="Cartelera"
-        description="Crea, edita y publica los eventos que se muestran en la web."
+        title="Shows y eventos"
+        description="La cartelera que se ve en la web. Lo que esté en «Borrador» no lo ve nadie todavía."
         action={
           <ButtonLink href="/admin/eventos/nuevo" size="sm">
             <Plus className="size-4" aria-hidden />

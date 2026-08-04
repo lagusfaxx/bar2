@@ -70,8 +70,8 @@ export default async function AdminCanjesPage() {
   return (
     <>
       <AdminHeader
-        title="Canjes de BarzuCard"
-        description="Historial de beneficios entregados en el local."
+        title="Promociones usadas"
+        description="Qué beneficio usó cada socio y cuándo se lo entregaron en el local."
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-3">

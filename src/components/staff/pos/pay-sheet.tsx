@@ -45,6 +45,20 @@ export function PaySheet({
     state.status === "success" ? String(state.data?.code ?? "") : null;
   const points = state.status === "success" ? Number(state.data?.points ?? 0) : 0;
 
+  /*
+   * Cuanto se cobro, segun el servidor.
+   *
+   * La pantalla de exito mostraba `totalCents`, que es el saldo que le queda a
+   * la mesa. Pero justo antes de mostrarla ese saldo se acaba de pagar: la
+   * ruta se revalida, la propiedad baja a cero y el garzon leia "Cobrado $0"
+   * despues de cobrar trece mil pesos — con el cliente mirando la pantalla.
+   * El monto real viene en la respuesta del cobro y ya no cambia.
+   */
+  const chargedCents =
+    state.status === "success"
+      ? Number(state.data?.totalCents ?? totalCents)
+      : totalCents;
+
   const submit = () => {
     const formData = new FormData();
     formData.set("sessionId", sessionId);
@@ -67,9 +81,11 @@ export function PaySheet({
               Cobrado
             </p>
             <p className="mt-3 font-display text-4xl text-bone">
-              {formatPrice(totalCents)}
+              {formatPrice(chargedCents)}
             </p>
-            <p className="mt-2 text-sm text-muted">Comprobante {receipt}</p>
+            <p className="mt-2 text-sm text-muted">
+              N° de comprobante: {receipt}
+            </p>
 
             {points > 0 && (
               <p className="mt-3 text-sm text-gilt-soft">
@@ -80,7 +96,7 @@ export function PaySheet({
             <button
               type="button"
               onClick={onClose}
-              className="mt-6 h-14 w-full bg-crimson font-medium uppercase tracking-[0.18em] text-bone"
+              className="mt-6 h-14 w-full bg-crimson text-base font-medium text-bone"
             >
               Volver a la mesa
             </button>
@@ -89,11 +105,9 @@ export function PaySheet({
           <>
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-                  Cobrando
-                </p>
+                <p className="text-xs text-muted">Le vas a cobrar a</p>
                 <h2 className="font-display text-xl text-bone">
-                  {tab ? tab.label : "Mesa completa"}
+                  {tab ? tab.label : "Toda la mesa"}
                 </h2>
               </div>
 
@@ -112,9 +126,7 @@ export function PaySheet({
             </p>
 
             <fieldset className="mt-5">
-              <legend className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-                Forma de pago
-              </legend>
+              <legend className="text-sm text-bone">¿Cómo paga?</legend>
 
               <div className="mt-2 grid grid-cols-2 gap-2">
                 {METHODS.map((option) => (
@@ -124,7 +136,7 @@ export function PaySheet({
                     onClick={() => setMethod(option.value)}
                     aria-pressed={method === option.value}
                     className={[
-                      "h-12 border text-sm transition-colors",
+                      "h-14 border text-base transition-colors",
                       method === option.value
                         ? "border-crimson bg-crimson/15 text-bone"
                         : "border-line text-bone-dim",
@@ -137,9 +149,9 @@ export function PaySheet({
             </fieldset>
 
             <label className="mt-5 block">
-              <span className="flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-                <CreditCard className="size-3.5" aria-hidden />
-                BarzuCard (opcional)
+              <span className="flex items-center gap-2 text-sm text-bone">
+                <CreditCard className="size-4" aria-hidden />
+                ¿Tiene BarzuCard? (opcional)
               </span>
               <input
                 type="text"
@@ -150,7 +162,8 @@ export function PaySheet({
                 className="mt-2 h-12 w-full border border-line bg-ink px-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
               />
               <span className="mt-1 block text-xs text-muted">
-                Suma 1 punto por cada $1.000 de consumo.
+                Si no tiene o no la trajo, deja esto vacío y cobra igual. Suma
+                1 punto por cada $1.000 de consumo.
               </span>
             </label>
 
@@ -164,7 +177,7 @@ export function PaySheet({
               type="button"
               onClick={submit}
               disabled={pending}
-              className="mt-6 flex h-16 w-full items-center justify-center gap-2 bg-crimson font-medium uppercase tracking-[0.18em] text-bone disabled:opacity-60"
+              className="mt-6 flex h-16 w-full items-center justify-center gap-2 bg-crimson text-lg font-medium text-bone disabled:opacity-60"
             >
               {pending ? (
                 <Loader2 className="size-5 animate-spin" aria-hidden />
