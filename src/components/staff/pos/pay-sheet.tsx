@@ -58,8 +58,8 @@ export function PaySheet({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end bg-ink/80 backdrop-blur-sm">
-      <div className="max-h-[92svh] w-full overflow-y-auto border-t border-line bg-ink-soft p-5">
+    <div className="fixed inset-0 z-50 flex h-[100dvh] items-end bg-ink/80 backdrop-blur-sm">
+      <div className="max-h-full w-full overflow-y-auto overscroll-contain border-t border-line bg-ink-soft p-5 pb-safe">
         {receipt ? (
           <div className="py-4 text-center">
             <p className="flex items-center justify-center gap-2 font-display text-2xl text-emerald-200">

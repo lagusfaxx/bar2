@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   Ban,
   Loader2,
+  MessageSquarePlus,
   Minus,
   Plus,
   RotateCw,
@@ -23,11 +24,12 @@ import {
   sendOrder,
   setItemQuantity,
 } from "@/app/actions/pos";
+import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
-import type { PosMenuCategory, SessionDetail } from "@/lib/pos";
+import type { AccountItem, PosMenuCategory, PosMenuProduct, SessionDetail } from "@/lib/pos";
 
 /**
  * La cuenta de una mesa.
@@ -39,12 +41,18 @@ import type { PosMenuCategory, SessionDetail } from "@/lib/pos";
 export function Account({
   session,
   menu,
+  frequent,
+  autoOpenPicker = false,
 }: {
   session: SessionDetail;
   menu: PosMenuCategory[];
+  frequent: PosMenuProduct[];
+  /** Mesa recien abierta: se entra directo a cargar, sin un toque de mas. */
+  autoOpenPicker?: boolean;
 }) {
   const [activeTab, setActiveTab] = useState<string | null>(null);
-  const [picker, setPicker] = useState(false);
+  const [picker, setPicker] = useState(autoOpenPicker);
+  const [noting, setNoting] = useState<AccountItem | null>(null);
   const [paying, setPaying] = useState<"tab" | "table" | null>(null);
   const [addingDiner, setAddingDiner] = useState(false);
   const [feedback, setFeedback] = useState<FormState>(IDLE);
@@ -62,7 +70,7 @@ export function Account({
 
   return (
     <>
-      <header className="sticky top-0 z-30 border-b border-line bg-ink/95 backdrop-blur-xl">
+      <header className="shrink-0 border-b border-line bg-ink pt-safe">
         <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
           <Link
             href="/staff/pos"
@@ -98,7 +106,7 @@ export function Account({
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-2xl flex-1 px-4 pb-40 pt-4">
+      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
         {feedback.message && (
           <p
             role="status"
@@ -113,8 +121,10 @@ export function Account({
           </p>
         )}
 
-        {/* Pestanas: la mesa y cada comensal */}
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-2">
+        {/* Pestanas: solo cuando la cuenta esta dividida. Con una mesa normal
+            —que es la mayoria— serian una fila de ruido. */}
+        {session.diners.length > 0 && (
+        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-2">
           {session.tabs.map((candidate) => {
             const active = candidate.dinerId === tab.dinerId;
 
@@ -156,6 +166,7 @@ export function Account({
             </button>
           )}
         </div>
+        )}
 
         {addingDiner && (
           <DinerForm
@@ -180,6 +191,17 @@ export function Account({
                 className="text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-crimson-bright"
               >
                 Quitar comensal
+              </button>
+            )}
+
+            {session.diners.length === 0 && !cerrada && (
+              <button
+                type="button"
+                onClick={() => setAddingDiner(true)}
+                className="flex items-center gap-1.5 text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-bone"
+              >
+                <UserPlus className="size-3.5" aria-hidden />
+                Dividir cuenta
               </button>
             )}
           </div>
@@ -276,6 +298,23 @@ export function Account({
                           Anular
                         </button>
                       )}
+
+                      {/* La nota se puede poner tambien despues de comandar:
+                          mientras la cocina no la empiece, avisar es mejor
+                          que anular y volver a pedir. */}
+                      <button
+                        type="button"
+                        onClick={() => setNoting(item)}
+                        className={[
+                          "ml-auto flex items-center gap-1.5 border px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.16em]",
+                          item.note
+                            ? "border-gilt/50 text-gilt-soft"
+                            : "border-line text-muted",
+                        ].join(" ")}
+                      >
+                        <MessageSquarePlus className="size-3.5" aria-hidden />
+                        {item.note ? "Nota" : "+ Nota"}
+                      </button>
                     </div>
                   )}
                 </li>
@@ -355,9 +394,9 @@ export function Account({
         )}
       </main>
 
-      {/* Barra de acciones: siempre bajo el pulgar */}
+      {/* Barra de acciones: siempre bajo el pulgar, nunca flotando */}
       {!cerrada && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-ink/95 backdrop-blur-xl">
+        <div className="shrink-0 border-t border-line bg-ink pb-safe">
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
             <button
               type="button"
@@ -427,7 +466,17 @@ export function Account({
           dinerId={tab.dinerId}
           dinerLabel={tab.label}
           menu={menu}
+          frequent={frequent}
           onClose={() => setPicker(false)}
+        />
+      )}
+
+      {noting && (
+        <NoteSheet
+          itemId={noting.id}
+          itemName={noting.name}
+          current={noting.note}
+          onClose={() => setNoting(null)}
         />
       )}
 

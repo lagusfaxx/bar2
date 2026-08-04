@@ -296,6 +296,22 @@
 }
 
 /* Oculta la barra de scroll manteniendo el desplazamiento (carruseles). */
+/*
+ * Zonas seguras de iOS.
+ *
+ * La app de sala declara `viewportFit: cover` para usar toda la pantalla, asi
+ * que el contenido pasa por debajo del notch y del indicador de inicio. Estas
+ * utilidades devuelven ese margen donde hace falta: sin ellas, los botones de
+ * la barra inferior quedan tapados por el indicador.
+ */
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
 @utility no-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -333,6 +349,19 @@
 
   [data-reveal="in"] {
     opacity: 1;
+    transform: none;
+  }
+
+  /*
+   * Variante sin desplazamiento, para los carruseles que se deslizan en
+   * horizontal.
+   *
+   * Una tarjeta que ademas es punto de anclaje del scroll no puede llevar un
+   * transform: el navegador calcula los puntos de enganche sobre la caja ya
+   * transformada, asi que mientras la animacion corre los puntos se mueven
+   * bajo el dedo y el carrusel salta. Aca solo se atenua la opacidad.
+   */
+  [data-reveal][data-reveal-fade] {
     transform: none;
   }
 }

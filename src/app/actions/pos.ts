@@ -210,7 +210,7 @@ export async function addItem(
 
   const priced = priceFor(product);
 
-  await prisma.orderItem.create({
+  const created = await prisma.orderItem.create({
     data: {
       sessionId,
       dinerId: dinerId || null,
@@ -225,10 +225,17 @@ export async function addItem(
       station: stationFor(product),
       createdById: user.userId,
     },
+    select: { id: true },
   });
 
   refresh(sessionId);
-  return formSuccess(`${quantity} × ${product.name}`);
+
+  // Se devuelve la linea recien creada para poder ofrecer "agregar nota" sin
+  // tener que buscarla en la cuenta.
+  return formSuccess(`${quantity} × ${product.name}`, {
+    itemId: created.id,
+    name: product.name,
+  });
 }
 
 export async function setItemQuantity(
@@ -287,6 +294,41 @@ export async function moveItem(
 
   refresh(item.sessionId);
   return formSuccess("Producto reasignado.");
+}
+
+/**
+ * Pone o cambia la nota de una linea ("sin lechuga", "bien cocido").
+ *
+ * Se admite tambien sobre una linea ya comandada: si la cocina todavia no la
+ * empezo, cambiar la nota es mejor que anular y volver a pedir. La pantalla de
+ * la estacion la vera actualizada.
+ */
+export async function setItemNote(
+  itemId: string,
+  note: string,
+): Promise<FormState> {
+  await requireStaff();
+
+  const limpia = note.trim().slice(0, 140);
+
+  const item = await prisma.orderItem.findUnique({
+    where: { id: itemId },
+    select: { sessionId: true, paymentId: true, name: true },
+  });
+
+  if (!item) return formError("Esa línea ya no está.");
+  if (item.paymentId) return formError("Esa línea ya se cobró.");
+
+  await prisma.orderItem.update({
+    where: { id: itemId },
+    data: { note: limpia || null },
+  });
+
+  refresh(item.sessionId);
+
+  return formSuccess(
+    limpia ? `${item.name}: ${limpia}` : `Nota quitada de ${item.name}.`,
+  );
 }
 
 /** Anula una linea ya comandada (se equivocaron, el cliente la rechazo). */
@@ -405,6 +447,45 @@ export async function reprintTicket(ticketId: string): Promise<FormState> {
 
   refresh(ticket.sessionId);
   return formSuccess(`Comanda #${ticket.number} reenviada.`);
+}
+
+// --- Pantallas de cocina y barra ---------------------------------------------
+
+/**
+ * Avanza o retrocede una comanda en la pantalla de su estacion.
+ *
+ * Nueva → en preparacion → lista. Se admite volver atras porque el error mas
+ * comun en una barra llena es tocar el boton de la comanda de al lado.
+ */
+export async function moveTicket(
+  ticketId: string,
+  prep: "NUEVA" | "EN_CURSO" | "LISTA",
+): Promise<FormState> {
+  await requireStaff();
+
+  const ticket = await prisma.orderTicket.findUnique({
+    where: { id: ticketId },
+    select: { station: true, number: true, startedAt: true },
+  });
+
+  if (!ticket) return formError("Esa comanda ya no está.");
+
+  await prisma.orderTicket.update({
+    where: { id: ticketId },
+    data: {
+      prep,
+      // La hora de inicio se guarda la primera vez y no se pisa: sirve para
+      // saber cuanto tardo de verdad.
+      startedAt:
+        prep === "NUEVA" ? null : (ticket.startedAt ?? new Date()),
+      readyAt: prep === "LISTA" ? new Date() : null,
+    },
+  });
+
+  revalidatePath(`/staff/${ticket.station === "BARRA" ? "barra" : "cocina"}`);
+  revalidatePath("/staff/pos");
+
+  return formSuccess(`Comanda #${ticket.number} actualizada.`);
 }
 
 // --- Cobro -------------------------------------------------------------------

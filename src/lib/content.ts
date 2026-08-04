@@ -1,22 +1,31 @@
 import "server-only";
 
+import { cache } from "react";
+
 import type { EventCategory } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 /**
  * Consultas de contenido publico.
  *
- * Deliberadamente son consultas planas a Prisma, sin envoltorio de cache: las
- * paginas que las usan se renderizan en cada peticion contra la base local,
- * que responde en milisegundos. Ademas evita el problema de serializacion que
- * convierte los `Date` en strings al leer del cache.
+ * Son consultas planas a Prisma, sin cache entre peticiones: las paginas se
+ * renderizan en cada visita contra la base local y siempre muestran lo ultimo
+ * que guardo el CMS. No se usa `unstable_cache` a proposito, porque serializa
+ * los valores y convierte los `Date` de Prisma en strings al leerlos.
+ *
+ * Lo que si se hace es deduplicar DENTRO de una misma peticion, con `cache`
+ * de React: los ajustes del sitio los piden el layout raiz, su
+ * `generateMetadata`, el layout publico y la propia pagina — cuatro veces la
+ * misma fila, que es de las mas anchas del esquema. Con `cache` se consulta
+ * una y las otras tres reciben la misma promesa. No cambia lo que se ve: al
+ * terminar la peticion se descarta.
  */
 
 // --- Ajustes del sitio -------------------------------------------------------
 
 export type SiteSettings = Awaited<ReturnType<typeof getSettings>>;
 
-export async function getSettings() {
+export const getSettings = cache(async () => {
   const existing = await prisma.siteSettings.findUnique({
     where: { id: "singleton" },
   });
@@ -26,18 +35,18 @@ export async function getSettings() {
   // Primer arranque sin seed: creamos la fila con los valores por defecto del
   // schema para que la web nunca quede sin contenido.
   return prisma.siteSettings.create({ data: { id: "singleton" } });
-}
+});
 
-export function getSocialLinks() {
-  return prisma.socialLink.findMany({
+export const getSocialLinks = cache(() =>
+  prisma.socialLink.findMany({
     where: { active: true },
     orderBy: { position: "asc" },
-  });
-}
+  }),
+);
 
-export function getOpeningHours() {
-  return prisma.openingHour.findMany({ orderBy: { dayOfWeek: "asc" } });
-}
+export const getOpeningHours = cache(() =>
+  prisma.openingHour.findMany({ orderBy: { dayOfWeek: "asc" } }),
+);
 
 // --- Eventos -----------------------------------------------------------------
 

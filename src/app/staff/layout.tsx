@@ -12,6 +12,10 @@ export const viewport: Viewport = {
   // La app se usa de pie, con una mano: conviene evitar el zoom accidental.
   maximumScale: 1,
   viewportFit: "cover",
+  // Al abrir el teclado, la ventana se achica de verdad en vez de quedar el
+  // teclado encima: asi las alturas en dvh y la barra inferior se reacomodan
+  // solas y no queda nada tapado.
+  interactiveWidget: "resizes-content",
 };
 
 export default function StaffLayout({
@@ -19,5 +23,5 @@ export default function StaffLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="flex min-h-[100svh] flex-col bg-ink">{children}</div>;
+  return <div className="flex min-h-[100dvh] flex-col bg-ink">{children}</div>;
 }

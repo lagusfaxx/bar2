@@ -76,18 +76,39 @@ export default async function StaffPage() {
 
         <CardVerifier />
 
-        <Link
-          href="/staff/pos"
-          className="mt-8 flex items-center justify-between gap-3 border border-line bg-ink-soft px-4 py-4 transition-colors hover:border-crimson"
-        >
-          <span>
-            <span className="block font-display text-lg text-bone">Sala</span>
-            <span className="block text-xs text-muted">
-              Abrir mesas, tomar pedidos y cobrar
-            </span>
-          </span>
-          <ArrowRight className="size-5 shrink-0 text-muted" aria-hidden />
-        </Link>
+        <nav aria-label="Secciones de sala" className="mt-8 flex flex-col gap-2">
+          {[
+            {
+              href: "/staff/pos",
+              title: "Sala",
+              hint: "Abrir mesas, tomar pedidos y cobrar",
+            },
+            {
+              href: "/staff/cocina",
+              title: "Cocina",
+              hint: "Comandas de comida en preparación",
+            },
+            {
+              href: "/staff/barra",
+              title: "Barra",
+              hint: "Tragos, cervezas y bebidas",
+            },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-4 py-4 transition-colors hover:border-crimson"
+            >
+              <span>
+                <span className="block font-display text-lg text-bone">
+                  {item.title}
+                </span>
+                <span className="block text-xs text-muted">{item.hint}</span>
+              </span>
+              <ArrowRight className="size-5 shrink-0 text-muted" aria-hidden />
+            </Link>
+          ))}
+        </nav>
       </main>
     </>
   );
