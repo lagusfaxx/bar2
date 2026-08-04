@@ -1,4 +1,4 @@
-import { Inter, Playfair_Display, Rye } from "next/font/google";
+import { Playfair_Display, Rye } from "next/font/google";
 
 /**
  * Serif de alto contraste para titulos: elegante y nocturna.
@@ -20,12 +20,14 @@ export const displayFont = Playfair_Display({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
-/** Sans neutra para textos e interfaz. */
-export const sansFont = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
+/*
+ * Para el texto corriente NO se descarga tipografia: se usa la del sistema
+ * (Roboto en Android, San Francisco en iPhone). Eran 47 KB precargados en
+ * cada visita —el archivo mas pesado del camino critico— para una sans neutra
+ * que en pantalla chica es indistinguible de la nativa. La identidad del
+ * sitio vive en Playfair (titulos) y Rye (acentos), que se conservan.
+ * La pila de reserva esta en globals.css (--font-sans).
+ */
 
 /**
  * Display "western" que hace eco del logotipo de BARZUO.
@@ -41,4 +43,4 @@ export const westernFont = Rye({
   preload: false,
 });
 
-export const fontVariables = `${displayFont.variable} ${sansFont.variable} ${westernFont.variable}`;
+export const fontVariables = `${displayFont.variable} ${westernFont.variable}`;
