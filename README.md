@@ -563,7 +563,31 @@ hace una vez y ya.
 > No cambies el **Name** de un volumen una vez creado: renombrarlo hace que
 > Coolify monte uno nuevo y vacío, y el anterior queda huérfano.
 
-### 6. Deploy y migraciones
+### 6. Cache en Cloudflare (recomendado)
+
+Las páginas públicas se arman contra la base de datos en cada visita. Medido
+contra producción son entre 0,3 y 0,5 s de servidor, más el viaje de ida y
+vuelta desde el teléfono del visitante. En un móvil se nota.
+
+La app ya envía la cabecera que hace falta
+(`s-maxage=60, stale-while-revalidate=600`), pero **Cloudflare no cachea HTML
+salvo que se lo pidas**. En el panel de Cloudflare:
+
+**Caching → Cache Rules → Create rule**
+
+- **If**: `URI Path` `equals` `/` — o, para cubrir todas, `Hostname equals barzuo.cl`
+  y `URI Path does not start with` `/admin`, `/staff`, `/api`, `/barzucard`
+- **Then**: *Eligible for cache*, y **Edge TTL → Use cache-control header**
+
+Con eso el HTML se sirve desde el nodo de Cloudflare más cercano y el teléfono
+deja de esperar al servidor. Un cambio en el CMS tarda como mucho un minuto en
+verse; si tienes prisa, **Caching → Configuration → Purge Everything**.
+
+> **Nunca** incluyas `/admin`, `/staff`, `/barzucard` ni `/api` en la regla:
+> esas rutas leen cookies de sesión y cachearlas mostraría la sesión de una
+> persona a otra.
+
+### 7. Deploy y migraciones
 
 Pulsa **Deploy**. El `entrypoint.sh` del contenedor:
 
@@ -574,7 +598,7 @@ Pulsa **Deploy**. El `entrypoint.sh` del contenedor:
 
 No hay que correr migraciones a mano: cada deploy aplica las nuevas.
 
-### 7. Usuario administrador
+### 8. Usuario administrador
 
 Si sembraste, ya existe con el `ADMIN_EMAIL` y `ADMIN_PASSWORD` que cargaste.
 Si no, desde el terminal del contenedor en Coolify:
@@ -585,7 +609,7 @@ ADMIN_EMAIL=hola@barzuo.com ADMIN_PASSWORD='MiClave123' npx tsx scripts/create-a
 
 El mismo comando **restablece la contraseña** de un administrador existente.
 
-### 8. Después del primer deploy
+### 9. Después del primer deploy
 
 1. Entra a `/admin/login` y cambia la contraseña en **Usuarios**.
 2. Carga el logotipo, el favicon y los textos reales en **Ajustes**.

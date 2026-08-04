@@ -1,8 +1,8 @@
 import { ArrowRight, CalendarDays, ChevronDown } from "lucide-react";
-import Image from "next/image";
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
+import { HeroBackground } from "@/components/site/hero-background";
 import { ButtonLink } from "@/components/ui/button";
 import type { EventCard as EventCardData } from "@/lib/content";
 import { dateParts, EVENT_CATEGORY_LABELS } from "@/lib/format";
@@ -40,50 +40,14 @@ export function Hero({ settings, nextEvent }: HeroProps) {
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-between overflow-hidden">
-      {/* Fondo: video si el CMS lo define, imagen en caso contrario. */}
+      {/* Fondo: imagen siempre; el video solo donde tiene sentido cargarlo. */}
       <div className="absolute inset-0 -z-10">
-        {settings.heroVideoUrl ? (
-          <video
-            className="size-full object-cover"
-            autoPlay
-            muted
-            loop
-            playsInline
-            poster={settings.heroVideoPosterUrl ?? background}
-            aria-hidden
-          >
-            <source src={settings.heroVideoUrl} />
-          </video>
-        ) : (
-          <>
-            {/* Direccion de arte: en vertical, recortar una foto apaisada deja
-                fuera la parte iluminada. Cuando existe una variante vertical se
-                usa esa en pantallas chicas. */}
-            {backgroundPortrait && (
-              <Image
-                src={backgroundPortrait}
-                alt=""
-                fill
-                priority
-                sizes="100vw"
-                className="object-cover sm:hidden"
-              />
-            )}
-
-            <Image
-              src={background}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className={
-                backgroundPortrait
-                  ? "hidden object-cover object-[50%_35%] sm:block"
-                  : "object-cover object-[50%_35%]"
-              }
-            />
-          </>
-        )}
+        <HeroBackground
+          background={background}
+          backgroundPortrait={backgroundPortrait}
+          videoUrl={settings.heroVideoUrl}
+          videoPosterUrl={settings.heroVideoPosterUrl}
+        />
 
         {/* Capas de lectura: dan contraste al texto sin apagar el fondo. */}
         <div className="absolute inset-0 bg-ink/15" />

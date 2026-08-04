@@ -61,6 +61,47 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+
+      /*
+       * Paginas publicas: cacheables en el borde, nunca en el navegador.
+       *
+       * El HTML se arma en cada visita contra la base de datos. Medido contra
+       * produccion, eso son entre 0,3 y 0,5 s de servidor —con picos de varios
+       * segundos cuando la maquina esta ocupada—, y encima el visitante en
+       * Chile paga la ida y vuelta hasta el servidor.
+       *
+       * `s-maxage` deja que Cloudflare guarde el HTML un minuto y lo sirva
+       * desde su nodo mas cercano: el telefono recibe la pagina sin esperar al
+       * servidor. `stale-while-revalidate` hace que, pasado ese minuto, se siga
+       * entregando la version guardada mientras se pide una fresca por detras,
+       * asi nadie espera nunca por la regeneracion.
+       *
+       * `max-age=0` mantiene el navegador siempre al dia: el cache es del
+       * borde, no del dispositivo. Un cambio en el CMS tarda como mucho un
+       * minuto en verse, o se ve al instante purgando el cache en Cloudflare.
+       *
+       * Solo estas rutas. El panel, la app de sala y todo /barzucard leen
+       * cookies de sesion y no deben cachearse en ningun lado.
+       */
+      {
+        source:
+          "/:path(|eventos|carta|nosotros|galeria|ubicacion|contacto|legales)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+          },
+        ],
+      },
+      {
+        source: "/eventos/:slug",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+          },
+        ],
+      },
     ];
   },
 };
