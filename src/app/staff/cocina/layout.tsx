@@ -1,6 +1,6 @@
 import { StaffScreen } from "@/components/staff/pos/screen";
 
-export default function PosLayout({
+export default function CocinaLayout({
   children,
 }: {
   children: React.ReactNode;

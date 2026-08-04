@@ -1,4 +1,4 @@
-import { LogOut, Star } from "lucide-react";
+import { LogOut, Star, Utensils, Wine } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -33,6 +33,24 @@ export default async function PosPage() {
           <Logo src={settings.logoUrl} name={settings.barName} variant="compact" />
 
           <div className="flex items-center gap-2">
+            <Link
+              href="/staff/cocina"
+              aria-label="Pantalla de cocina"
+              title="Cocina"
+              className="flex size-10 items-center justify-center border border-line text-muted transition-colors hover:border-crimson hover:text-crimson-bright"
+            >
+              <Utensils className="size-4" aria-hidden />
+            </Link>
+
+            <Link
+              href="/staff/barra"
+              aria-label="Pantalla de barra"
+              title="Barra"
+              className="flex size-10 items-center justify-center border border-line text-muted transition-colors hover:border-crimson hover:text-crimson-bright"
+            >
+              <Wine className="size-4" aria-hidden />
+            </Link>
+
             <Link
               href="/staff"
               aria-label="Verificar BarzuCard"

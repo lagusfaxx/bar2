@@ -1,6 +1,6 @@
 import { StaffScreen } from "@/components/staff/pos/screen";
 
-export default function PosLayout({
+export default function BarraLayout({
   children,
 }: {
   children: React.ReactNode;

@@ -151,6 +151,144 @@ export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
     .filter((category) => category.products.length > 0);
 }
 
+/**
+ * Lo que mas se vende, para ponerlo primero.
+ *
+ * En un bar lleno el garzon no puede buscar: el 80% de los pedidos son los
+ * mismos veinte productos. Tenerlos a un toque, sin scroll ni teclado, es la
+ * diferencia entre cargar un pedido en cinco segundos o en treinta.
+ */
+export async function getFrequentProducts(
+  limit = 12,
+  days = 14,
+): Promise<PosMenuProduct[]> {
+  const desde = new Date();
+  desde.setDate(desde.getDate() - days);
+
+  const ranking = await prisma.orderItem.groupBy({
+    by: ["productId"],
+    where: {
+      createdAt: { gte: desde },
+      status: { not: "CANCELLED" },
+      productId: { not: null },
+    },
+    _sum: { quantity: true },
+    orderBy: { _sum: { quantity: "desc" } },
+    take: limit,
+  });
+
+  const ids = ranking
+    .map((row) => row.productId)
+    .filter((id): id is string => id !== null);
+
+  if (ids.length === 0) return [];
+
+  const products = await prisma.menuProduct.findMany({
+    where: { id: { in: ids }, available: true },
+    include: { category: { select: { station: true } } },
+  });
+
+  const now = new Date();
+  const porId = new Map(products.map((product) => [product.id, product]));
+
+  // Se respeta el orden del ranking, que es lo que hace util a la lista.
+  return ids
+    .map((id) => porId.get(id))
+    .filter((product): product is NonNullable<typeof product> => !!product)
+    .map((product) => {
+      const priced = priceFor(product, now);
+
+      return {
+        id: product.id,
+        name: product.name,
+        station: stationFor(product),
+        unitPriceCents: priced.unitPriceCents,
+        discountCents: priced.discountCents,
+        discountLabel: priced.discountLabel,
+      };
+    });
+}
+
+// --- Pantallas de cocina y barra ---------------------------------------------
+
+export type BoardTicket = {
+  id: string;
+  number: number;
+  tableNumber: number;
+  tableName: string | null;
+  prep: "NUEVA" | "EN_CURSO" | "LISTA";
+  createdAt: string;
+  startedAt: string | null;
+  items: Array<{
+    id: string;
+    quantity: number;
+    name: string;
+    note: string | null;
+    diner: string | null;
+  }>;
+};
+
+/**
+ * Las comandas de una estacion, tal como se ven en su pantalla.
+ *
+ * Solo del servicio en curso: se mira desde seis horas atras para no arrastrar
+ * la noche anterior, y las ya entregadas desaparecen solas.
+ */
+export async function getStationBoard(
+  station: Station,
+  hours = 6,
+): Promise<BoardTicket[]> {
+  const desde = new Date();
+  desde.setHours(desde.getHours() - hours);
+
+  // Las listas se quedan un rato a la vista, por si hay que corregir un toque,
+  // y despues se van solas. Nadie tiene que limpiar la pantalla a mano.
+  const recienListas = new Date();
+  recienListas.setMinutes(recienListas.getMinutes() - 15);
+
+  const tickets = await prisma.orderTicket.findMany({
+    where: {
+      station,
+      createdAt: { gte: desde },
+      OR: [
+        { prep: { in: ["NUEVA", "EN_CURSO"] } },
+        { prep: "LISTA", readyAt: { gte: recienListas } },
+      ],
+    },
+    orderBy: { number: "asc" },
+    include: {
+      session: {
+        select: { table: { select: { number: true, name: true } } },
+      },
+      items: {
+        where: { status: { not: "CANCELLED" } },
+        orderBy: { createdAt: "asc" },
+        include: { diner: { select: { label: true } } },
+      },
+    },
+  });
+
+  return tickets
+    // Una comanda cuyas lineas se anularon todas ya no tiene nada que preparar.
+    .filter((ticket) => ticket.items.length > 0)
+    .map((ticket) => ({
+      id: ticket.id,
+      number: ticket.number,
+      tableNumber: ticket.session.table.number,
+      tableName: ticket.session.table.name,
+      prep: ticket.prep,
+      createdAt: ticket.createdAt.toISOString(),
+      startedAt: ticket.startedAt?.toISOString() ?? null,
+      items: ticket.items.map((item) => ({
+        id: item.id,
+        quantity: item.quantity,
+        name: item.name,
+        note: item.note,
+        diner: item.diner?.label ?? null,
+      })),
+    }));
+}
+
 // --- Mesas -------------------------------------------------------------------
 
 export type TableOverview = {
@@ -395,6 +533,7 @@ export const STATION_LABELS: Record<Station, string> = {
   BARRA: "Barra",
   COCINA: "Cocina",
 };
+
 
 // --- Codigos -----------------------------------------------------------------
 

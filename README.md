@@ -234,7 +234,7 @@ src/
 | `TableSession` | Un turno de mesa: desde que se sientan hasta que se van. |
 | `Diner` | Un comensal, identificado por cómo se ve ("polera azul"). |
 | `OrderItem` | Una línea de la cuenta, con copia del nombre y el precio del momento. |
-| `OrderTicket` | Una comanda encolada para su impresora. |
+| `OrderTicket` | Una comanda: su estado de impresión y el de preparación en la pantalla de la estación. |
 | `Payment` | Un cobro: de un comensal o de la mesa entera. |
 | `AuditLog` | Historial de cambios del panel. |
 
@@ -259,7 +259,8 @@ mostrarlas y al cargarlas desde el panel.
 `ajustes`, `usuarios` (solo `ADMIN`).
 
 **Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
-`/staff/canjear/[token]`, `/staff/pos`, `/staff/pos/[sessionId]`.
+`/staff/canjear/[token]`, `/staff/pos`, `/staff/pos/[sessionId]`,
+`/staff/cocina`, `/staff/barra`.
 
 **Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
 impresión, autenticado con `PRINT_AGENT_TOKEN`).
@@ -341,10 +342,10 @@ Vive en `/staff/pos` y entra cualquier usuario del panel.
    producto nuevo aparece solo, y uno agotado desaparece de las dos partes a
    la vez. Si tiene precio promocional vigente, se aplica sin que nadie haga
    nada.
-4. **Mandar la comanda.** Se arma una por estación: la comida sale por la
-   impresora de cocina y los tragos, cervezas y jugos por la de barra. Cada
-   comanda va agrupada por comensal, para que la barra arme los tragos
-   separados.
+4. **Mandar la comanda.** Se arma una por estación: la comida va a cocina y los
+   tragos, cervezas y jugos a barra. Cada comanda va agrupada por comensal,
+   para que la barra arme los tragos separados. Sale por la impresora, por la
+   pantalla de la estación, o por las dos.
 5. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
    a uno **no cierra la mesa**: los demás siguen consumiendo, y quien ya pagó
    puede volver a pedir y se le hace otro cobro.
@@ -354,6 +355,46 @@ Al cobrar se puede ingresar el número de una BarzuCard: suma **1 punto por
 cada $1.000** de consumo y recalcula el nivel del socio.
 
 No hay campo de propina: la deja el cliente en la terminal de cobro.
+
+### Pensado para un local lleno
+
+- **Los de siempre.** Lo primero que se ve al cargar un pedido son los doce
+  productos más vendidos de las últimas dos semanas, en rejilla y a un toque.
+  El grueso del servicio sale de ahí, sin buscar ni desplazarse.
+- **Abrir y cargar de una.** Al abrir una mesa se entra directo al selector de
+  productos.
+- **Sin ruido.** Las pestañas por comensal solo aparecen cuando la cuenta está
+  dividida. Una mesa normal —que son casi todas— se ve como una sola lista.
+
+### Notas de los pedidos
+
+"Sin lechuga", "bien cocido", "sin hielo". Se ponen desde botones, no
+escribiendo: con el local lleno, teclear en un teléfono es lo primero que el
+garzón deja de hacer. Se pueden acumular varias y queda un campo libre para lo
+que no está en la lista.
+
+Se agrega justo después de cargar el producto —cuando el garzón todavía la
+tiene fresca— o después, desde la línea de la cuenta. Se admite incluso sobre
+una línea ya comandada: si la cocina no la empezó, avisar es mejor que anular y
+volver a pedir.
+
+La nota sale **destacada** en la comanda impresa y en la pantalla de la
+estación: es lo que se pasa por alto y hace volver el plato.
+
+### Pantallas de cocina y barra
+
+`/staff/cocina` y `/staff/barra`. Pensadas para dejar una tablet o un monitor
+encendido: se actualizan solas cada diez segundos y no hay que tocarlas.
+
+Tres columnas —**nuevas**, **en preparación**, **listas**— con un botón por
+comanda para avanzarla, y otro para volver atrás cuando alguien toca la de al
+lado. El tiempo de espera de cada comanda pasa a rojo a los diez minutos.
+
+Las comandas listas se quedan un rato a la vista y después desaparecen solas:
+nadie tiene que limpiar la pantalla.
+
+Funcionan **con o sin impresoras**. Un local puede trabajar solo con pantallas,
+solo con papel, o con las dos cosas a la vez: son estados independientes.
 
 ### Adónde sale cada cosa
 

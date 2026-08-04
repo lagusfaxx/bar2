@@ -148,7 +148,7 @@ function OpenTableSheet({
       setState(result);
 
       if (result.status === "success" && result.data?.sessionId) {
-        router.push(`/staff/pos/${result.data.sessionId}`);
+        router.push(`/staff/pos/${result.data.sessionId}?nueva=1`);
       }
     });
   };
