@@ -472,6 +472,14 @@ postgresql://postgres:CLAVE@nombre-del-servicio:5432/postgres
 > Si prefieres que Coolify levante también la base, usa el `docker-compose.yml`
 > incluido (paso 2, opción B) y sáltate este paso.
 
+> ⚠️ **No cambies de Dockerfile a Docker Compose en un recurso que ya está en
+> producción.** El compose trae su propia base de datos y sus propios
+> volúmenes: al aplicarlo, Coolify levantaría un PostgreSQL nuevo y vacío y
+> montaría volúmenes nuevos, así que la web aparecería sin contenido y sin las
+> imágenes subidas. Los datos anteriores no se borran —siguen en la base y los
+> volúmenes viejos— pero el sitio deja de verlos. Las dos opciones se eligen al
+> crear el recurso, no se migran.
+
 ### 2. Crear la aplicación
 
 **Opción A — Dockerfile (recomendada).**
