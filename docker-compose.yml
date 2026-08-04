@@ -47,6 +47,9 @@ services:
       UPLOAD_DIR: /app/storage/uploads
       # Token del agente de impresion del local (POS).
       PRINT_AGENT_TOKEN: ${PRINT_AGENT_TOKEN:-}
+      # Purga del caché de Cloudflare al guardar en el panel.
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       # Contenido de demostración en el primer arranque.
       SEED_ON_START: ${SEED_ON_START:-false}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@barzuo.com}

@@ -43,6 +43,12 @@ const nextConfig: NextConfig = {
         source: "/:path*",
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
+          // Evita el salto http -> https en la primera visita: quien escribe
+          // "barzuo.cl" en el telefono paga hoy una conexion de mas.
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=31536000",
+          },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "X-Frame-Options", value: "SAMEORIGIN" },
           {
@@ -70,11 +76,11 @@ const nextConfig: NextConfig = {
        * segundos cuando la maquina esta ocupada—, y encima el visitante en
        * Chile paga la ida y vuelta hasta el servidor.
        *
-       * `s-maxage` deja que Cloudflare guarde el HTML un minuto y lo sirva
-       * desde su nodo mas cercano: el telefono recibe la pagina sin esperar al
-       * servidor. `stale-while-revalidate` hace que, pasado ese minuto, se siga
-       * entregando la version guardada mientras se pide una fresca por detras,
-       * asi nadie espera nunca por la regeneracion.
+       * `s-maxage` deja que Cloudflare guarde el HTML y lo sirva desde su
+       * nodo mas cercano: el telefono recibe la pagina sin esperar al
+       * servidor. La vigencia es larga a proposito —ver el comentario de
+       * abajo— y los cambios del panel se ven igual al instante, porque al
+       * guardar se purga el cache del borde.
        *
        * `max-age=0` mantiene el navegador siempre al dia: el cache es del
        * borde, no del dispositivo. Un cambio en el CMS tarda como mucho un
@@ -89,16 +95,25 @@ const nextConfig: NextConfig = {
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+            // Una hora en el borde. Con un minuto —lo que habia antes— un
+            // sitio con poco trafico casi nunca encuentra la copia vigente:
+            // cada visita cae despues de que vencio y espera el viaje entero
+            // al servidor. Y `stale-while-revalidate` no ayuda, porque
+            // Cloudflare solo lo respeta en el plan Enterprise.
+            //
+            // Que la copia dure una hora no retrasa los cambios del panel:
+            // al guardar se purga el cache (ver lib/cloudflare.ts).
+            value: "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
           },
         ],
       },
       {
+        // Misma politica para la ficha de cada evento.
         source: "/eventos/:slug",
         headers: [
           {
             key: "Cache-Control",
-            value: "public, max-age=0, s-maxage=60, stale-while-revalidate=600",
+            value: "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
           },
         ],
       },
