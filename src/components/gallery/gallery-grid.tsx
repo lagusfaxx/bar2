@@ -141,7 +141,7 @@ export function GalleryGrid({ images }: { images: GalleryItem[] }) {
           role="dialog"
           aria-modal="true"
           aria-label={current.alt}
-          className="fixed inset-0 z-100 flex flex-col bg-ink/97 backdrop-blur-xl animate-fade-in"
+          className="fixed inset-0 z-100 flex flex-col bg-ink animate-fade-in"
           onClick={close}
           onTouchStart={(event) => setTouchStartX(event.touches[0]!.clientX)}
           onTouchEnd={(event) => {
@@ -187,7 +187,11 @@ export function GalleryGrid({ images }: { images: GalleryItem[] }) {
               height={1600}
               sizes="100vw"
               className="max-h-full w-auto max-w-full animate-fade-in object-contain"
-              priority
+              // Se monta al abrir el visor, ya con la pagina cargada: un
+              // preload en la cabecera llegaria tarde y no serviria de nada.
+              // Lo que hace falta es que esta peticion se adelante a las demas.
+              loading="eager"
+              fetchPriority="high"
             />
 
             <button

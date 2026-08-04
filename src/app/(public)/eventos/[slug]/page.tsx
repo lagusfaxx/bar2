@@ -150,8 +150,13 @@ export default async function EventoPage({ params }: Params) {
               src={poster}
               alt=""
               fill
-              priority
-              sizes="100vw"
+              // Este fondo se muestra desenfocado, al 30% y detras de un
+              // degradado: nadie distingue un pixel. Pedia el afiche a ancho
+              // de pantalla completa, o sea una segunda copia grande de la
+              // misma foto que ya se esta bajando nitida al lado. Con 64px
+              // alcanza y sobra — el desenfoque hace el resto.
+              sizes="64px"
+              loading="eager"
               className="scale-110 object-cover opacity-30 blur-2xl"
             />
           )}
@@ -166,7 +171,7 @@ export default async function EventoPage({ params }: Params) {
                   src={poster}
                   alt={`Afiche de ${event.title}`}
                   fill
-                  priority
+                  preload
                   sizes="(max-width: 1024px) 90vw, 22rem"
                   className="object-cover"
                 />

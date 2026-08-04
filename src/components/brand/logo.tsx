@@ -33,7 +33,11 @@ export function Logo({
         alt={name}
         width={320}
         height={120}
-        priority={priority}
+        // Carga inmediata, pero sin precarga en la cabecera. El logo de la
+        // barra superior sale en todas las paginas y es una imagen chica; si
+        // se precargara, competiria por el ancho de banda del telefono con la
+        // foto de portada, que es la que el visitante esta esperando ver.
+        loading={priority ? "eager" : "lazy"}
         className={cn("h-auto w-auto object-contain", className)}
       />
     );

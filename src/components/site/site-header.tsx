@@ -71,7 +71,13 @@ export function SiteHeader({
         className={cn(
           "fixed inset-x-0 top-0 z-50 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]",
           scrolled || open
-            ? "border-b border-line/80 bg-ink/92 backdrop-blur-xl"
+            ? // El vidrio esmerilado solo en pantalla grande. Esta barra esta
+              // fija sobre el contenido, asi que su `backdrop-blur` se
+              // recalcula en cada cuadro mientras se hace scroll: es la fuente
+              // mas cara de tirones en un Android de gama media. En telefono
+              // se resuelve con un fondo casi opaco, que a ese tamaño se ve
+              // igual porque detras no hay nada que valga la pena entrever.
+              "border-b border-line/80 bg-ink/97 lg:bg-ink/92 lg:backdrop-blur-xl"
             : "border-b border-transparent bg-gradient-to-b from-ink/80 to-transparent",
         )}
       >
@@ -151,7 +157,11 @@ export function SiteHeader({
         id="menu-movil"
         hidden={!open}
         className={cn(
-          "fixed inset-0 z-40 flex flex-col bg-ink/98 pt-20 backdrop-blur-2xl transition-opacity duration-300 lg:hidden",
+          // Opaco y sin desenfoque: con el fondo al 98% no se llegaba a ver
+          // nada detras, asi que el `backdrop-blur-2xl` era trabajo puro para
+          // la GPU del telefono —justo el que abre este menu— sin efecto
+          // visible.
+          "fixed inset-0 z-40 flex flex-col bg-ink pt-20 transition-opacity duration-300 lg:hidden",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >

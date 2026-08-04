@@ -103,7 +103,16 @@ export default async function HomePage() {
                 fade
                 className="w-[70%] shrink-0 snap-start sm:w-auto"
               >
-                <EventCard event={event} priority={index === 0} />
+                {/*
+                  Ninguno con carga inmediata. En la portada esta seccion va
+                  debajo de un hero que ocupa la pantalla entera: en telefono
+                  no se ve un solo afiche hasta que el visitante desliza. Y
+                  React precarga en la cabecera toda imagen marcada como
+                  inmediata, asi que el primer afiche —invisible— le disputaba
+                  el ancho de banda a la foto de portada, que es lo unico que
+                  hay en pantalla. Se cargan solos al acercarse.
+                */}
+                <EventCard event={event} />
               </Reveal>
             ))}
           </div>
@@ -128,7 +137,7 @@ export default async function HomePage() {
         <Section className="relative overflow-hidden border-y border-line">
           <div
             aria-hidden
-            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-crimson/10 blur-[140px]"
+            className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[40rem] -translate-x-1/2 -translate-y-1/2 rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.10),transparent)]"
           />
 
           <div className="container-bz grid items-center gap-14 lg:grid-cols-[1fr_auto]">

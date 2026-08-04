@@ -208,7 +208,7 @@ export default async function BarzuCardPage() {
       <Section className="relative overflow-hidden border-t border-line">
         <div
           aria-hidden
-          className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-crimson/10 blur-[140px]"
+          className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-[38rem] -translate-x-1/2 -translate-y-1/2 rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.10),transparent)]"
         />
 
         <div className="container-bz grid items-center gap-12 lg:grid-cols-2">

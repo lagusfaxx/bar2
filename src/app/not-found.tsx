@@ -7,7 +7,7 @@ export default function NotFound() {
     <main className="flex min-h-[100svh] flex-col items-center justify-center px-6 text-center">
       <div
         aria-hidden
-        className="pointer-events-none absolute top-1/3 left-1/2 -z-10 size-[30rem] -translate-x-1/2 rounded-full bg-crimson/12 blur-[130px]"
+        className="pointer-events-none absolute top-1/3 left-1/2 -z-10 size-[30rem] -translate-x-1/2 rounded-full [background:radial-gradient(circle_closest-side,rgb(180_17_27/0.12),transparent)]"
       />
 
       <p className="font-western text-[0.7rem] tracking-[0.35em] text-crimson-bright">
