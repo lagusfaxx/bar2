@@ -30,8 +30,8 @@ export default async function AdminGaleriaPage() {
   return (
     <>
       <AdminHeader
-        title="Galería"
-        description="Sube fotos, ordenalas y asocia cada una a un evento si corresponde."
+        title="Fotos del local"
+        description="Las fotos que salen en la galería de la web. Se achican solas para que cargue rápido en los teléfonos."
       />
 
       <div className="mb-8">

@@ -39,8 +39,8 @@ export default async function AdminCartaPage() {
   return (
     <>
       <AdminHeader
-        title="Carta"
-        description="Organiza las categorías y los productos que se muestran en la web."
+        title="Carta y precios"
+        description="Los platos y tragos que se ven en la web, agrupados por categoría. Si algo se acaba, ocúltalo en vez de borrarlo."
         action={
           <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
             <Plus className="size-4" aria-hidden />

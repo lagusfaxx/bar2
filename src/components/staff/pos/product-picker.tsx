@@ -40,6 +40,12 @@ export function ProductPicker({
   const [last, setLast] = useState<{ id: string; name: string } | null>(null);
   const [noting, setNoting] = useState(false);
 
+  /** Cuantas lineas se cargaron desde que se abrio la lista. */
+  const totalAdded = useMemo(
+    () => Object.values(added).reduce((sum, count) => sum + count, 0),
+    [added],
+  );
+
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
@@ -86,9 +92,7 @@ export function ProductPicker({
       <header className="shrink-0 border-b border-line px-4 py-3 pt-safe">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-              Cargando a
-            </p>
+            <p className="text-xs text-muted">Se agrega a la cuenta de</p>
             <p className="truncate font-display text-lg text-bone">{dinerLabel}</p>
           </div>
 
@@ -186,24 +190,33 @@ export function ProductPicker({
           <button
             type="button"
             onClick={() => setNoting(true)}
-            className="mb-2 flex h-12 w-full items-center justify-center gap-2 border border-gilt/50 text-sm uppercase tracking-[0.14em] text-gilt-soft"
+            className="mb-2 flex h-12 w-full items-center justify-center gap-2 border border-gilt/50 text-base text-gilt-soft"
           >
             <MessageSquarePlus className="size-4" aria-hidden />
-            Nota para {last.name}
+            Agregar nota a {last.name}
           </button>
         )}
 
+        {/*
+          Este boton no manda nada a la cocina: cierra la lista y devuelve a la
+          cuenta. Decia "Listo" en rojo grande, del mismo color que el de
+          cobrar, y era facil leerlo como "confirmar el pedido" — que es un
+          paso que viene despues y en otra pantalla. Ahora dice a donde lleva,
+          y cuantos productos se llevan cargados.
+        */}
         <button
           type="button"
           onClick={onClose}
-          className="flex h-14 w-full items-center justify-center gap-2 bg-crimson font-medium uppercase tracking-[0.18em] text-bone"
+          className="flex h-14 w-full items-center justify-center gap-2 bg-crimson text-base font-medium text-bone"
         >
           {pending ? (
             <Loader2 className="size-4 animate-spin" aria-hidden />
           ) : (
             <Check className="size-4" aria-hidden />
           )}
-          Listo
+          {totalAdded > 0
+            ? `Volver a la cuenta (${totalAdded} agregados)`
+            : "Volver a la cuenta"}
         </button>
       </footer>
 

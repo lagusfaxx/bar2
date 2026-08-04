@@ -34,45 +34,111 @@ type NavItem = {
   label: string;
   icon: LucideIcon;
   adminOnly?: boolean;
+  /** Para que sirve la seccion, en una linea. */
+  hint?: string;
 };
 
+/**
+ * Secciones del panel.
+ *
+ * Los titulos de grupo dicen que se logra ahi, no como se llama el modulo:
+ * "Contenido" y "Comunidad" son categorias de quien programo el panel, no de
+ * quien lo abre para subir las fotos del sabado. Cada seccion lleva ademas una
+ * linea de ayuda que se muestra al pasar el mouse y, en el tablero, escrita.
+ */
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
-    title: "Contenido",
+    title: "Lo que ve el público",
     items: [
-      { href: "/admin", label: "Panel", icon: LayoutDashboard },
-      { href: "/admin/eventos", label: "Cartelera", icon: CalendarDays },
-      { href: "/admin/carta", label: "Carta", icon: UtensilsCrossed },
-      { href: "/admin/galeria", label: "Galería", icon: Images },
+      { href: "/admin", label: "Inicio del panel", icon: LayoutDashboard },
+      {
+        href: "/admin/eventos",
+        label: "Shows y eventos",
+        icon: CalendarDays,
+        hint: "Publicar la cartelera del mes",
+      },
+      {
+        href: "/admin/carta",
+        label: "Carta y precios",
+        icon: UtensilsCrossed,
+        hint: "Platos, tragos y sus precios",
+      },
+      {
+        href: "/admin/galeria",
+        label: "Fotos del local",
+        icon: Images,
+        hint: "Las fotos que salen en la galería",
+      },
+      {
+        href: "/admin/ajustes",
+        label: "Datos del bar y portada",
+        icon: Settings,
+        hint: "Dirección, horarios, redes y textos del inicio",
+      },
     ],
   },
   {
-    title: "Sala",
+    title: "El día a día del local",
     items: [
-      { href: "/admin/mesas", label: "Mesas", icon: Table2 },
-      { href: "/admin/caja", label: "Caja", icon: Banknote },
+      {
+        href: "/admin/mesas",
+        label: "Mesas del salón",
+        icon: Table2,
+        hint: "Crear y ordenar las mesas que usa la app de sala",
+      },
+      {
+        href: "/admin/caja",
+        label: "Ventas del día",
+        icon: Banknote,
+        hint: "Cuánto se vendió y cómo pagaron",
+      },
+      {
+        href: "/admin/mensajes",
+        label: "Mensajes de clientes",
+        icon: Mail,
+        hint: "Consultas y reservas del formulario de contacto",
+      },
+      {
+        href: "/admin/resenas",
+        label: "Opiniones por aprobar",
+        icon: MessageSquareQuote,
+        hint: "Se publican recién cuando las apruebas",
+      },
     ],
   },
   {
-    title: "BarzuCard",
+    title: "Tarjeta de beneficios",
     items: [
-      { href: "/admin/promociones", label: "Promociones", icon: Gift },
-      { href: "/admin/tarjetas", label: "Socios y tarjetas", icon: Ticket },
-      { href: "/admin/canjes", label: "Canjes", icon: Star },
+      {
+        href: "/admin/promociones",
+        label: "Promociones",
+        icon: Gift,
+        hint: "2x1, descuentos y cortesías",
+      },
+      {
+        href: "/admin/tarjetas",
+        label: "Socios y sus tarjetas",
+        icon: Ticket,
+        hint: "Confirmar pagos y entregar tarjetas",
+      },
+      {
+        href: "/admin/canjes",
+        label: "Promociones usadas",
+        icon: Star,
+        hint: "Quién usó qué beneficio y cuándo",
+      },
     ],
   },
   {
-    title: "Comunidad",
+    title: "Quién entra al panel",
     items: [
-      { href: "/admin/resenas", label: "Reseñas", icon: MessageSquareQuote },
-      { href: "/admin/mensajes", label: "Mensajes", icon: Mail },
-    ],
-  },
-  {
-    title: "Configuración",
-    items: [
-      { href: "/admin/ajustes", label: "Ajustes del sitio", icon: Settings },
-      { href: "/admin/usuarios", label: "Usuarios", icon: Users, adminOnly: true },
+      {
+        href: "/admin/usuarios",
+        label: "Usuarios del panel",
+        icon: Users,
+        adminOnly: true,
+        hint: "Dar y quitar acceso al equipo",
+      },
     ],
   },
 ];
@@ -133,6 +199,7 @@ export function AdminShell({
                   <li key={item.href}>
                     <Link
                       href={item.href}
+                      title={item.hint}
                       aria-current={isActive(item.href) ? "page" : undefined}
                       className={cn(
                         "flex items-center gap-3 px-3 py-2.5 text-sm transition-colors duration-200",

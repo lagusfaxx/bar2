@@ -16,6 +16,11 @@ import type { TableOverview } from "@/lib/pos";
  * Una mesa libre se abre en dos toques (mesa y cuantos son); una ocupada
  * lleva directo a su cuenta. Todo con el pulgar, que es como se usa esto
  * mientras se camina entre mesas.
+ *
+ * Cada mesa dice "Libre" u "Ocupada" con todas las letras. El color ya lo
+ * indicaba, pero un garzon nuevo no tiene por que saber que el rojo significa
+ * ocupada —y quien no distingue bien los colores no lo sabe nunca—. La
+ * palabra no le quita nada a la vista rapida y elimina la adivinanza.
  */
 export function TableGrid({ tables }: { tables: TableOverview[] }) {
   const router = useRouter();
@@ -56,34 +61,45 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
                   {table.number}
                 </span>
 
+                {/* "Sin mandar" no le dice nada a nadie: lo que hay que
+                    entender es que la cocina todavia no vio esos productos. */}
                 {ocupada && table.session!.draftItems > 0 && (
-                  <span
-                    className="rounded-[2px] bg-gilt px-1.5 py-0.5 text-[0.6rem] font-bold text-ink"
-                    title="Productos cargados sin mandar a comanda"
-                  >
-                    {table.session!.draftItems} sin mandar
+                  <span className="rounded-[2px] bg-gilt px-1.5 py-0.5 text-xs font-bold text-ink">
+                    Falta enviar {table.session!.draftItems}
                   </span>
                 )}
               </div>
 
               {ocupada ? (
                 <div className="mt-2">
+                  <p className="text-sm font-medium text-crimson-bright">
+                    Ocupada
+                  </p>
                   <p className="font-display text-lg text-bone">
                     {formatPrice(table.session!.pendingCents)}
                   </p>
-                  <p className="mt-0.5 flex items-center gap-1 text-[0.65rem] uppercase tracking-[0.16em] text-muted">
-                    <Users className="size-3" aria-hidden />
-                    {table.session!.diners > 0
-                      ? `${table.session!.diners} cuenta(s)`
-                      : `${table.session!.guests} pers.`}
-                    <span aria-hidden>·</span>
-                    <Elapsed since={table.session!.openedAt} />
+                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
+                    <Users className="size-3.5" aria-hidden />
+                    <span>
+                      {table.session!.diners > 0
+                        ? `Cuenta dividida en ${table.session!.diners}`
+                        : `${table.session!.guests} personas`}
+                    </span>
+                    {/* El separador viaja pegado a lo que sigue: suelto,
+                        cuando la tarjeta parte el renglon, queda un punto
+                        colgando al final de la linea. */}
+                    <span className="whitespace-nowrap">
+                      <span aria-hidden>· </span>
+                      hace <Elapsed since={table.session!.openedAt} />
+                    </span>
                   </p>
                 </div>
               ) : (
-                <p className="mt-2 text-[0.65rem] uppercase tracking-[0.16em] text-muted">
+                <p className="mt-2 text-xs text-muted">
+                  <span className="mb-0.5 block text-sm font-medium text-bone-dim">
+                    Libre
+                  </span>
                   {table.name ?? table.zone ?? `${table.seats} lugares`}
-                  <span className="mt-1 block text-bone-dim">Libre</span>
                 </p>
               )}
             </button>
@@ -200,7 +216,7 @@ function OpenTableSheet({
             {pending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (
-              "Abrir"
+              "Abrir mesa"
             )}
           </Button>
         </div>

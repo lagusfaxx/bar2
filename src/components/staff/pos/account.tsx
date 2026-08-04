@@ -24,12 +24,19 @@ import {
   sendOrder,
   setItemQuantity,
 } from "@/app/actions/pos";
+import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
-import type { AccountItem, PosMenuCategory, PosMenuProduct, SessionDetail } from "@/lib/pos";
+import type {
+  AccountItem,
+  AccountTab,
+  PosMenuCategory,
+  PosMenuProduct,
+  SessionDetail,
+} from "@/lib/pos";
 
 /**
  * La cuenta de una mesa.
@@ -58,6 +65,12 @@ export function Account({
   const [feedback, setFeedback] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
 
+  /* Confirmaciones de lo que no se puede deshacer. */
+  const [cancelling, setCancelling] = useState<AccountItem | null>(null);
+  const [removingDiner, setRemovingDiner] = useState<AccountTab | null>(null);
+  const [closing, setClosing] = useState(false);
+  const [choosingPayer, setChoosingPayer] = useState(false);
+
   const tab =
     session.tabs.find((candidate) => candidate.dinerId === activeTab) ??
     session.tabs[0];
@@ -67,6 +80,50 @@ export function Account({
   };
 
   const cerrada = session.status === "CLOSED";
+
+  /** Hay productos cargados que cocina y barra todavia no recibieron. */
+  const hayPorEnviar = session.draftCount > 0;
+
+  /**
+   * A donde va lo que falta enviar.
+   *
+   * El boton nombra el destino real —"a la cocina", "a la barra" o a las dos—
+   * en vez de decir siempre lo mismo. Un garzon que carga solo tragos y lee
+   * "enviar a cocina" duda de si toco donde debia.
+   */
+  const destinoPorEnviar = (() => {
+    const stations = new Set(
+      session.tabs.flatMap((candidate) =>
+        candidate.items
+          .filter((item) => item.status === "DRAFT")
+          .map((item) => item.station),
+      ),
+    );
+
+    if (stations.size === 1) {
+      return stations.has("BARRA") ? "a la barra" : "a la cocina";
+    }
+    return "a cocina y barra";
+  })();
+
+  /** La mesa esta repartida entre varias personas. */
+  const cuentaSeparada = session.diners.length > 0;
+
+  /**
+   * Abre el cobro.
+   *
+   * Con la mesa entera para una sola persona no hay nada que preguntar. Con la
+   * cuenta separada si: antes el boton elegia solo —cobraba la pestaña abierta
+   * si tenia saldo y si no la mesa entera— y esa decision, que define quien
+   * paga cuanto, quedaba escondida en una condicion.
+   */
+  const startPayment = () => {
+    if (cuentaSeparada) {
+      setChoosingPayer(true);
+      return;
+    }
+    setPaying("table");
+  };
 
   return (
     <>
@@ -89,16 +146,18 @@ export function Account({
                 </span>
               )}
             </h1>
-            <p className="text-[0.65rem] uppercase tracking-[0.16em] text-muted">
-              {session.code} · {session.guests} pers.
-              {cerrada && <span className="ml-2 text-bone-dim">Cerrada</span>}
+            <p className="text-xs text-muted">
+              {session.guests} personas
+              {cerrada && (
+                <span className="ml-2 text-bone-dim">· Mesa cerrada</span>
+              )}
             </p>
           </div>
 
+          {/* "Pendiente" es palabra de sistema. Lo que el garzon necesita
+              saber, y lo que le va a preguntar el cliente, es cuanto falta. */}
           <div className="shrink-0 text-right">
-            <p className="text-[0.6rem] uppercase tracking-[0.18em] text-muted">
-              Pendiente
-            </p>
+            <p className="text-xs text-muted">Falta pagar</p>
             <p className="font-display text-xl text-bone">
               {formatPrice(session.pendingCents)}
             </p>
@@ -162,7 +221,7 @@ export function Account({
               className="flex shrink-0 items-center gap-2 border border-dashed border-line px-3 py-2 text-sm text-muted"
             >
               <UserPlus className="size-4" aria-hidden />
-              Comensal
+              Otra persona
             </button>
           )}
         </div>
@@ -187,10 +246,10 @@ export function Account({
             {tab.dinerId && !cerrada && (
               <button
                 type="button"
-                onClick={() => run(() => removeDiner(tab.dinerId!))}
-                className="text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-crimson-bright"
+                onClick={() => setRemovingDiner(tab)}
+                className="text-sm text-muted underline underline-offset-4 hover:text-crimson-bright"
               >
-                Quitar comensal
+                Quitar a {tab.label}
               </button>
             )}
 
@@ -198,18 +257,32 @@ export function Account({
               <button
                 type="button"
                 onClick={() => setAddingDiner(true)}
-                className="flex items-center gap-1.5 text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:text-bone"
+                className="flex items-center gap-1.5 text-sm text-muted underline underline-offset-4 hover:text-bone"
               >
-                <UserPlus className="size-3.5" aria-hidden />
-                Dividir cuenta
+                <UserPlus className="size-4" aria-hidden />
+                Separar cuentas
               </button>
             )}
           </div>
 
           {tab.items.length === 0 ? (
-            <p className="mt-3 border border-line bg-ink-soft p-5 text-sm text-muted">
-              Sin consumo todavía.
-            </p>
+            /* Una mesa vacia no es un error: es el momento de tomar el
+               pedido. En vez de informar el vacio, se ofrece la salida. */
+            <div className="mt-3 border border-line bg-ink-soft p-5 text-center">
+              <p className="text-sm text-muted">
+                Todavía no hay nada cargado en esta cuenta.
+              </p>
+              {!cerrada && (
+                <button
+                  type="button"
+                  onClick={() => setPicker(true)}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone"
+                >
+                  <Plus className="size-4" aria-hidden />
+                  Agregar productos
+                </button>
+              )}
+            </div>
           ) : (
             <ul className="mt-3 flex flex-col gap-2">
               {tab.items.map((item) => (
@@ -229,17 +302,22 @@ export function Account({
                         {item.name}
                       </p>
 
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[0.65rem] uppercase tracking-[0.14em]">
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
                         <span className="text-muted">
                           {item.station === "BARRA" ? "Barra" : "Cocina"}
                         </span>
 
+                        {/* Lo que importa de un producto es si el que lo
+                            prepara ya se entero. "Sin mandar" no lo decia. */}
                         {item.status === "DRAFT" && (
-                          <span className="text-gilt-soft">Sin mandar</span>
+                          <span className="text-gilt-soft">
+                            Falta enviar a{" "}
+                            {item.station === "BARRA" ? "la barra" : "la cocina"}
+                          </span>
                         )}
 
                         {item.paid && (
-                          <span className="text-emerald-300">Pagado</span>
+                          <span className="text-emerald-300">Ya pagado</span>
                         )}
 
                         {item.discountCents > 0 && (
@@ -288,32 +366,34 @@ export function Account({
                           </QuantityButton>
                         </>
                       ) : (
+                        /* Ya salio hacia la cocina: borrarlo sin preguntar
+                           era un toque de distancia y no tiene vuelta. */
                         <button
                           type="button"
                           disabled={pending}
-                          onClick={() => run(() => cancelItem(item.id))}
-                          className="flex items-center gap-1.5 border border-line px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.16em] text-muted hover:border-crimson hover:text-crimson-bright"
+                          onClick={() => setCancelling(item)}
+                          className="flex h-10 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
                         >
-                          <Ban className="size-3.5" aria-hidden />
+                          <Ban className="size-4" aria-hidden />
                           Anular
                         </button>
                       )}
 
-                      {/* La nota se puede poner tambien despues de comandar:
-                          mientras la cocina no la empiece, avisar es mejor
+                      {/* La nota se puede poner tambien despues de enviarlo:
+                          mientras la cocina no lo empiece, avisar es mejor
                           que anular y volver a pedir. */}
                       <button
                         type="button"
                         onClick={() => setNoting(item)}
                         className={[
-                          "ml-auto flex items-center gap-1.5 border px-3 py-1.5 text-[0.65rem] uppercase tracking-[0.16em]",
+                          "ml-auto flex h-10 items-center gap-1.5 border px-3 text-sm",
                           item.note
                             ? "border-gilt/50 text-gilt-soft"
                             : "border-line text-muted",
                         ].join(" ")}
                       >
-                        <MessageSquarePlus className="size-3.5" aria-hidden />
-                        {item.note ? "Nota" : "+ Nota"}
+                        <MessageSquarePlus className="size-4" aria-hidden />
+                        {item.note ? "Cambiar nota" : "Agregar nota"}
                       </button>
                     </div>
                   )}
@@ -323,11 +403,17 @@ export function Account({
           )}
         </section>
 
-        {/* Comandas: solo interesa cuando algo no salio */}
+        {/*
+          Los papeles que se imprimieron en cocina y barra.
+
+          Se llamaba "Comandas" y los estados eran "Impresa", "En cola" y
+          "Falló", que describen una impresora y no lo que el garzon tiene que
+          decidir: si el pedido llego o si hay que volver a mandarlo.
+        */}
         {session.tickets.length > 0 && (
           <section className="mt-8">
-            <h2 className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-              Comandas
+            <h2 className="text-sm font-medium text-bone-dim">
+              Papeles impresos en cocina y barra
             </h2>
 
             <ul className="mt-2 flex flex-col gap-1.5">
@@ -337,7 +423,8 @@ export function Account({
                   className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-3 py-2 text-sm"
                 >
                   <span className="text-bone-dim">
-                    #{ticket.number} · {ticket.station === "BARRA" ? "Barra" : "Cocina"}
+                    {ticket.station === "BARRA" ? "Barra" : "Cocina"} · N°
+                    {ticket.number}
                   </span>
 
                   <span className="flex items-center gap-3">
@@ -351,10 +438,10 @@ export function Account({
                       }
                     >
                       {ticket.status === "PRINTED"
-                        ? "Impresa"
+                        ? "Llegó"
                         : ticket.status === "FAILED"
-                          ? "Falló"
-                          : "En cola"}
+                          ? "No llegó"
+                          : "Enviando…"}
                     </span>
 
                     {ticket.status !== "PENDING" && (
@@ -362,10 +449,10 @@ export function Account({
                         type="button"
                         disabled={pending}
                         onClick={() => run(() => reprintTicket(ticket.id))}
-                        aria-label={`Reimprimir comanda ${ticket.number}`}
-                        className="flex size-8 items-center justify-center border border-line text-muted hover:border-crimson hover:text-crimson-bright"
+                        className="flex h-9 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
                       >
                         <RotateCw className="size-3.5" aria-hidden />
+                        Reimprimir
                       </button>
                     )}
                   </span>
@@ -386,77 +473,78 @@ export function Account({
           <button
             type="button"
             disabled={pending}
-            onClick={() => run(() => closeTable(session.id))}
-            className="mt-8 h-12 w-full border border-line text-sm uppercase tracking-[0.16em] text-muted hover:border-crimson hover:text-crimson-bright"
+            onClick={() => setClosing(true)}
+            className="mt-8 h-12 w-full border border-line text-base text-muted hover:border-crimson hover:text-crimson-bright"
           >
-            Cerrar mesa y liberarla
+            Cerrar la mesa y dejarla libre
           </button>
         )}
       </main>
 
-      {/* Barra de acciones: siempre bajo el pulgar, nunca flotando */}
+      {/*
+        Barra de acciones: siempre bajo el pulgar, nunca flotando.
+
+        Antes habia un solo boton que cambiaba de identidad: decia "Mandar"
+        mientras hubiera algo sin enviar y "Cobrar" cuando no. Dos acciones
+        muy distintas —una avisa a la cocina, la otra recibe plata— turnandose
+        en el mismo lugar, sin decir por que. Peor todavia: al desaparecer
+        "Cobrar", el garzon no tenia forma de saber si el sistema no lo dejaba
+        cobrar o si el boton se habia movido.
+
+        Ahora cada accion tiene su lugar fijo. Cuando cobrar no corresponde,
+        el boton sigue ahi, apagado y con el motivo escrito al lado.
+      */}
       {!cerrada && (
         <div className="shrink-0 border-t border-line bg-ink pb-safe">
+          {hayPorEnviar && (
+            <p className="mx-auto max-w-2xl px-4 pt-3 text-sm text-gilt-soft">
+              {session.draftCount === 1
+                ? "Hay 1 producto que"
+                : `Hay ${session.draftCount} productos que`}{" "}
+              {destinoPorEnviar === "a la barra" ? "la barra" : "la cocina"}{" "}
+              todavía no {session.draftCount === 1 ? "vio" : "vieron"}. Envía
+              antes de cobrar.
+            </p>
+          )}
+
           <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
             <button
               type="button"
               onClick={() => setPicker(true)}
-              className="flex h-14 flex-1 items-center justify-center gap-2 border border-bone/25 text-sm uppercase tracking-[0.16em] text-bone"
+              className="flex h-14 flex-1 items-center justify-center gap-2 border border-bone/25 text-base text-bone"
             >
-              <Plus className="size-4" aria-hidden />
+              <Plus className="size-5" aria-hidden />
               Agregar
             </button>
 
-            {session.draftCount > 0 ? (
+            {hayPorEnviar ? (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => run(() => sendOrder(session.id))}
-                className="flex h-14 flex-[1.4] items-center justify-center gap-2 bg-gilt text-sm font-medium uppercase tracking-[0.16em] text-ink disabled:opacity-60"
+                className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
               >
                 {pending ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2 className="size-5 animate-spin" aria-hidden />
                 ) : (
-                  <Send className="size-4" aria-hidden />
+                  <Send className="size-5" aria-hidden />
                 )}
-                Mandar ({session.draftCount})
+                Enviar {session.draftCount} {destinoPorEnviar}
               </button>
             ) : (
               <button
                 type="button"
                 disabled={session.pendingCents === 0}
-                onClick={() => setPaying(tab.pendingCents > 0 ? "tab" : "table")}
-                className="flex h-14 flex-[1.4] items-center justify-center gap-2 bg-crimson text-sm font-medium uppercase tracking-[0.16em] text-bone disabled:opacity-40"
+                onClick={startPayment}
+                className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-crimson text-base font-medium text-bone disabled:opacity-40"
               >
-                <Wallet className="size-4" aria-hidden />
-                Cobrar
+                <Wallet className="size-5" aria-hidden />
+                {session.pendingCents === 0
+                  ? "Todo pagado"
+                  : `Cobrar ${formatPrice(session.pendingCents)}`}
               </button>
             )}
           </div>
-
-          {/* Con la mesa repartida, hay que poder elegir a quien se le cobra */}
-          {session.draftCount === 0 &&
-            session.pendingCents > 0 &&
-            session.diners.length > 0 && (
-              <div className="mx-auto flex max-w-2xl gap-2 px-4 pb-3">
-                <button
-                  type="button"
-                  disabled={tab.pendingCents === 0}
-                  onClick={() => setPaying("tab")}
-                  className="h-11 flex-1 border border-line text-[0.65rem] uppercase tracking-[0.16em] text-bone-dim disabled:opacity-40"
-                >
-                  Solo {tab.label} · {formatPrice(tab.pendingCents)}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setPaying("table")}
-                  className="h-11 flex-1 border border-line text-[0.65rem] uppercase tracking-[0.16em] text-bone-dim"
-                >
-                  Toda la mesa · {formatPrice(session.pendingCents)}
-                </button>
-              </div>
-            )}
         </div>
       )}
 
@@ -490,7 +578,122 @@ export function Account({
           onClose={() => setPaying(null)}
         />
       )}
+
+      {/* Con la cuenta separada, a quien se le cobra es una pregunta, no una
+          deduccion del sistema. */}
+      {choosingPayer && (
+        <PayerSheet
+          tabLabel={tab.label}
+          tabPendingCents={tab.pendingCents}
+          tablePendingCents={session.pendingCents}
+          onPick={(who) => {
+            setChoosingPayer(false);
+            setPaying(who);
+          }}
+          onClose={() => setChoosingPayer(false)}
+        />
+      )}
+
+      {cancelling && (
+        <ConfirmSheet
+          title={`¿Anular ${cancelling.name}?`}
+          detail="Ya salió hacia la cocina o la barra. Anúlalo solo si además vas a avisarles, porque el papel ya está impreso allá."
+          confirmLabel="Sí, anular"
+          onConfirm={() => run(() => cancelItem(cancelling.id))}
+          onClose={() => setCancelling(null)}
+        />
+      )}
+
+      {removingDiner && (
+        <ConfirmSheet
+          title={`¿Quitar a ${removingDiner.label}?`}
+          detail="Lo que haya consumido vuelve a la cuenta general de la mesa. No se borra nada de lo pedido."
+          confirmLabel="Sí, quitar"
+          onConfirm={() => run(() => removeDiner(removingDiner.dinerId!))}
+          onClose={() => setRemovingDiner(null)}
+        />
+      )}
+
+      {closing && (
+        <ConfirmSheet
+          title={`¿Cerrar la mesa ${session.table.number}?`}
+          detail="Queda libre para los próximos clientes y ya no se le puede agregar nada. Está todo pagado."
+          confirmLabel="Sí, cerrar la mesa"
+          onConfirm={() => run(() => closeTable(session.id))}
+          onClose={() => setClosing(false)}
+        />
+      )}
     </>
+  );
+}
+
+/**
+ * ¿Quien paga?
+ *
+ * Solo aparece con la cuenta separada. Las dos opciones se muestran con su
+ * monto, porque es lo que se compara al decidir — y porque es lo que hay que
+ * cantar en voz alta antes de pasar la maquina.
+ */
+function PayerSheet({
+  tabLabel,
+  tabPendingCents,
+  tablePendingCents,
+  onPick,
+  onClose,
+}: {
+  tabLabel: string;
+  tabPendingCents: number;
+  tablePendingCents: number;
+  onPick: (who: "tab" | "table") => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="¿Quién paga?"
+      className="fixed inset-0 z-60 flex h-[100dvh] items-end bg-ink/80"
+    >
+      <div className="w-full border-t border-line bg-ink-soft p-5 pb-safe">
+        <h2 className="font-display text-xl text-bone">¿Quién paga ahora?</h2>
+        <p className="mt-2 text-sm text-muted">
+          Cobrar a una persona no cierra la mesa: los demás siguen consumiendo.
+        </p>
+
+        <div className="mt-5 flex flex-col gap-2">
+          <button
+            type="button"
+            disabled={tabPendingCents === 0}
+            onClick={() => onPick("tab")}
+            className="flex h-16 w-full items-center justify-between border border-line px-4 text-left disabled:opacity-40"
+          >
+            <span className="text-base text-bone">Solo {tabLabel}</span>
+            <span className="font-display text-lg text-bone">
+              {formatPrice(tabPendingCents)}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onPick("table")}
+            className="flex h-16 w-full items-center justify-between border border-line px-4 text-left"
+          >
+            <span className="text-base text-bone">Toda la mesa</span>
+            <span className="font-display text-lg text-bone">
+              {formatPrice(tablePendingCents)}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="mt-2 h-14 w-full border border-line text-base text-bone-dim"
+          >
+            Volver
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -547,8 +750,12 @@ function DinerForm({
   return (
     <div className="mt-3 border border-line bg-ink-soft p-4">
       <label className="block">
-        <span className="text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-          ¿Cómo se ve?
+        <span className="text-sm text-bone">
+          ¿Cómo reconoces a esta persona?
+        </span>
+        <span className="mt-1 block text-xs text-muted">
+          Sirve para separar su consumo y cobrarle aparte. Descríbela por la
+          ropa o el lugar en la mesa; no hace falta preguntarle el nombre.
         </span>
         <input
           type="text"
@@ -564,7 +771,7 @@ function DinerForm({
         <button
           type="button"
           onClick={onCancel}
-          className="h-11 flex-1 border border-line text-sm uppercase tracking-[0.16em] text-muted"
+          className="h-12 flex-1 border border-line text-base text-muted"
         >
           Cancelar
         </button>
@@ -573,10 +780,10 @@ function DinerForm({
           type="button"
           disabled={pending || label.trim().length < 2}
           onClick={submit}
-          className="flex h-11 flex-1 items-center justify-center gap-2 bg-crimson text-sm uppercase tracking-[0.16em] text-bone disabled:opacity-50"
+          className="flex h-12 flex-1 items-center justify-center gap-2 bg-crimson text-base text-bone disabled:opacity-50"
         >
           {pending && <Loader2 className="size-4 animate-spin" aria-hidden />}
-          Agregar
+          Separar su cuenta
         </button>
       </div>
     </div>

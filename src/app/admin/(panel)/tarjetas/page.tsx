@@ -71,8 +71,8 @@ export default async function AdminTarjetasPage({
   return (
     <>
       <AdminHeader
-        title="Socios y tarjetas"
-        description="Todas las BarzuCard emitidas, con su nivel, puntos y estado."
+        title="Socios y sus tarjetas"
+        description="Quién tiene BarzuCard, cuántos puntos lleva y si ya pagó y recibió la suya."
       />
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

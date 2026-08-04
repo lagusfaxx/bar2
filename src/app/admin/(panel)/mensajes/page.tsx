@@ -30,8 +30,8 @@ export default async function AdminMensajesPage({
   return (
     <>
       <AdminHeader
-        title="Mensajes de contacto"
-        description="Consultas y reservas que llegan desde el formulario del sitio."
+        title="Mensajes de clientes"
+        description="Consultas y pedidos de reserva que llegan por el formulario de la web."
       />
 
       <div className="mb-6 flex gap-2">

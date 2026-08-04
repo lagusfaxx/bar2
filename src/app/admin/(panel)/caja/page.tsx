@@ -115,8 +115,8 @@ export default async function CashPage() {
   return (
     <>
       <AdminHeader
-        title="Caja"
-        description="Lo cobrado hoy, desde las 00:00."
+        title="Ventas del día"
+        description="Lo que se cobró hoy, desde la medianoche, y cómo pagó cada cliente."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

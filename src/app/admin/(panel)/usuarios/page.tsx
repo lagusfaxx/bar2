@@ -32,7 +32,7 @@ export default async function AdminUsuariosPage() {
     <>
       <AdminHeader
         title="Usuarios del panel"
-        description="Administradores, editores y equipo de sala con acceso a la app de BarzuCard."
+        description="Quiénes pueden entrar aquí y qué puede hacer cada uno. El equipo de sala solo entra a la app de mesas y tarjetas."
       />
 
       <UsersManager users={users} currentUserId={session.userId} />
