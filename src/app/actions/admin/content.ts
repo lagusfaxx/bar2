@@ -351,6 +351,7 @@ export async function saveSettings(
       heroEyebrow: nullable(input.heroEyebrow),
       heroSubtitle: nullable(input.heroSubtitle),
       heroImageUrl: nullable(input.heroImageUrl),
+      heroImageMobileUrl: nullable(input.heroImageMobileUrl),
       heroVideoUrl: nullable(input.heroVideoUrl),
       heroCtaLabel: nullable(input.heroCtaLabel),
       heroCtaHref: nullable(input.heroCtaHref),

@@ -26,6 +26,7 @@ type Settings = {
   heroEyebrow: string | null;
   heroSubtitle: string | null;
   heroImageUrl: string | null;
+  heroImageMobileUrl: string | null;
   heroVideoUrl: string | null;
   heroCtaLabel: string | null;
   heroCtaHref: string | null;
@@ -211,12 +212,21 @@ export function SettingsForm({ settings }: { settings: Settings }) {
             />
 
             <ImageField
-              label="Imagen de fondo"
+              label="Imagen de fondo (escritorio)"
               name="heroImageUrl"
               preset="cover"
               aspect="aspect-16/9"
               defaultValue={settings.heroImageUrl}
-              hint="Horizontal y bien oscura: encima va el logotipo."
+              hint="Horizontal. El sitio ya le pone un velo oscuro encima para que se lea el logotipo, así que elige una foto con luz: si la subes muy oscura, la portada se ve negra."
+            />
+
+            <ImageField
+              label="Imagen de fondo (teléfono)"
+              name="heroImageMobileUrl"
+              preset="cover"
+              aspect="aspect-9/16"
+              defaultValue={settings.heroImageMobileUrl}
+              hint="Vertical. Sin ella, en el teléfono se recorta la horizontal a su franja central, que casi nunca es la parte interesante de la foto."
             />
 
             <VideoField

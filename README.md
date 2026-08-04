@@ -34,7 +34,7 @@ cambiar un texto, subir un afiche o publicar un show.
 
 | Sección | Ruta | Descripción |
 | --- | --- | --- |
-| Portada | `/` | Hero a pantalla completa, próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
+| Portada | `/` | Hero a pantalla completa (con variante vertical para el teléfono), próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
 | Cartelera | `/eventos` | Destacados, calendario mensual navegable, vista alternativa en lista y agenda completa. |
 | Evento | `/eventos/[slug]` | Afiche, ficha (fecha, puertas, entrada, capacidad), descripción, galería, compartir, calificaciones y eventos relacionados. |
 | Carta | `/carta` | La carta completa del local. Navegación pegajosa por categorías; en móvil cada categoría se pliega para que la página no se haga interminable. |
@@ -61,7 +61,8 @@ cambiar un texto, subir un afiche o publicar un show.
   que los socios eligieron y todavía no se aplicaron.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
-- **Ajustes**: identidad, portada (con video de fondo), textos de cada bloque
+- **Ajustes**: identidad, portada (imagen horizontal, imagen vertical para el
+  teléfono y video de fondo), textos de cada bloque
   del inicio, nosotros, contacto, SEO, redes, horarios y precio, datos de
   transferencia e instrucciones de retiro de la tarjeta física.
 - **Usuarios**: administradores, editores y equipo de sala.

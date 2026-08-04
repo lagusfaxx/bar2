@@ -16,6 +16,7 @@ type HeroProps = {
     heroEyebrow: string | null;
     heroSubtitle: string | null;
     heroImageUrl: string | null;
+    heroImageMobileUrl: string | null;
     heroVideoUrl: string | null;
     heroVideoPosterUrl: string | null;
     heroCtaLabel: string | null;
@@ -33,10 +34,12 @@ const DEMO_HERO_PORTRAIT = "/demo/hero-mobile.jpg";
 export function Hero({ settings, nextEvent }: HeroProps) {
   const background = settings.heroImageUrl ?? DEMO_HERO;
 
-  // Solo la portada que viene con el proyecto tiene variante vertical; una
-  // imagen subida desde el CMS se usa tal cual, reencuadrada por CSS.
+  // Variante vertical para el telefono. Si el local no subio una, se recurre a
+  // la de demostracion solo cuando tampoco cambio la horizontal; con una foto
+  // propia sin vertical se recorta la horizontal, que es lo unico que hay.
   const backgroundPortrait =
-    background === DEMO_HERO ? DEMO_HERO_PORTRAIT : null;
+    settings.heroImageMobileUrl ??
+    (background === DEMO_HERO ? DEMO_HERO_PORTRAIT : null);
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-between overflow-hidden">
@@ -49,14 +52,22 @@ export function Hero({ settings, nextEvent }: HeroProps) {
           videoPosterUrl={settings.heroVideoPosterUrl}
         />
 
-        {/* Capas de lectura: dan contraste al texto sin apagar el fondo. */}
-        <div className="absolute inset-0 bg-ink/15" />
-        <div className="absolute inset-0 bg-gradient-to-b from-ink/80 via-transparent to-ink" />
+        {/*
+          Capas de lectura: dan contraste al texto sin apagar el fondo.
+
+          Se mantienen fuertes arriba y abajo —donde van el logotipo y el
+          proximo show— y se aligeran en el centro, que es donde se ve la foto.
+          Antes el velo plano dejaba negra cualquier imagen de bar, que por
+          definicion es una foto oscura.
+        */}
+        <div className="absolute inset-0 bg-gradient-to-b from-ink/75 via-ink/10 to-ink" />
         <div
           className="absolute inset-0"
           style={{
             background:
-              "radial-gradient(75% 60% at 50% 45%, transparent 30%, rgba(8,7,10,0.7) 100%)",
+              // Viñeta suave. Con 0.7 en los bordes, sumada al degradado
+              // vertical, no quedaba foto que sobreviviera.
+              "radial-gradient(80% 65% at 50% 45%, transparent 45%, rgba(8,7,10,0.45) 100%)",
           }}
         />
       </div>
