@@ -17,10 +17,13 @@ const nextConfig: NextConfig = {
     // donde ganar. Ese trabajo lo paga el servidor la primera vez que alguien
     // pide cada tamaño, mientras la pagina espera.
     formats: ["image/webp"],
-    // Menos escalones = menos variantes distintas que codificar y cachear.
-    // Cubren desde un telefono chico hasta una pantalla grande.
-    deviceSizes: [360, 640, 828, 1080, 1600, 1920],
-    imageSizes: [64, 128, 256, 384],
+    // Escalera fina a proposito. Cada escalon que falta empuja al navegador al
+    // siguiente hacia arriba: sin el de 1200, un telefono de 390 puntos con
+    // pantalla x3 —que pide 1170— termina bajando el de 1600, un 60% mas de
+    // datos en la imagen mas grande de la pagina. Codificar de mas es barato
+    // ahora que no hay AVIF; bajar de mas lo paga el cliente en cada visita.
+    deviceSizes: [360, 480, 640, 828, 1080, 1200, 1600, 1920, 2560],
+    imageSizes: [64, 96, 128, 200, 256, 384, 512],
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
