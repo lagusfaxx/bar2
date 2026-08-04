@@ -25,6 +25,9 @@ export const westernFont = Rye({
   variable: "--font-western",
   display: "swap",
   weight: "400",
+  // Decorativa y de uso puntual: no merece estar en la cola de la primera
+  // pintura. Se descarga cuando alguna regla la pide de verdad.
+  preload: false,
 });
 
 export const fontVariables = `${displayFont.variable} ${sansFont.variable} ${westernFont.variable}`;
