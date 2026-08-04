@@ -9,9 +9,18 @@ const nextConfig: NextConfig = {
 
   images: {
     // Los archivos subidos desde el CMS se sirven por /uploads/*
-    formats: ["image/avif", "image/webp"],
-    deviceSizes: [360, 480, 640, 828, 1080, 1200, 1600, 1920, 2560],
-    imageSizes: [64, 96, 128, 200, 256, 384, 512],
+    //
+    // Solo WebP, sin AVIF. Medido con sharp sobre una imagen de 2400px como
+    // las que guarda el CMS: a 1920px, AVIF tarda 2792 ms y pesa 11 KB;
+    // WebP tarda 185 ms y pesa 10 KB. Quince veces mas de CPU por un archivo
+    // que no es mas chico — y el origen ya es WebP, asi que AVIF no tiene de
+    // donde ganar. Ese trabajo lo paga el servidor la primera vez que alguien
+    // pide cada tamaño, mientras la pagina espera.
+    formats: ["image/webp"],
+    // Menos escalones = menos variantes distintas que codificar y cachear.
+    // Cubren desde un telefono chico hasta una pantalla grande.
+    deviceSizes: [360, 640, 828, 1080, 1600, 1920],
+    imageSizes: [64, 128, 256, 384],
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
 
