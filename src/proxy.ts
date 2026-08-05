@@ -63,8 +63,29 @@ function edgeCacheControl() {
     : "public, max-age=0, s-maxage=60, stale-while-revalidate=600";
 }
 
+/**
+ * Forma de un identificador de Server Action en Next 16: 42 caracteres
+ * hexadecimales (`SERVER_REFERENCE_ID_LENGTH`). Los rastreadores automaticos
+ * mandan POST con `Next-Action: x` y cada uno deja un error en el log
+ * ("The Server Reference ID did not match the expected format"). Se descartan
+ * aca, antes de llegar al manejador de acciones.
+ */
+const SERVER_ACTION_ID = /^[0-9a-f]{42}$/;
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
+
+  const actionId = request.headers.get("next-action");
+  if (actionId !== null && !SERVER_ACTION_ID.test(actionId)) {
+    return new NextResponse("Bad Request", { status: 400 });
+  }
+
+  // Clientes que piden /favicon.ico sin mirar el <head> (scrapers, lectores de
+  // RSS, WhatsApp). Ya no existe app/favicon.ico —tapaba al favicon cargado
+  // desde el panel—, asi que se los manda al icono vigente.
+  if (pathname === "/favicon.ico") {
+    return NextResponse.rewrite(new URL("/icon", request.url));
+  }
 
   if (isCacheable(pathname)) {
     const response = NextResponse.next();
@@ -102,20 +123,13 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+/**
+ * Corre en todo el sitio menos los estaticos y las imagenes cargadas.
+ *
+ * Antes solo se listaban las rutas con redireccion o cabecera de cache, pero el
+ * filtro de `Next-Action` tiene que ver cualquier POST: los rastreadores prueban
+ * con la ruta que se les ocurra, no solo con las publicas.
+ */
 export const config = {
-  matcher: [
-    "/admin/:path*",
-    "/staff/:path*",
-    "/barzucard/tarjeta/:path*",
-    // Publicas: solo para ponerles la cabecera de cache (ver arriba).
-    "/",
-    "/eventos",
-    "/eventos/:slug",
-    "/carta",
-    "/nosotros",
-    "/galeria",
-    "/ubicacion",
-    "/contacto",
-    "/legales",
-  ],
+  matcher: ["/((?!_next/static|_next/image|uploads/).*)"],
 };

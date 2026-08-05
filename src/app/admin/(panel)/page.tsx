@@ -10,7 +10,7 @@ import {
 import Link from "next/link";
 
 import { listAudit } from "@/app/actions/admin/audit";
-import { isEdgePurgeConfigured } from "@/lib/cloudflare";
+import { getEdgePurgeError, isEdgePurgeConfigured } from "@/lib/cloudflare";
 import { AdminHeader, EmptyState, Panel, StatCard } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/section";
@@ -62,6 +62,7 @@ const TAREAS = [
 export default async function AdminDashboard() {
   const now = new Date();
   const purgaConfigurada = isEdgePurgeConfigured();
+  const purgaFallida = purgaConfigurada ? getEdgePurgeError() : null;
 
   const [
     upcomingCount,
@@ -134,6 +135,18 @@ export default async function AdminDashboard() {
           <strong className="text-bone-dim">un minuto</strong> en verse en la
           web. Es normal. Se puede dejar en cero configurando la purga de
           Cloudflare (ver el README).
+        </p>
+      )}
+
+      {/* La purga esta configurada pero Cloudflare la rechaza. Es el peor caso
+          de los tres: el proxy alarga la copia del borde a una hora confiando
+          en una purga que no ocurre, y sin este aviso el unico rastro esta en
+          los logs del servidor. */}
+      {purgaFallida && (
+        <p className="mb-6 border border-crimson/40 bg-crimson-deep/10 px-4 py-3 text-sm text-bone-dim">
+          Cloudflare está rechazando la purga del caché, así que los cambios
+          pueden tardar hasta una hora en verse en la web.{" "}
+          <span className="text-muted">{purgaFallida.detail}</span>
         </p>
       )}
 

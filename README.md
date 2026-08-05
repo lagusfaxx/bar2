@@ -667,6 +667,20 @@ Para que los cambios del panel se sigan viendo al instante, configura
 caché sola. El token se crea en **My Profile → API Tokens** con el permiso
 *Zone → Cache Purge → Purge*.
 
+Si en los logs aparece `No se pudo purgar el caché de Cloudflare: HTTP 401`,
+el token no sirve y el panel lo avisa en su pantalla de inicio. Las causas
+habituales, en orden:
+
+- se cargó la **clave global de API** en vez de un token creado en *API
+  Tokens* (la app manda el valor como `Bearer`, formato que la clave global no
+  acepta);
+- el token no tiene el permiso *Zone → Cache Purge → Purge*, o no incluye la
+  zona de `CLOUDFLARE_ZONE_ID` entre sus *Zone Resources*;
+- el token fue revocado o venció.
+
+Mientras esté rechazado, el borde sigue guardando una hora: los cambios del
+panel tardan eso en verse, aunque la app los sirva frescos.
+
 Sin esas variables el sitio funciona igual: la app se da cuenta de que no
 puede purgar y acorta la copia del borde a un minuto, de modo que un cambio
 del panel tarda como mucho ese minuto en verse. Se pierde algo de caché a

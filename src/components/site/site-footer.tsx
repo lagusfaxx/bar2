@@ -1,10 +1,10 @@
-import { Mail, MapPin, Phone } from "lucide-react";
+import { ChevronDown, Mail, MapPin, Phone } from "lucide-react";
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
 import { LOYALTY_LINKS, NAV_LINKS } from "@/components/site/nav-links";
 import { SocialIcon } from "@/components/site/social-icon";
-import { WEEKDAY_LABELS } from "@/lib/format";
+import { groupOpeningHours } from "@/lib/format";
 import type { getOpeningHours, getSettings, getSocialLinks } from "@/lib/content";
 
 type FooterProps = {
@@ -13,18 +13,53 @@ type FooterProps = {
   hours: Awaited<ReturnType<typeof getOpeningHours>>;
 };
 
+/** La semana, una fila por tramo. Se usa dos veces: plegada y abierta. */
+function Schedule({
+  days,
+}: {
+  days: ReturnType<typeof groupOpeningHours>;
+}) {
+  return (
+    <dl className="flex flex-col gap-2 text-sm">
+      {days.map((day) => (
+        <div
+          key={day.key}
+          className="flex items-baseline justify-between gap-4 border-b border-line/60 pb-2"
+        >
+          <dt className="text-muted">
+            {day.label}
+            {day.note && (
+              <span className="block text-xs text-muted-dark">{day.note}</span>
+            )}
+          </dt>
+          <dd
+            className={
+              day.closed ? "text-muted-dark" : "text-bone-dim tabular-nums"
+            }
+          >
+            {day.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
 export function SiteFooter({ settings, social, hours }: FooterProps) {
   const year = new Date().getFullYear();
+  // En el telefono el pie era una columna de casi dos pantallas: siete filas
+  // de horario, diez enlaces uno bajo otro y todo el contacto debajo.
+  const schedule = groupOpeningHours(hours);
   const mapsQuery = encodeURIComponent(
     `${settings.address}, ${settings.addressCity}`,
   );
 
   return (
     <footer className="relative border-t border-line bg-ink-soft">
-      <div className="container-bz py-16 sm:py-20">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-8">
+      <div className="container-bz py-12 sm:py-16 lg:py-20">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-10 sm:gap-y-12 lg:grid-cols-12 lg:gap-8">
           {/* Identidad */}
-          <div className="lg:col-span-4">
+          <div className="col-span-2 lg:col-span-4">
             <Link href="/" aria-label={`${settings.barName} — inicio`}>
               <Logo
                 src={settings.logoUrl}
@@ -98,7 +133,7 @@ export function SiteFooter({ settings, social, hours }: FooterProps) {
           )}
 
           {/* Contacto */}
-          <div className="lg:col-span-4">
+          <div className="col-span-2 lg:col-span-4">
             <h2 className="eyebrow mb-5 text-bone">Dónde encontrarnos</h2>
 
             <ul className="flex flex-col gap-4 text-sm text-muted">
@@ -144,35 +179,53 @@ export function SiteFooter({ settings, social, hours }: FooterProps) {
               )}
             </ul>
 
-            {hours.length > 0 && (
+            {schedule.length > 0 && (
               <>
-                <h2 className="eyebrow mt-8 mb-4 text-bone">Horarios</h2>
-                <dl className="flex flex-col gap-2 text-sm">
-                  {hours.map((hour) => (
-                    <div
-                      key={hour.id}
-                      className="flex items-baseline justify-between gap-4 border-b border-line/60 pb-2"
-                    >
-                      <dt className="text-muted">
-                        {WEEKDAY_LABELS[hour.dayOfWeek]}
-                      </dt>
-                      <dd className="text-bone-dim tabular-nums">
-                        {hour.closed
-                          ? "Cerrado"
-                          : `${hour.opensAt ?? ""} – ${hour.closesAt ?? ""}`}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
+                {/* Telefono: plegado. La semana entera son siete filas —mas las
+                    notas de cada dia— y era el bloque que estiraba el pie sin
+                    que nadie lo estuviera buscando. Queda a un toque. */}
+                <details className="group mt-8 border-t border-line pt-6 sm:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 [&::-webkit-details-marker]:hidden">
+                    <span className="eyebrow text-bone">Horarios</span>
+                    <ChevronDown
+                      className="size-4 shrink-0 text-crimson transition-transform duration-300 group-open:rotate-180"
+                      aria-hidden
+                    />
+                  </summary>
+                  <div className="mt-5">
+                    <Schedule days={schedule} />
+                  </div>
+                </details>
+
+                {/* De tablet para arriba el pie va en columnas y el espacio
+                    sobra: no hay nada que plegar. */}
+                <div className="hidden sm:block">
+                  <h2 className="eyebrow mt-8 mb-4 text-bone">Horarios</h2>
+                  <Schedule days={schedule} />
+                </div>
               </>
             )}
           </div>
         </div>
 
-        <div className="mt-14 flex flex-col gap-4 border-t border-line pt-8 text-xs text-muted-dark sm:flex-row sm:items-center sm:justify-between">
-          <p>
-            © {year} {settings.barName}. Todos los derechos reservados.
-          </p>
+        <div className="mt-12 flex flex-col gap-5 border-t border-line pt-8 text-xs text-muted-dark sm:mt-16 sm:flex-row sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2">
+            <p>
+              © {year} {settings.barName}. Todos los derechos reservados.
+            </p>
+            <p>
+              Desarrollada y creada por{" "}
+              <a
+                href="https://wa.me/56944369218"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-bone-dim underline-offset-4 transition-colors hover:text-crimson-bright hover:underline"
+              >
+                Andes Technologies
+              </a>
+            </p>
+          </div>
+
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
             <Link href="/legales" className="transition-colors hover:text-bone-dim">
               Términos y privacidad

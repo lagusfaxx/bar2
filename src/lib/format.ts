@@ -158,6 +158,85 @@ export const WEEKDAY_LABELS = [
   "Sábado",
 ];
 
+/** Version corta, para donde no sobra el ancho (el pie en telefono). */
+export const WEEKDAY_SHORT = [
+  "Dom",
+  "Lun",
+  "Mar",
+  "Mié",
+  "Jue",
+  "Vie",
+  "Sáb",
+];
+
+type OpeningHourLike = {
+  dayOfWeek: number;
+  opensAt: string | null;
+  closesAt: string | null;
+  closed: boolean;
+  note: string | null;
+};
+
+/** Posicion del dia en una semana que empieza el lunes. */
+const weekPosition = (dayOfWeek: number) => (dayOfWeek + 6) % 7;
+
+/**
+ * Agrupa los días seguidos que abren a la misma hora.
+ *
+ * Siete filas de horario son media pantalla de teléfono en el pie, y casi
+ * siempre repiten el mismo valor: "Mar – Jue 19:00 – 02:00" dice lo mismo en
+ * un tercio del espacio. Los días con nota propia ("cocina hasta la 01:00") no
+ * se agrupan: la nota es de ese día y perderla cambiaría el sentido.
+ */
+export function groupOpeningHours(hours: OpeningHourLike[]) {
+  const ordered = [...hours].sort(
+    (a, b) => weekPosition(a.dayOfWeek) - weekPosition(b.dayOfWeek),
+  );
+
+  const groups: Array<{
+    firstDay: number;
+    lastDay: number;
+    value: string;
+    closed: boolean;
+    note: string | null;
+  }> = [];
+
+  for (const hour of ordered) {
+    const value = hour.closed
+      ? "Cerrado"
+      : `${hour.opensAt ?? ""} – ${hour.closesAt ?? ""}`;
+
+    const previous = groups.at(-1);
+    const consecutive =
+      previous &&
+      weekPosition(hour.dayOfWeek) === weekPosition(previous.lastDay) + 1;
+
+    if (previous && consecutive && previous.value === value && !previous.note && !hour.note) {
+      previous.lastDay = hour.dayOfWeek;
+      continue;
+    }
+
+    groups.push({
+      firstDay: hour.dayOfWeek,
+      lastDay: hour.dayOfWeek,
+      value,
+      closed: hour.closed,
+      note: hour.note,
+    });
+  }
+
+  return groups.map((group) => ({
+    key: `${group.firstDay}-${group.lastDay}`,
+    label:
+      group.firstDay === group.lastDay
+        ? WEEKDAY_LABELS[group.firstDay]
+        : `${WEEKDAY_SHORT[group.firstDay]} – ${WEEKDAY_SHORT[group.lastDay]}`,
+    value: group.value,
+    closed: group.closed,
+    note: group.note,
+  }));
+}
+
 /** Texto corto del beneficio, según el tipo de promoción. */
 export function promotionValueLabel(type: string, value: number) {
   switch (type) {
