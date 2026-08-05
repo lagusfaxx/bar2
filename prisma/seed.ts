@@ -158,7 +158,7 @@ const SETTINGS = {
   heroTitle: "BARZUO",
   heroEyebrow: "EST. 2024",
   heroSubtitle:
-    "Música en vivo, tributos y coctelería de autor en el corazón de Santiago. Abrimos cuando cae el sol y cerramos cuando se apaga la última canción.",
+    "Música en vivo, tributos y cervezas bien frías en el corazón de Santiago. Abrimos cuando cae el sol y cerramos cuando se apaga la última canción.",
   heroCtaLabel: "Ver cartelera",
   heroCtaHref: "/eventos",
   heroCtaSecondaryLabel: "Ver la carta",
@@ -169,7 +169,7 @@ const SETTINGS = {
     "Música en vivo",
     "Tributos",
     "DJ sets",
-    "Coctelería de autor",
+    "Cervezas de barril",
     "Cocina de bar",
     "Karaoke",
     "After office",
@@ -182,7 +182,7 @@ const SETTINGS = {
   homeMenuEyebrow: "La carta",
   homeMenuTitle: "Para acompañar la noche",
   homeMenuLead:
-    "Coctelería de autor, cervezas de barril y cocina pensada para compartir.",
+    "Cervezas de barril, cocina de bar y mesas pensadas para compartir.",
   homeLoyaltyTitle: "Tu tarjeta de beneficios",
   homeGalleryEyebrow: "Galería",
   homeGalleryTitle: "Noches que quedan",
@@ -195,9 +195,9 @@ const SETTINGS = {
     "BARZUO nació en 2024 con una idea simple: que en Santiago hubiera un lugar donde la música en vivo no fuera el fondo, sino el motivo.",
   aboutBody: `Empezamos con un escenario chico, dos parlantes prestados y una banda de amigos tocando covers un jueves de invierno. No entró casi nadie. La semana siguiente entraron veinte personas, y a la otra no quedaba mesa libre.
 
-Hoy BARZUO es tres cosas a la vez: un restobar donde se come bien antes del show, un club donde suenan los tributos que la gente se sabe de memoria, y un lounge donde la noche puede terminar tranquila, con un buen destilado y la conversación justa.
+Hoy BARZUO es tres cosas a la vez: un restobar donde se come bien antes del show, un club donde suenan los tributos que la gente se sabe de memoria, y un lounge donde la noche puede terminar tranquila, con una buena cerveza y la conversación justa.
 
-Nuestra cocina trabaja con producto local y nuestra barra apuesta a la coctelería de autor: tragos pensados para acompañar una noche larga, no para lucirse en una foto. El resto lo pone la gente que viene, canta y se queda hasta que se prenden las luces.`,
+Nuestra cocina trabaja con producto local y nuestra barra apuesta a la cerveza bien servida: barril frío y etiquetas elegidas para acompañar una noche larga, no para lucirse en una foto. El resto lo pone la gente que viene, canta y se queda hasta que se prenden las luces.`,
   aboutImageUrl: "/demo/about-1.jpg",
   aboutSecondaryImageUrl: "/demo/about-2.jpg",
 
@@ -212,14 +212,14 @@ Nuestra cocina trabaja con producto local y nuestra barra apuesta a la cocteler�
   reservationsNote:
     "Reservamos mesas hasta 30 minutos antes del show. Para grupos de más de 8 personas, escríbenos por WhatsApp.",
   footerNote:
-    "Restobar, lounge y club en Santiago. Shows en vivo, tributos y coctelería de autor todas las semanas.",
+    "Restobar, lounge y club en Santiago. Shows en vivo, tributos y cerveza de barril todas las semanas.",
 
-  seoTitle: "BARZUO Restobar · Música en vivo, tributos y coctelería",
+  seoTitle: "BARZUO Restobar · Música en vivo, tributos y cerveza",
   seoDescription:
-    "Cartelera de shows en vivo, tributos y DJ sets en Santiago. Coctelería de autor, cocina de bar y las mejores noches de la semana en BARZUO.",
+    "Cartelera de shows en vivo, tributos y DJ sets en Santiago. Cervezas de barril, cocina de bar y las mejores noches de la semana en BARZUO.",
   seoImageUrl: "/demo/og-default.jpg",
   seoKeywords:
-    "bar santiago, música en vivo santiago, tributos, restobar, coctelería, shows en vivo, barzuo",
+    "bar santiago, música en vivo santiago, tributos, restobar, cervecería, shows en vivo, barzuo",
 
   loyaltyEnabled: true,
   loyaltyTitle: "BarzuCard",
@@ -422,15 +422,15 @@ Entrada libre hasta las 23:00; después, consumo mínimo.`,
     capacity: 250,
   },
   {
-    slug: "noche-de-blues-y-whisky",
-    title: "Noche de Blues & Whisky",
+    slug: "noche-de-blues-y-barril",
+    title: "Noche de Blues & Barril",
     artist: "Delta Sur",
     category: "EN_VIVO",
     excerpt:
-      "Blues eléctrico en formato trío y una selección de whiskys por copa para acompañar.",
+      "Blues eléctrico en formato trío y una selección de cervezas de barril para acompañar.",
     description: `Delta Sur toca blues eléctrico de Chicago con la crudeza que corresponde: guitarra, bajo y batería, sin arreglos de más.
 
-Durante el show, la barra ofrece una selección de whiskys por copa con precio especial.
+Durante el show, la barra ofrece una selección de cervezas de barril con precio especial.
 
 Show en dos sets de 45 minutos.`,
     poster: 8,
@@ -466,7 +466,7 @@ Este show suele agotar entradas: conviene comprar anticipada.`,
     category: "FIESTA",
     excerpt:
       "Salida del trabajo directo al bar: tapas, cervezas a precio de happy hour y música hasta la medianoche.",
-    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, cervezas y tragos clásicos a precio de happy hour, y el DJ residente en formato lounge.
+    description: `Todos los viernes de 18:00 a 21:00, el after office de BARZUO: tabla de tapas para compartir, cervezas de barril y schop a precio de happy hour, y el DJ residente en formato lounge.
 
 Sin entrada. Se recomienda reservar mesa si vienen en grupo.`,
     poster: 10,
@@ -1107,7 +1107,7 @@ const GALLERY = [
   { file: 1, alt: "Público durante un show en vivo en BARZUO", caption: "Sábado de tributo", tag: "shows", featured: true },
   { file: 2, alt: "Barra de BARZUO iluminada de noche", caption: "La barra", tag: "ambiente", featured: true },
   { file: 3, alt: "Banda tocando sobre el escenario principal", caption: "Escenario principal", tag: "shows", featured: true },
-  { file: 4, alt: "Coctel de autor servido en la barra", caption: "Coctelería de autor", tag: "barra", featured: true },
+  { file: 4, alt: "Schop de cerveza recién servido en la barra", caption: "Cerveza de barril", tag: "barra", featured: true },
   { file: 5, alt: "Vista general del salón con mesas ocupadas", caption: "Salón principal", tag: "ambiente", featured: true },
   { file: 6, alt: "Guitarrista durante un solo", caption: "Noche de blues", tag: "shows", featured: true },
   { file: 7, alt: "Tabla de fiambres y quesos para compartir", caption: "Para compartir", tag: "cocina" },
@@ -1149,9 +1149,9 @@ const PROMOTIONS: Array<{
     pointsReward: 20,
   },
   {
-    slug: "20-off-en-cocteleria",
-    title: "20% off en coctelería de autor",
-    description: "Descuento sobre toda la carta de cocteles de autor.",
+    slug: "20-off-en-cervezas",
+    title: "20% off en cervezas",
+    description: "Descuento sobre toda la carta de cervezas de barril y botella.",
     terms:
       "Válido todos los días. Un uso por tarjeta. No aplica sobre promociones vigentes.",
     type: "PERCENT_OFF",
@@ -1163,7 +1163,7 @@ const PROMOTIONS: Array<{
   {
     slug: "tabla-barzuo-bonificada",
     title: "Tabla BARZUO de cortesía",
-    description: "Una tabla para compartir sin cargo con el consumo de cuatro tragos.",
+    description: "Una tabla para compartir sin cargo con el consumo de cuatro cervezas.",
     terms:
       "Requiere BarzuCard Plata. Un uso por tarjeta. Sujeto a disponibilidad de cocina.",
     type: "FREE_ITEM",
@@ -1199,8 +1199,8 @@ const PROMOTIONS: Array<{
   },
   {
     slug: "noche-oro",
-    title: "Whisky de autor bonificado",
-    description: "Una copa de single malt 12 años de cortesía para socios Oro.",
+    title: "Cerveza de autor bonificada",
+    description: "Un schop de cerveza artesanal de cortesía para socios Oro.",
     terms: "Exclusivo BarzuCard Oro. Un uso por mes. Sujeto a stock.",
     type: "FREE_ITEM",
     value: 0,

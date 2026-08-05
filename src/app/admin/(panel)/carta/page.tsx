@@ -52,7 +52,7 @@ export default async function AdminCartaPage() {
       {categories.length === 0 ? (
         <EmptyState
           title="La carta está vacía"
-          description="Crea la primera categoría (por ejemplo, Coctelería) y después carga sus productos."
+          description="Crea la primera categoría (por ejemplo, Cervezas) y después carga sus productos."
           action={
             <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
               <Plus className="size-4" aria-hidden />

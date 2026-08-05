@@ -1,4 +1,4 @@
-import { Disc3, Martini, Music4, Users } from "lucide-react";
+import { Beer, Disc3, Music4, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 
@@ -36,9 +36,9 @@ const PILLARS = [
     text: "Bandas y tributos todas las semanas, con sonido e iluminación de sala propios.",
   },
   {
-    icon: Martini,
-    title: "Coctelería de autor",
-    text: "Una barra que trabaja con producto fresco y recetas propias, sin atajos.",
+    icon: Beer,
+    title: "Cervezas bien tiradas",
+    text: "Barril siempre frío y una selección de etiquetas que cambia con la temporada.",
   },
   {
     icon: Disc3,
