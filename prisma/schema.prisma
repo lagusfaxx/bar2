@@ -739,6 +739,19 @@ enum PrepStatus {
 }
 
 /**
+ * Que papel es.
+ *
+ * COMANDA es lo que se prepara —sale hacia la barra o hacia la cocina— y se
+ * mueve por las pantallas de esas estaciones. COBRO es el resumen de lo que
+ * pago un cliente: sale por la impresora de caja y no lo prepara nadie, asi
+ * que no aparece en ninguna pantalla de estacion.
+ */
+enum TicketKind {
+  COMANDA
+  COBRO
+}
+
+/**
  * Una comanda: lo que sale por una impresora.
  * Se guarda en la base y queda PENDING hasta que el agente de impresion del
  * local la retira. Asi un corte de red o una impresora sin papel no pierde el
@@ -750,8 +763,17 @@ model OrderTicket {
   session   TableSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   // Correlativo del dia, el numero que se canta: "comanda 42".
-  number  Int
-  station Station
+  number Int
+
+  kind TicketKind @default(COMANDA)
+
+  // Solo las comandas tienen estacion; el resumen de cobro no va a preparar
+  // nadie, asi que va vacio.
+  station Station?
+
+  // Lleno solo en las de tipo COBRO: el pago que resume.
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   /** Impresion: la cola que atiende el agente del local. */
   status    TicketStatus @default(PENDING)
@@ -773,8 +795,9 @@ model OrderTicket {
   items OrderItem[]
 
   @@index([status, createdAt])
-  @@index([station, prep])
+  @@index([kind, station, prep])
   @@index([sessionId])
+  @@index([paymentId])
   @@map("pos_order_tickets")
 }
 
@@ -819,7 +842,8 @@ model Payment {
 
   paidAt DateTime @default(now())
 
-  items OrderItem[]
+  items   OrderItem[]
+  tickets OrderTicket[]
 
   @@index([sessionId])
   @@index([paidAt])

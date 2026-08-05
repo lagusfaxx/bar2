@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import type { Prisma } from "@/generated/prisma/client";
 import type { Station } from "@/generated/prisma/enums";
 import { requireStaff } from "@/lib/auth";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
@@ -360,6 +361,26 @@ export async function cancelItem(itemId: string): Promise<FormState> {
  * Se arma una comanda por estacion: la cocina no necesita saber que se pidio
  * un gin tonic. Quedan en cola (PENDING) y el agente del local las retira.
  */
+/**
+ * Correlativo del dia: el numero que se canta en la cocina.
+ *
+ * Lo comparten las comandas de preparacion y los resumenes de cobro, para que
+ * los papeles que salen por la impresora lleven una unica numeracion y se
+ * puedan buscar despues sin ambiguedad.
+ */
+async function siguienteNumero(tx: Prisma.TransactionClient) {
+  const inicioDelDia = new Date();
+  inicioDelDia.setHours(0, 0, 0, 0);
+
+  const ultima = await tx.orderTicket.findFirst({
+    where: { createdAt: { gte: inicioDelDia } },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
+
+  return (ultima?.number ?? 0) + 1;
+}
+
 export async function sendOrder(sessionId: string): Promise<FormState> {
   const user = await requireStaff();
 
@@ -384,17 +405,7 @@ export async function sendOrder(sessionId: string): Promise<FormState> {
   }
 
   const creadas = await prisma.$transaction(async (tx) => {
-    // Correlativo del dia: el numero que se canta en la cocina.
-    const inicioDelDia = new Date();
-    inicioDelDia.setHours(0, 0, 0, 0);
-
-    const ultima = await tx.orderTicket.findFirst({
-      where: { createdAt: { gte: inicioDelDia } },
-      orderBy: { number: "desc" },
-      select: { number: true },
-    });
-
-    let numero = (ultima?.number ?? 0) + 1;
+    let numero = await siguienteNumero(tx);
     const resultado: Array<{ station: Station; number: number }> = [];
 
     for (const [station, itemIds] of porEstacion) {
@@ -587,6 +598,25 @@ export async function payAccount(
     await tx.orderItem.updateMany({
       where: { id: { in: items.map((item) => item.id) } },
       data: { paymentId: payment.id },
+    });
+
+    /*
+     * El resumen del cobro tambien se imprime.
+     *
+     * Va por la misma cola que las comandas —y por lo tanto sobrevive a un
+     * corte de red o a una impresora sin papel—, pero sin estacion: no lo
+     * prepara nadie, asi que no aparece en las pantallas de barra ni de
+     * cocina. Lo que lleva impreso sale de `paymentId`, no de las lineas: al
+     * terminar esta transaccion los productos ya quedaron asociados al pago.
+     */
+    await tx.orderTicket.create({
+      data: {
+        sessionId,
+        number: await siguienteNumero(tx),
+        kind: "COBRO",
+        paymentId: payment.id,
+        createdById: user.userId,
+      },
     });
 
     if (cardId && puntos > 0) {

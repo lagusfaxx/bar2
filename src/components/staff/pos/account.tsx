@@ -128,7 +128,7 @@ export function Account({
   return (
     <>
       <header className="shrink-0 border-b border-line bg-ink pt-safe">
-        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3 lg:max-w-none">
           <Link
             href="/staff/pos"
             aria-label="Volver a la sala"
@@ -165,398 +165,440 @@ export function Account({
         </div>
       </header>
 
-      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4">
-        {feedback.message && (
-          <p
-            role="status"
-            className={[
-              "mb-4 border px-4 py-2 text-sm",
-              feedback.status === "error"
-                ? "border-crimson/40 bg-crimson/10 text-crimson-bright"
-                : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200",
-            ].join(" ")}
-          >
-            {feedback.message}
-          </p>
-        )}
+      {/*
+        Dos columnas en la pantalla tactil del local, una sola en el telefono.
 
-        {/* Pestanas: solo cuando la cuenta esta dividida. Con una mesa normal
-            —que es la mayoria— serian una fila de ruido. */}
-        {session.diners.length > 0 && (
-        <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-2">
-          {session.tabs.map((candidate) => {
-            const active = candidate.dinerId === tab.dinerId;
-
-            return (
-              <button
-                key={candidate.dinerId ?? "mesa"}
-                type="button"
-                onClick={() => setActiveTab(candidate.dinerId)}
+        En un POS de mostrador la carta no deberia ser una ventana que se abre
+        y se cierra: es el gesto que mas se repite en toda la noche. Con la
+        pantalla apaisada sobra el ancho para tenerla fija a la derecha, y asi
+        el garzon ve al mismo tiempo lo que va cargando y como queda la cuenta.
+        En el telefono no cabe, y ahi se sigue abriendo a pantalla completa.
+      */}
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 flex-1 flex-col">
+          <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 pb-6 pt-4 lg:max-w-none lg:px-6">
+            {feedback.message && (
+              <p
+                role="status"
                 className={[
-                  "flex shrink-0 flex-col items-start border px-3 py-2 text-left transition-colors",
-                  active
-                    ? "border-crimson bg-crimson/12"
-                    : "border-line bg-ink-soft",
+                  "mb-4 border px-4 py-2 text-sm",
+                  feedback.status === "error"
+                    ? "border-crimson/40 bg-crimson/10 text-crimson-bright"
+                    : "border-emerald-500/40 bg-emerald-500/10 text-emerald-200",
                 ].join(" ")}
               >
-                <span className="whitespace-nowrap text-sm text-bone">
-                  {candidate.label}
-                </span>
-                <span className="text-[0.65rem] text-muted">
-                  {formatPrice(candidate.pendingCents)}
-                  {candidate.paidCents > 0 && (
-                    <span className="ml-1 text-emerald-300">
-                      · {formatPrice(candidate.paidCents)} pagado
-                    </span>
-                  )}
-                </span>
-              </button>
-            );
-          })}
-
-          {!cerrada && (
-            <button
-              type="button"
-              onClick={() => setAddingDiner(true)}
-              className="flex shrink-0 items-center gap-2 border border-dashed border-line px-3 py-2 text-sm text-muted"
-            >
-              <UserPlus className="size-4" aria-hidden />
-              Otra persona
-            </button>
-          )}
-        </div>
-        )}
-
-        {addingDiner && (
-          <DinerForm
-            sessionId={session.id}
-            onDone={(result) => {
-              setFeedback(result);
-              setAddingDiner(false);
-            }}
-            onCancel={() => setAddingDiner(false)}
-          />
-        )}
-
-        {/* Consumo de la pestana activa */}
-        <section className="mt-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-display text-lg text-bone">{tab.label}</h2>
-
-            {tab.dinerId && !cerrada && (
-              <button
-                type="button"
-                onClick={() => setRemovingDiner(tab)}
-                className="text-sm text-muted underline underline-offset-4 hover:text-crimson-bright"
-              >
-                Quitar a {tab.label}
-              </button>
-            )}
-
-            {session.diners.length === 0 && !cerrada && (
-              <button
-                type="button"
-                onClick={() => setAddingDiner(true)}
-                className="flex items-center gap-1.5 text-sm text-muted underline underline-offset-4 hover:text-bone"
-              >
-                <UserPlus className="size-4" aria-hidden />
-                Separar cuentas
-              </button>
-            )}
-          </div>
-
-          {tab.items.length === 0 ? (
-            /* Una mesa vacia no es un error: es el momento de tomar el
-               pedido. En vez de informar el vacio, se ofrece la salida. */
-            <div className="mt-3 border border-line bg-ink-soft p-5 text-center">
-              <p className="text-sm text-muted">
-                Todavía no hay nada cargado en esta cuenta.
+                {feedback.message}
               </p>
+            )}
+
+            {/* Pestanas: solo cuando la cuenta esta dividida. Con una mesa normal
+                —que es la mayoria— serian una fila de ruido. */}
+            {session.diners.length > 0 && (
+            <div className="no-scrollbar -mx-4 flex gap-2 overflow-x-auto overscroll-x-contain px-4 pb-2">
+              {session.tabs.map((candidate) => {
+                const active = candidate.dinerId === tab.dinerId;
+
+                return (
+                  <button
+                    key={candidate.dinerId ?? "mesa"}
+                    type="button"
+                    onClick={() => setActiveTab(candidate.dinerId)}
+                    className={[
+                      "flex shrink-0 flex-col items-start border px-3 py-2 text-left transition-colors",
+                      active
+                        ? "border-crimson bg-crimson/12"
+                        : "border-line bg-ink-soft",
+                    ].join(" ")}
+                  >
+                    <span className="whitespace-nowrap text-sm text-bone">
+                      {candidate.label}
+                    </span>
+                    <span className="text-[0.65rem] text-muted">
+                      {formatPrice(candidate.pendingCents)}
+                      {candidate.paidCents > 0 && (
+                        <span className="ml-1 text-emerald-300">
+                          · {formatPrice(candidate.paidCents)} pagado
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                );
+              })}
+
               {!cerrada && (
                 <button
                   type="button"
-                  onClick={() => setPicker(true)}
-                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone"
+                  onClick={() => setAddingDiner(true)}
+                  className="flex shrink-0 items-center gap-2 border border-dashed border-line px-3 py-2 text-sm text-muted"
                 >
-                  <Plus className="size-4" aria-hidden />
-                  Agregar productos
+                  <UserPlus className="size-4" aria-hidden />
+                  Otra persona
                 </button>
               )}
             </div>
-          ) : (
-            <ul className="mt-3 flex flex-col gap-2">
-              {tab.items.map((item) => (
-                <li
-                  key={item.id}
-                  className={[
-                    "border px-3 py-2.5",
-                    item.paid
-                      ? "border-line/60 bg-ink-soft/40 opacity-70"
-                      : "border-line bg-ink-soft",
-                  ].join(" ")}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-bone">
-                        <span className="text-muted">{item.quantity}×</span>{" "}
-                        {item.name}
-                      </p>
+            )}
 
-                      <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
-                        <span className="text-muted">
-                          {item.station === "BARRA" ? "Barra" : "Cocina"}
+            {addingDiner && (
+              <DinerForm
+                sessionId={session.id}
+                onDone={(result) => {
+                  setFeedback(result);
+                  setAddingDiner(false);
+                }}
+                onCancel={() => setAddingDiner(false)}
+              />
+            )}
+
+            {/* Consumo de la pestana activa */}
+            <section className="mt-4">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 className="font-display text-lg text-bone">{tab.label}</h2>
+
+                {tab.dinerId && !cerrada && (
+                  <button
+                    type="button"
+                    onClick={() => setRemovingDiner(tab)}
+                    className="text-sm text-muted underline underline-offset-4 hover:text-crimson-bright"
+                  >
+                    Quitar a {tab.label}
+                  </button>
+                )}
+
+                {session.diners.length === 0 && !cerrada && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingDiner(true)}
+                    className="flex items-center gap-1.5 text-sm text-muted underline underline-offset-4 hover:text-bone"
+                  >
+                    <UserPlus className="size-4" aria-hidden />
+                    Separar cuentas
+                  </button>
+                )}
+              </div>
+
+              {tab.items.length === 0 ? (
+                /* Una mesa vacia no es un error: es el momento de tomar el
+                   pedido. En vez de informar el vacio, se ofrece la salida. */
+                <div className="mt-3 border border-line bg-ink-soft p-5 text-center">
+                  <p className="text-sm text-muted">
+                    Todavía no hay nada cargado en esta cuenta.
+                  </p>
+                  {/* Igual que el de la barra de acciones: en pantalla grande
+                      la carta ya esta al lado y este boton abriria una ventana
+                      que ahi no se muestra. */}
+                  {!cerrada && (
+                    <button
+                      type="button"
+                      onClick={() => setPicker(true)}
+                      className="mt-4 flex h-12 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone lg:hidden"
+                    >
+                      <Plus className="size-4" aria-hidden />
+                      Agregar productos
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {tab.items.map((item) => (
+                    <li
+                      key={item.id}
+                      className={[
+                        "border px-3 py-2.5",
+                        item.paid
+                          ? "border-line/60 bg-ink-soft/40 opacity-70"
+                          : "border-line bg-ink-soft",
+                      ].join(" ")}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-bone">
+                            <span className="text-muted">{item.quantity}×</span>{" "}
+                            {item.name}
+                          </p>
+
+                          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
+                            <span className="text-muted">
+                              {item.station === "BARRA" ? "Barra" : "Cocina"}
+                            </span>
+
+                            {/* Lo que importa de un producto es si el que lo
+                                prepara ya se entero. "Sin mandar" no lo decia. */}
+                            {item.status === "DRAFT" && (
+                              <span className="text-gilt-soft">
+                                Falta enviar a{" "}
+                                {item.station === "BARRA" ? "la barra" : "la cocina"}
+                              </span>
+                            )}
+
+                            {item.paid && (
+                              <span className="text-emerald-300">Ya pagado</span>
+                            )}
+
+                            {item.discountCents > 0 && (
+                              <span className="text-gilt-soft">
+                                {item.discountLabel}
+                              </span>
+                            )}
+                          </p>
+
+                          {item.note && (
+                            <p className="mt-1 text-xs text-bone-dim">{item.note}</p>
+                          )}
+                        </div>
+
+                        <p className="shrink-0 font-display text-bone">
+                          {formatPrice(item.totalCents)}
+                        </p>
+                      </div>
+
+                      {!item.paid && !cerrada && (
+                        <div className="mt-2 flex items-center gap-2">
+                          {item.status === "DRAFT" ? (
+                            <>
+                              <QuantityButton
+                                label="Quitar uno"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(() =>
+                                    setItemQuantity(item.id, item.quantity - 1),
+                                  )
+                                }
+                              >
+                                <Minus className="size-4" aria-hidden />
+                              </QuantityButton>
+
+                              <QuantityButton
+                                label="Agregar uno"
+                                disabled={pending}
+                                onClick={() =>
+                                  run(() =>
+                                    setItemQuantity(item.id, item.quantity + 1),
+                                  )
+                                }
+                              >
+                                <Plus className="size-4" aria-hidden />
+                              </QuantityButton>
+                            </>
+                          ) : (
+                            /* Ya salio hacia la cocina: borrarlo sin preguntar
+                               era un toque de distancia y no tiene vuelta. */
+                            <button
+                              type="button"
+                              disabled={pending}
+                              onClick={() => setCancelling(item)}
+                              className="flex h-10 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
+                            >
+                              <Ban className="size-4" aria-hidden />
+                              Anular
+                            </button>
+                          )}
+
+                          {/* La nota se puede poner tambien despues de enviarlo:
+                              mientras la cocina no lo empiece, avisar es mejor
+                              que anular y volver a pedir. */}
+                          <button
+                            type="button"
+                            onClick={() => setNoting(item)}
+                            className={[
+                              "ml-auto flex h-10 items-center gap-1.5 border px-3 text-sm",
+                              item.note
+                                ? "border-gilt/50 text-gilt-soft"
+                                : "border-line text-muted",
+                            ].join(" ")}
+                          >
+                            <MessageSquarePlus className="size-4" aria-hidden />
+                            {item.note ? "Cambiar nota" : "Agregar nota"}
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            {/*
+              Los papeles que se imprimieron en cocina y barra.
+
+              Se llamaba "Comandas" y los estados eran "Impresa", "En cola" y
+              "Falló", que describen una impresora y no lo que el garzon tiene que
+              decidir: si el pedido llego o si hay que volver a mandarlo.
+            */}
+            {session.tickets.length > 0 && (
+              <section className="mt-8">
+                <h2 className="text-sm font-medium text-bone-dim">
+                  Papeles impresos
+                </h2>
+
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {session.tickets.map((ticket) => (
+                    <li
+                      key={ticket.id}
+                      className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-3 py-2 text-sm"
+                    >
+                      {/* El resumen del cobro sale por la misma cola pero no
+                          va a ninguna estacion: se nombra por lo que es. */}
+                      <span className="text-bone-dim">
+                        {ticket.kind === "COBRO"
+                          ? "Resumen del cobro"
+                          : ticket.station === "BARRA"
+                            ? "Barra"
+                            : "Cocina"}{" "}
+                        · N°{ticket.number}
+                      </span>
+
+                      <span className="flex items-center gap-3">
+                        <span
+                          className={
+                            ticket.status === "PRINTED"
+                              ? "text-emerald-300"
+                              : ticket.status === "FAILED"
+                                ? "text-crimson-bright"
+                                : "text-gilt-soft"
+                          }
+                        >
+                          {ticket.status === "PRINTED"
+                            ? "Llegó"
+                            : ticket.status === "FAILED"
+                              ? "No llegó"
+                              : "Enviando…"}
                         </span>
 
-                        {/* Lo que importa de un producto es si el que lo
-                            prepara ya se entero. "Sin mandar" no lo decia. */}
-                        {item.status === "DRAFT" && (
-                          <span className="text-gilt-soft">
-                            Falta enviar a{" "}
-                            {item.station === "BARRA" ? "la barra" : "la cocina"}
-                          </span>
-                        )}
-
-                        {item.paid && (
-                          <span className="text-emerald-300">Ya pagado</span>
-                        )}
-
-                        {item.discountCents > 0 && (
-                          <span className="text-gilt-soft">
-                            {item.discountLabel}
-                          </span>
-                        )}
-                      </p>
-
-                      {item.note && (
-                        <p className="mt-1 text-xs text-bone-dim">{item.note}</p>
-                      )}
-                    </div>
-
-                    <p className="shrink-0 font-display text-bone">
-                      {formatPrice(item.totalCents)}
-                    </p>
-                  </div>
-
-                  {!item.paid && !cerrada && (
-                    <div className="mt-2 flex items-center gap-2">
-                      {item.status === "DRAFT" ? (
-                        <>
-                          <QuantityButton
-                            label="Quitar uno"
+                        {ticket.status !== "PENDING" && (
+                          <button
+                            type="button"
                             disabled={pending}
-                            onClick={() =>
-                              run(() =>
-                                setItemQuantity(item.id, item.quantity - 1),
-                              )
-                            }
+                            onClick={() => run(() => reprintTicket(ticket.id))}
+                            className="flex h-9 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
                           >
-                            <Minus className="size-4" aria-hidden />
-                          </QuantityButton>
+                            <RotateCw className="size-3.5" aria-hidden />
+                            Reimprimir
+                          </button>
+                        )}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
 
-                          <QuantityButton
-                            label="Agregar uno"
-                            disabled={pending}
-                            onClick={() =>
-                              run(() =>
-                                setItemQuantity(item.id, item.quantity + 1),
-                              )
-                            }
-                          >
-                            <Plus className="size-4" aria-hidden />
-                          </QuantityButton>
-                        </>
-                      ) : (
-                        /* Ya salio hacia la cocina: borrarlo sin preguntar
-                           era un toque de distancia y no tiene vuelta. */
-                        <button
-                          type="button"
-                          disabled={pending}
-                          onClick={() => setCancelling(item)}
-                          className="flex h-10 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
-                        >
-                          <Ban className="size-4" aria-hidden />
-                          Anular
-                        </button>
-                      )}
-
-                      {/* La nota se puede poner tambien despues de enviarlo:
-                          mientras la cocina no lo empiece, avisar es mejor
-                          que anular y volver a pedir. */}
-                      <button
-                        type="button"
-                        onClick={() => setNoting(item)}
-                        className={[
-                          "ml-auto flex h-10 items-center gap-1.5 border px-3 text-sm",
-                          item.note
-                            ? "border-gilt/50 text-gilt-soft"
-                            : "border-line text-muted",
-                        ].join(" ")}
-                      >
-                        <MessageSquarePlus className="size-4" aria-hidden />
-                        {item.note ? "Cambiar nota" : "Agregar nota"}
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        {/*
-          Los papeles que se imprimieron en cocina y barra.
-
-          Se llamaba "Comandas" y los estados eran "Impresa", "En cola" y
-          "Falló", que describen una impresora y no lo que el garzon tiene que
-          decidir: si el pedido llego o si hay que volver a mandarlo.
-        */}
-        {session.tickets.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-sm font-medium text-bone-dim">
-              Papeles impresos en cocina y barra
-            </h2>
-
-            <ul className="mt-2 flex flex-col gap-1.5">
-              {session.tickets.map((ticket) => (
-                <li
-                  key={ticket.id}
-                  className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-3 py-2 text-sm"
-                >
-                  <span className="text-bone-dim">
-                    {ticket.station === "BARRA" ? "Barra" : "Cocina"} · N°
-                    {ticket.number}
-                  </span>
-
-                  <span className="flex items-center gap-3">
-                    <span
-                      className={
-                        ticket.status === "PRINTED"
-                          ? "text-emerald-300"
-                          : ticket.status === "FAILED"
-                            ? "text-crimson-bright"
-                            : "text-gilt-soft"
-                      }
-                    >
-                      {ticket.status === "PRINTED"
-                        ? "Llegó"
-                        : ticket.status === "FAILED"
-                          ? "No llegó"
-                          : "Enviando…"}
-                    </span>
-
-                    {ticket.status !== "PENDING" && (
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => run(() => reprintTicket(ticket.id))}
-                        className="flex h-9 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
-                      >
-                        <RotateCw className="size-3.5" aria-hidden />
-                        Reimprimir
-                      </button>
-                    )}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            {session.tickets.some((ticket) => ticket.lastError) && (
-              <p className="mt-2 text-xs text-crimson-bright">
-                {session.tickets.find((ticket) => ticket.lastError)?.lastError}
-              </p>
+                {session.tickets.some((ticket) => ticket.lastError) && (
+                  <p className="mt-2 text-xs text-crimson-bright">
+                    {session.tickets.find((ticket) => ticket.lastError)?.lastError}
+                  </p>
+                )}
+              </section>
             )}
-          </section>
-        )}
 
-        {/* Cierre: solo cuando ya no queda nada por cobrar */}
-        {!cerrada && session.pendingCents === 0 && session.paidCents > 0 && (
-          <button
-            type="button"
-            disabled={pending}
-            onClick={() => setClosing(true)}
-            className="mt-8 h-12 w-full border border-line text-base text-muted hover:border-crimson hover:text-crimson-bright"
-          >
-            Cerrar la mesa y dejarla libre
-          </button>
-        )}
-      </main>
-
-      {/*
-        Barra de acciones: siempre bajo el pulgar, nunca flotando.
-
-        Antes habia un solo boton que cambiaba de identidad: decia "Mandar"
-        mientras hubiera algo sin enviar y "Cobrar" cuando no. Dos acciones
-        muy distintas —una avisa a la cocina, la otra recibe plata— turnandose
-        en el mismo lugar, sin decir por que. Peor todavia: al desaparecer
-        "Cobrar", el garzon no tenia forma de saber si el sistema no lo dejaba
-        cobrar o si el boton se habia movido.
-
-        Ahora cada accion tiene su lugar fijo. Cuando cobrar no corresponde,
-        el boton sigue ahi, apagado y con el motivo escrito al lado.
-      */}
-      {!cerrada && (
-        <div className="shrink-0 border-t border-line bg-ink pb-safe">
-          {hayPorEnviar && (
-            <p className="mx-auto max-w-2xl px-4 pt-3 text-sm text-gilt-soft">
-              {session.draftCount === 1
-                ? "Hay 1 producto que"
-                : `Hay ${session.draftCount} productos que`}{" "}
-              {destinoPorEnviar === "a la barra" ? "la barra" : "la cocina"}{" "}
-              todavía no {session.draftCount === 1 ? "vio" : "vieron"}. Envía
-              antes de cobrar.
-            </p>
-          )}
-
-          <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3">
-            <button
-              type="button"
-              onClick={() => setPicker(true)}
-              className="flex h-14 flex-1 items-center justify-center gap-2 border border-bone/25 text-base text-bone"
-            >
-              <Plus className="size-5" aria-hidden />
-              Agregar
-            </button>
-
-            {hayPorEnviar ? (
+            {/* Cierre: solo cuando ya no queda nada por cobrar */}
+            {!cerrada && session.pendingCents === 0 && session.paidCents > 0 && (
               <button
                 type="button"
                 disabled={pending}
-                onClick={() => run(() => sendOrder(session.id))}
-                className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
+                onClick={() => setClosing(true)}
+                className="mt-8 h-12 w-full border border-line text-base text-muted hover:border-crimson hover:text-crimson-bright"
               >
-                {pending ? (
-                  <Loader2 className="size-5 animate-spin" aria-hidden />
-                ) : (
-                  <Send className="size-5" aria-hidden />
-                )}
-                Enviar {session.draftCount} {destinoPorEnviar}
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled={session.pendingCents === 0}
-                onClick={startPayment}
-                className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-crimson text-base font-medium text-bone disabled:opacity-40"
-              >
-                <Wallet className="size-5" aria-hidden />
-                {session.pendingCents === 0
-                  ? "Todo pagado"
-                  : `Cobrar ${formatPrice(session.pendingCents)}`}
+                Cerrar la mesa y dejarla libre
               </button>
             )}
-          </div>
-        </div>
-      )}
+          </main>
 
+          {/*
+            Barra de acciones: siempre bajo el pulgar, nunca flotando.
+
+            Antes habia un solo boton que cambiaba de identidad: decia "Mandar"
+            mientras hubiera algo sin enviar y "Cobrar" cuando no. Dos acciones
+            muy distintas —una avisa a la cocina, la otra recibe plata— turnandose
+            en el mismo lugar, sin decir por que. Peor todavia: al desaparecer
+            "Cobrar", el garzon no tenia forma de saber si el sistema no lo dejaba
+            cobrar o si el boton se habia movido.
+
+            Ahora cada accion tiene su lugar fijo. Cuando cobrar no corresponde,
+            el boton sigue ahi, apagado y con el motivo escrito al lado.
+          */}
+          {!cerrada && (
+            <div className="shrink-0 border-t border-line bg-ink pb-safe">
+              {hayPorEnviar && (
+                <p className="mx-auto max-w-2xl px-4 pt-3 text-sm text-gilt-soft lg:max-w-none">
+                  {session.draftCount === 1
+                    ? "Hay 1 producto que"
+                    : `Hay ${session.draftCount} productos que`}{" "}
+                  {destinoPorEnviar === "a la barra" ? "la barra" : "la cocina"}{" "}
+                  todavía no {session.draftCount === 1 ? "vio" : "vieron"}. Envía
+                  antes de cobrar.
+                </p>
+              )}
+
+              <div className="mx-auto flex max-w-2xl gap-2 px-4 py-3 lg:max-w-none">
+                {/* Con la carta fija al lado, este boton no lleva a ningun
+                    lado: se esconde en pantalla grande. */}
+                <button
+                  type="button"
+                  onClick={() => setPicker(true)}
+                  className="flex h-14 flex-1 items-center justify-center gap-2 border border-bone/25 text-base text-bone lg:hidden"
+                >
+                  <Plus className="size-5" aria-hidden />
+                  Agregar
+                </button>
+
+                {hayPorEnviar ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => run(() => sendOrder(session.id))}
+                    className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
+                  >
+                    {pending ? (
+                      <Loader2 className="size-5 animate-spin" aria-hidden />
+                    ) : (
+                      <Send className="size-5" aria-hidden />
+                    )}
+                    Enviar {session.draftCount} {destinoPorEnviar}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={session.pendingCents === 0}
+                    onClick={startPayment}
+                    className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-crimson text-base font-medium text-bone disabled:opacity-40"
+                  >
+                    <Wallet className="size-5" aria-hidden />
+                    {session.pendingCents === 0
+                      ? "Todo pagado"
+                      : `Cobrar ${formatPrice(session.pendingCents)}`}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* La carta, fija, solo cuando hay ancho de sobra. */}
+        {!cerrada && (
+          <aside className="hidden w-[26rem] shrink-0 border-l border-line lg:block xl:w-[30rem]">
+            <ProductPicker
+              variant="panel"
+              sessionId={session.id}
+              dinerId={tab.dinerId}
+              dinerLabel={tab.label}
+              menu={menu}
+              frequent={frequent}
+              onClose={() => setPicker(false)}
+            />
+          </aside>
+        )}
+      </div>
+
+      {/* En el telefono, la misma carta a pantalla completa. */}
       {picker && (
-        <ProductPicker
-          sessionId={session.id}
-          dinerId={tab.dinerId}
-          dinerLabel={tab.label}
-          menu={menu}
-          frequent={frequent}
-          onClose={() => setPicker(false)}
-        />
+        <div className="lg:hidden">
+          <ProductPicker
+            sessionId={session.id}
+            dinerId={tab.dinerId}
+            dinerLabel={tab.label}
+            menu={menu}
+            frequent={frequent}
+            onClose={() => setPicker(false)}
+          />
+        </div>
       )}
 
       {noting && (

@@ -1220,6 +1220,35 @@ const PROMOTIONS: Array<{
  * Es lo unico que se puede correr sobre una base con contenido real sin pisar
  * nada: recupera el acceso si alguien se quedo fuera, sin tocar la contraseña.
  */
+/**
+ * Que se prepara en la barra y que en la cocina.
+ *
+ * Hay una migracion que hace este mismo reparto, pero solo sirve para las
+ * cartas que ya existian cuando se aplico: en una instalacion nueva las
+ * categorias las crea este seed *despues*, y nacian todas en COCINA. El
+ * resultado era que las cervezas y los tragos se imprimian en la comanda de
+ * cocina y la barra no recibia nada — que es justo lo contrario de tener dos
+ * comandas separadas.
+ *
+ * Solo se aplica al crear. Si el local ya movio una categoria desde el panel,
+ * el seed no le pisa la decision.
+ */
+const CATEGORIAS_DE_BARRA = new Set([
+  "cortos-de-whisky",
+  "combinados-de-pisco",
+  "gin",
+  "promos-de-la-barra",
+  "cocteleria",
+  "cervezas",
+  "vinos",
+  "sin-alcohol",
+  "bebidas-y-jugos",
+]);
+
+function stationFor(slug: string) {
+  return CATEGORIAS_DE_BARRA.has(slug) ? "BARRA" : "COCINA";
+}
+
 async function seedPanelUsers() {
   const adminEmail = (process.env.ADMIN_EMAIL ?? "admin@barzuo.com").toLowerCase();
   const adminPassword = process.env.ADMIN_PASSWORD ?? "Barzuo2024!";
@@ -1358,6 +1387,7 @@ async function main() {
         icon: category.icon,
         imageUrl: `/demo/category-${category.image}.jpg`,
         position: categoryIndex,
+        station: stationFor(category.slug),
       },
       update: {
         name: category.name,

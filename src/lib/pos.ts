@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 
-import type { Station } from "@/generated/prisma/enums";
+import type { Station, TicketKind } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -248,6 +248,7 @@ export async function getStationBoard(
 
   const tickets = await prisma.orderTicket.findMany({
     where: {
+      kind: "COMANDA",
       station,
       createdAt: { gte: desde },
       OR: [
@@ -414,7 +415,9 @@ export type SessionDetail = {
   tickets: Array<{
     id: string;
     number: number;
-    station: Station;
+    kind: TicketKind;
+    /** Vacia en las de cobro: no van a ninguna estacion. */
+    station: Station | null;
     status: string;
     createdAt: string;
     lastError: string | null;
@@ -520,6 +523,8 @@ export async function getSessionDetail(
     tickets: session.tickets.map((ticket) => ({
       id: ticket.id,
       number: ticket.number,
+      kind: ticket.kind,
+      // El resumen de cobro no tiene estacion: no lo prepara nadie.
       station: ticket.station,
       status: ticket.status,
       createdAt: ticket.createdAt.toISOString(),

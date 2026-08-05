@@ -15,6 +15,15 @@ import type { PosMenuCategory, PosMenuProduct } from "@/lib/pos";
  * Se carga sobre la cuenta abierta, sin salir de la mesa: el garzon toca un
  * producto y ya queda cargado. Se mantiene abierto a proposito, porque los
  * pedidos vienen de a varios.
+ *
+ * Tiene dos formas segun donde se use, y es la misma lista en las dos:
+ *
+ * - `ventana` es la del telefono: ocupa la pantalla completa, porque en 400
+ *   puntos de ancho no cabe nada al lado.
+ * - `panel` es la de la pantalla tactil del local: la carta vive fija en una
+ *   columna a la derecha, siempre a la vista junto a la cuenta. En un POS de
+ *   mostrador abrir y cerrar una ventana por cada producto es el gesto que mas
+ *   se repite en toda la noche, y ahi sobra el espacio para evitarlo.
  */
 export function ProductPicker({
   sessionId,
@@ -23,6 +32,7 @@ export function ProductPicker({
   menu,
   frequent,
   onClose,
+  variant = "ventana",
 }: {
   sessionId: string;
   dinerId: string | null;
@@ -30,7 +40,9 @@ export function ProductPicker({
   menu: PosMenuCategory[];
   frequent: PosMenuProduct[];
   onClose: () => void;
+  variant?: "ventana" | "panel";
 }) {
+  const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
   const [pending, startTransition] = useTransition();
   const [added, setAdded] = useState<Record<string, number>>({});
@@ -88,7 +100,13 @@ export function ProductPicker({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-ink">
+    <div
+      className={
+        enPanel
+          ? "flex h-full min-h-0 flex-col overflow-hidden bg-ink-soft"
+          : "fixed inset-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-ink"
+      }
+    >
       <header className="shrink-0 border-b border-line px-4 py-3 pt-safe">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
@@ -96,14 +114,17 @@ export function ProductPicker({
             <p className="truncate font-display text-lg text-bone">{dinerLabel}</p>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
-            aria-label="Cerrar"
-          >
-            <X className="size-5" aria-hidden />
-          </button>
+          {/* En panel no hay nada que cerrar: la carta es parte de la pantalla. */}
+          {!enPanel && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
+              aria-label="Cerrar"
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+          )}
         </div>
 
         <div className="relative mt-3">
@@ -203,21 +224,31 @@ export function ProductPicker({
           cobrar, y era facil leerlo como "confirmar el pedido" — que es un
           paso que viene despues y en otra pantalla. Ahora dice a donde lleva,
           y cuantos productos se llevan cargados.
+
+          En panel no existe: la cuenta esta al lado, no hay a donde volver.
         */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex h-14 w-full items-center justify-center gap-2 bg-crimson text-base font-medium text-bone"
-        >
-          {pending ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-          ) : (
-            <Check className="size-4" aria-hidden />
-          )}
-          {totalAdded > 0
-            ? `Volver a la cuenta (${totalAdded} agregados)`
-            : "Volver a la cuenta"}
-        </button>
+        {enPanel ? (
+          <p className="text-center text-sm text-muted">
+            {totalAdded > 0
+              ? `${totalAdded} ${totalAdded === 1 ? "producto agregado" : "productos agregados"} a la cuenta`
+              : "Toca un producto para agregarlo a la cuenta"}
+          </p>
+        ) : (
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex h-14 w-full items-center justify-center gap-2 bg-crimson text-base font-medium text-bone"
+          >
+            {pending ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <Check className="size-4" aria-hidden />
+            )}
+            {totalAdded > 0
+              ? `Volver a la cuenta (${totalAdded} agregados)`
+              : "Volver a la cuenta"}
+          </button>
+        )}
       </footer>
 
       {noting && last?.id && (
