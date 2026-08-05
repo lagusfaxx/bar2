@@ -41,7 +41,7 @@ export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
             required
             defaultValue={category?.name}
             maxLength={80}
-            placeholder="Coctelería de autor"
+            placeholder="Cervezas de barril"
             error={state.errors?.name}
           />
 
@@ -143,7 +143,7 @@ export function MenuProductForm({
               required
               defaultValue={product?.name}
               maxLength={120}
-              placeholder="Zuo Negroni"
+              placeholder="Schop rubia 500cc"
               error={state.errors?.name}
             />
 

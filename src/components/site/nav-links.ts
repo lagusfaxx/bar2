@@ -8,7 +8,7 @@ export type NavLink = {
 export const NAV_LINKS: NavLink[] = [
   { href: "/", label: "Inicio", description: "Volver a la portada" },
   { href: "/eventos", label: "Cartelera", description: "Shows, tributos y fiestas" },
-  { href: "/carta", label: "Carta", description: "Coctelería, cervezas y cocina" },
+  { href: "/carta", label: "Carta", description: "Cervezas, cocina y para compartir" },
   { href: "/nosotros", label: "Nosotros", description: "La historia de BARZUO" },
   { href: "/galeria", label: "Galería", description: "Noches, público y ambiente" },
   { href: "/ubicacion", label: "Ubicación", description: "Cómo llegar al local" },

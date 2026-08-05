@@ -13,7 +13,7 @@ import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSettings();
-  const description = `Empanadas, pizzas a la piedra, chorrillanas, coctelería, cervezas y promos de barra en ${settings.barName}, ${settings.addressCity}.`;
+  const description = `Empanadas, pizzas a la piedra, chorrillanas, cervezas de barril y promos de barra en ${settings.barName}, ${settings.addressCity}.`;
 
   return {
     title: "La carta",
@@ -63,7 +63,7 @@ export default async function CartaPage() {
       <PageHeader
         eyebrow="La carta"
         title="Para acompañar la noche"
-        lead="Cocina para compartir, pizzas a la piedra, coctelería clásica y las promos de la barra. Todo hasta que termina la noche."
+        lead="Cocina para compartir, pizzas a la piedra, cervezas bien frías y las promos de la barra. Todo hasta que termina la noche."
         image={menu[0]?.imageUrl ?? "/demo/category-1.jpg"}
       />
 

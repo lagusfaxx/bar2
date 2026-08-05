@@ -20,7 +20,7 @@ const DEFAULT_MARQUEE = [
   "Música en vivo",
   "Tributos",
   "DJ sets",
-  "Coctelería de autor",
+  "Cervezas de barril",
   "Cocina de bar",
   "Karaoke",
   "After office",
@@ -265,7 +265,7 @@ export default async function HomePage() {
             title={settings.homeMenuTitle ?? "Para acompañar la noche"}
             lead={
               settings.homeMenuLead ??
-              "Cocina para compartir, coctelería clásica y las promos de la barra."
+              "Cocina para compartir, cervezas de barril y las promos de la barra."
             }
             action={
               <ButtonLink href="/carta" variant="outline">
