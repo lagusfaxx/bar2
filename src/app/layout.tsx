@@ -23,8 +23,16 @@ export async function generateMetadata(): Promise<Metadata> {
     applicationName: settings.barName,
     authors: [{ name: settings.barName }],
     creator: settings.barName,
+    // Con favicon propio se declara solo ese: si se deja tambien el generado
+    // (/icon), el navegador puede quedarse con el que no toca. Sin favicon
+    // propio no se declara nada y Next agrega el generado por convencion de
+    // archivo (app/icon.tsx).
     icons: settings.faviconUrl
-      ? { icon: settings.faviconUrl, apple: settings.faviconUrl }
+      ? {
+          icon: settings.faviconUrl,
+          shortcut: settings.faviconUrl,
+          apple: settings.faviconUrl,
+        }
       : undefined,
     openGraph: {
       type: "website",
