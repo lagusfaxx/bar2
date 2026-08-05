@@ -59,6 +59,10 @@ cambiar un texto, subir un afiche o publicar un show.
   informada, pagada, entregada).
 - **Canjes**: historial completo con comprobante y quién validó, más los cupones
   que los socios eligieron y todavía no se aplicaron.
+- **Días cerrados**: marcar una fecha en que el local no abre al público —el
+  caso típico es un evento privado— para que el calendario de la cartelera lo
+  avise. Si ese día había un show publicado, el panel lo señala para cambiarlo
+  de fecha o despublicarlo.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
 - **Ajustes**: identidad, portada (imagen horizontal, imagen vertical para el

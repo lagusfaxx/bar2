@@ -3,6 +3,7 @@
 import {
   Banknote,
   CalendarDays,
+  CalendarOff,
   ExternalLink,
   Gift,
   Images,
@@ -85,6 +86,12 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
         label: "Mesas del salón",
         icon: Table2,
         hint: "Crear y ordenar las mesas que usa la app de sala",
+      },
+      {
+        href: "/admin/cierres",
+        label: "Días cerrados",
+        icon: CalendarOff,
+        hint: "Marcar los días que el local no abre por evento privado",
       },
       {
         href: "/admin/caja",

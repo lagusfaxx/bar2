@@ -37,6 +37,7 @@ model User {
   openedSessions TableSession[] @relation("SessionOpenedBy")
   orderItems     OrderItem[]    @relation("OrderItemCreatedBy")
   tickets        OrderTicket[]  @relation("TicketCreatedBy")
+  closedDays     ClosedDay[]    @relation("ClosedDayCreatedBy")
   payments       Payment[]      @relation("PaymentCashier")
 
   @@index([role])
@@ -544,6 +545,37 @@ model OpeningHour {
   note      String?
 
   @@map("opening_hours")
+}
+
+/**
+ * Un dia en que el local no abre al publico.
+ *
+ * Lo tipico es un evento privado: un cumpleaños o una empresa arriendan el
+ * local entero y esa noche no hay cartelera ni mesas para nadie mas. Tambien
+ * sirve para vacaciones o un feriado.
+ *
+ * Es aparte de `OpeningHour`, que dice como es una semana normal ("los lunes
+ * cerramos"). Esto es la excepcion de una fecha concreta, y por eso se guarda
+ * como dia suelto: `@db.Date` a proposito, sin hora, porque lo que se cierra
+ * es el dia y no un rango horario.
+ */
+model ClosedDay {
+  id   String   @id @default(cuid())
+  date DateTime @unique @db.Date
+
+  /** Lo que se muestra al publico: "Evento privado", "Vacaciones". */
+  reason String @default("Evento privado")
+
+  /** Detalle opcional para el propio local; no se publica. */
+  note String?
+
+  createdById String?
+  createdBy   User?   @relation("ClosedDayCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([date])
+  @@map("closed_days")
 }
 
 model ContactMessage {

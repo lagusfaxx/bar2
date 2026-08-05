@@ -58,18 +58,32 @@ export function ProductPicker({
     [added],
   );
 
+  /*
+   * Busca por producto y tambien por categoria.
+   *
+   * Antes solo miraba el nombre del producto, y en un bar eso deja fuera la
+   * palabra que uno escribe primero: "cerveza" no encontraba nada, porque las
+   * cervezas de la carta se llaman "Schop Kunstmann" o "Escudo". Lo mismo con
+   * "trago", "vino" o "postre". Ahora, si lo escrito coincide con la
+   * categoria, se muestra la categoria entera; si no, sus productos que
+   * coincidan.
+   */
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
     if (!needle) return menu;
 
     return menu
-      .map((category) => ({
-        ...category,
-        products: category.products.filter((product) =>
-          product.name.toLowerCase().includes(needle),
-        ),
-      }))
+      .map((category) => {
+        if (category.name.toLowerCase().includes(needle)) return category;
+
+        return {
+          ...category,
+          products: category.products.filter((product) =>
+            product.name.toLowerCase().includes(needle),
+          ),
+        };
+      })
       .filter((category) => category.products.length > 0);
   }, [menu, query]);
 

@@ -48,6 +48,27 @@ export const getOpeningHours = cache(() =>
   prisma.openingHour.findMany({ orderBy: { dayOfWeek: "asc" } }),
 );
 
+/**
+ * Dias en que el local no abre, de hoy en adelante.
+ *
+ * Se piden solo los futuros: la cartelera mira hacia adelante y arrastrar el
+ * historial completo no aporta nada. El limite es generoso —un año— porque son
+ * pocas filas y asi el calendario puede adelantar meses sin volver a consultar.
+ */
+export const getClosedDays = cache(async () => {
+  const desde = new Date();
+  desde.setHours(0, 0, 0, 0);
+
+  const hasta = new Date(desde);
+  hasta.setFullYear(hasta.getFullYear() + 1);
+
+  return prisma.closedDay.findMany({
+    where: { date: { gte: desde, lte: hasta } },
+    orderBy: { date: "asc" },
+    select: { id: true, date: true, reason: true },
+  });
+});
+
 // --- Eventos -----------------------------------------------------------------
 
 const eventCardSelect = {
