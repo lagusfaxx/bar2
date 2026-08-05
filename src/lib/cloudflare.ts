@@ -19,6 +19,16 @@ import "server-only";
 const API = "https://api.cloudflare.com/client/v4";
 
 /**
+ * ¿Esta configurada la purga?
+ *
+ * Lo consulta el proxy para decidir cuanto puede durar la copia del borde, y
+ * el panel para avisar cuando los cambios van a tardar en verse.
+ */
+export function isEdgePurgeConfigured() {
+  return !!process.env.CLOUDFLARE_ZONE_ID && !!process.env.CLOUDFLARE_API_TOKEN;
+}
+
+/**
  * Vacia el cache del borde. No se espera el resultado en la ruta del usuario:
  * si Cloudflare no responde, el guardado en el panel no tiene por que fallar.
  */
@@ -26,6 +36,8 @@ export async function purgeEdgeCache() {
   const zone = process.env.CLOUDFLARE_ZONE_ID;
   const token = process.env.CLOUDFLARE_API_TOKEN;
 
+  // Sin credenciales no hay nada que purgar, y tampoco hace falta: el proxy
+  // deja la copia del borde en un minuto justamente para este caso.
   if (!zone || !token) return;
 
   try {

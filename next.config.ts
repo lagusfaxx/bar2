@@ -69,54 +69,16 @@ const nextConfig: NextConfig = {
       },
 
       /*
-       * Paginas publicas: cacheables en el borde, nunca en el navegador.
+       * El cache de las paginas publicas NO se define aca.
        *
-       * El HTML se arma en cada visita contra la base de datos. Medido contra
-       * produccion, eso son entre 0,3 y 0,5 s de servidor —con picos de varios
-       * segundos cuando la maquina esta ocupada—, y encima el visitante en
-       * Chile paga la ida y vuelta hasta el servidor.
-       *
-       * `s-maxage` deja que Cloudflare guarde el HTML y lo sirva desde su
-       * nodo mas cercano: el telefono recibe la pagina sin esperar al
-       * servidor. La vigencia es larga a proposito —ver el comentario de
-       * abajo— y los cambios del panel se ven igual al instante, porque al
-       * guardar se purga el cache del borde.
-       *
-       * `max-age=0` mantiene el navegador siempre al dia: el cache es del
-       * borde, no del dispositivo. Un cambio en el CMS tarda como mucho un
-       * minuto en verse, o se ve al instante purgando el cache en Cloudflare.
-       *
-       * Solo estas rutas. El panel, la app de sala y todo /barzucard leen
-       * cookies de sesion y no deben cachearse en ningun lado.
+       * El HTML se arma en cada visita contra la base de datos, asi que dejar
+       * que Cloudflare lo guarde en su nodo mas cercano vale mucho: el
+       * telefono recibe la pagina sin esperar al servidor. Pero cuanto puede
+       * durar esa copia depende de si la purga automatica esta configurada, y
+       * eso solo se sabe al arrancar el contenedor — estas cabeceras, en
+       * cambio, se calculan al compilar la imagen. Por eso la decision vive en
+       * src/proxy.ts, que corre en Node en cada peticion. Alli esta explicado.
        */
-      {
-        source:
-          "/:path(|eventos|carta|nosotros|galeria|ubicacion|contacto|legales)",
-        headers: [
-          {
-            key: "Cache-Control",
-            // Una hora en el borde. Con un minuto —lo que habia antes— un
-            // sitio con poco trafico casi nunca encuentra la copia vigente:
-            // cada visita cae despues de que vencio y espera el viaje entero
-            // al servidor. Y `stale-while-revalidate` no ayuda, porque
-            // Cloudflare solo lo respeta en el plan Enterprise.
-            //
-            // Que la copia dure una hora no retrasa los cambios del panel:
-            // al guardar se purga el cache (ver lib/cloudflare.ts).
-            value: "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
-          },
-        ],
-      },
-      {
-        // Misma politica para la ficha de cada evento.
-        source: "/eventos/:slug",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=0, s-maxage=3600, stale-while-revalidate=86400",
-          },
-        ],
-      },
     ];
   },
 };
