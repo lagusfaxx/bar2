@@ -2,6 +2,8 @@ import "server-only";
 
 import { cache } from "react";
 
+import { dateOnlyKey, dayKey } from "@/lib/format";
+
 import type { EventCategory } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
@@ -91,6 +93,49 @@ const eventCardSelect = {
 export type EventCard = Awaited<ReturnType<typeof getUpcomingEvents>>[number];
 
 /**
+ * Los dias cerrados, indexados por dia.
+ *
+ * Son un puñado de filas —los cierres de un año caben en los dedos de dos
+ * manos—, asi que se traen todas y se cruzan en memoria. Una consulta por
+ * evento seria muchisimo mas cara para responder la misma pregunta.
+ */
+const getClosedDayMap = cache(async () => {
+  const rows = await prisma.closedDay.findMany({
+    select: { date: true, reason: true },
+  });
+
+  return new Map(rows.map((row) => [dateOnlyKey(row.date), row.reason]));
+});
+
+/** El motivo del cierre de un dia, o null si el local abre. */
+export async function getPrivateReason(date: Date) {
+  const cerrados = await getClosedDayMap();
+  return cerrados.get(dayKey(date)) ?? null;
+}
+
+/**
+ * Marca los eventos que caen en un dia cerrado al publico.
+ *
+ * Un show en un dia arrendado no se esconde: se muestra diciendo que es
+ * privado. El local gana con eso —el flyer sigue a la vista y quien lo mira se
+ * entera de que el sitio se puede arrendar—, y quien pensaba ir se ahorra el
+ * viaje. Esconderlo dejaba a esa persona sin ninguna de las dos cosas.
+ *
+ * Se resuelve aca, en la capa de datos, para que la marca llegue igual a la
+ * portada, a la cartelera, al calendario y a la ficha del evento sin que cada
+ * pantalla tenga que acordarse de preguntar.
+ */
+async function markPrivate<T extends { startsAt: Date }>(events: T[]) {
+  const cerrados = await getClosedDayMap();
+
+  return events.map((event) => ({
+    ...event,
+    /** Motivo del cierre ("Evento privado"), o null si el local abre. */
+    privateReason: cerrados.get(dayKey(event.startsAt)) ?? null,
+  }));
+}
+
+/**
  * Un evento sigue considerandose "proximo" durante la madrugada siguiente: un
  * show del sabado a las 23:00 no debe desaparecer de la cartelera a medianoche.
  */
@@ -100,47 +145,55 @@ function upcomingFrom() {
   return cutoff;
 }
 
-export function getUpcomingEvents(take = 24) {
-  return prisma.event.findMany({
-    where: { published: true, startsAt: { gte: upcomingFrom() } },
-    orderBy: { startsAt: "asc" },
-    take,
-    select: eventCardSelect,
-  });
+export async function getUpcomingEvents(take = 24) {
+  return markPrivate(
+    await prisma.event.findMany({
+      where: { published: true, startsAt: { gte: upcomingFrom() } },
+      orderBy: { startsAt: "asc" },
+      take,
+      select: eventCardSelect,
+    }),
+  );
 }
 
-export function getFeaturedEvents(take = 3) {
-  return prisma.event.findMany({
-    where: {
-      published: true,
-      featured: true,
-      startsAt: { gte: upcomingFrom() },
-    },
-    orderBy: { startsAt: "asc" },
-    take,
-    select: eventCardSelect,
-  });
+export async function getFeaturedEvents(take = 3) {
+  return markPrivate(
+    await prisma.event.findMany({
+      where: {
+        published: true,
+        featured: true,
+        startsAt: { gte: upcomingFrom() },
+      },
+      orderBy: { startsAt: "asc" },
+      take,
+      select: eventCardSelect,
+    }),
+  );
 }
 
-export function getPastEvents(take = 12) {
-  return prisma.event.findMany({
-    where: { published: true, startsAt: { lt: upcomingFrom() } },
-    orderBy: { startsAt: "desc" },
-    take,
-    select: eventCardSelect,
-  });
+export async function getPastEvents(take = 12) {
+  return markPrivate(
+    await prisma.event.findMany({
+      where: { published: true, startsAt: { lt: upcomingFrom() } },
+      orderBy: { startsAt: "desc" },
+      take,
+      select: eventCardSelect,
+    }),
+  );
 }
 
 /** Rango amplio de eventos publicados: alimenta el calendario del cliente. */
-export function getEventsInRange(fromIso: string, toIso: string) {
-  return prisma.event.findMany({
-    where: {
-      published: true,
-      startsAt: { gte: new Date(fromIso), lt: new Date(toIso) },
-    },
-    orderBy: { startsAt: "asc" },
-    select: eventCardSelect,
-  });
+export async function getEventsInRange(fromIso: string, toIso: string) {
+  return markPrivate(
+    await prisma.event.findMany({
+      where: {
+        published: true,
+        startsAt: { gte: new Date(fromIso), lt: new Date(toIso) },
+      },
+      orderBy: { startsAt: "asc" },
+      select: eventCardSelect,
+    }),
+  );
 }
 
 export function getEventBySlug(slug: string) {
@@ -197,7 +250,7 @@ export async function getRelatedEvents(
     select: eventCardSelect,
   });
 
-  if (sameCategory.length >= take) return sameCategory;
+  if (sameCategory.length >= take) return markPrivate(sameCategory);
 
   // Completamos con los proximos de cualquier categoria.
   const fill = await prisma.event.findMany({
@@ -211,7 +264,7 @@ export async function getRelatedEvents(
     select: eventCardSelect,
   });
 
-  return [...sameCategory, ...fill];
+  return markPrivate([...sameCategory, ...fill]);
 }
 
 export function getAllEventSlugs() {

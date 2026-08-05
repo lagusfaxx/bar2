@@ -124,7 +124,7 @@ export default async function EventosPage() {
           title="Elige tu noche"
           lead={
             closedDays.length > 0
-              ? "Los días en rojo tienen función y los grises son días en que el local no abre. Toca uno para ver el detalle, o cambia a la vista de lista."
+              ? "Los días marcados tienen función. Los que llevan un candado son noches reservadas para un evento privado. Toca uno para ver el detalle, o cambia a la vista de lista."
               : "Los días marcados tienen función. Toca uno para ver el detalle, o cambia a la vista de lista."
           }
         />

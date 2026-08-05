@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Trash2 } from "lucide-react";
+import { Info, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useActionState } from "react";
 
@@ -48,7 +48,7 @@ export function ClosuresManager({
     <div className="flex flex-col gap-6">
       <Panel
         title="Cerrar un día"
-        description="Ese día la cartelera dirá que el local no abre al público."
+        description="Ese día la cartelera dirá que el local no abre al público. Si además publicas un show para esa fecha, el afiche se sigue viendo con la banda encima."
       >
         <form action={action} className="flex flex-col gap-5">
           <FormMessage state={state} />
@@ -68,7 +68,7 @@ export function ClosuresManager({
               name="reason"
               defaultValue="Evento privado"
               placeholder="Evento privado"
-              hint="Es lo que verá el público en el calendario."
+              hint="Es lo que se lee en el calendario y cruzado sobre el afiche."
               error={state.errors?.reason}
             />
           </div>
@@ -114,8 +114,8 @@ export function ClosuresManager({
                     )}
                   </p>
 
-                  {/* Choque con la cartelera: hay un show publicado ese dia
-                      que ya no se va a mostrar. Mejor enterarse aca. */}
+                  {/* El show de ese dia se sigue mostrando, marcado como
+                      privado. Se confirma aca para que no quede la duda. */}
                   {conflicts
                     .filter((conflict) => conflict.day === day.day)
                     .map((conflict) => (
@@ -123,20 +123,16 @@ export function ClosuresManager({
                         key={conflict.id}
                         className="mt-1 flex items-start gap-1.5 text-xs text-gilt-soft"
                       >
-                        <AlertTriangle
-                          className="mt-0.5 size-3.5 shrink-0"
-                          aria-hidden
-                        />
+                        <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                         <span>
-                          Ese día tienes publicado{" "}
                           <Link
                             href={`/admin/eventos/${conflict.id}`}
                             className="underline underline-offset-2"
                           >
                             {conflict.title}
-                          </Link>
-                          . Ya no se muestra en la cartelera; cámbialo de fecha
-                          o quítalo de publicado.
+                          </Link>{" "}
+                          se muestra ese día con la banda «{day.reason}» sobre
+                          el afiche.
                         </span>
                       </p>
                     ))}
