@@ -163,7 +163,7 @@ de demostración.
 | `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido de demostración al arrancar. No hace nada si la base ya tiene contenido. |
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 | `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
-| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, al guardar en el panel se purga el caché de Cloudflare y el cambio se ve al instante. Sin ellas hay que esperar a que venza la copia (1 hora) o purgar a mano. |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, el HTML público se guarda una hora en el borde y al guardar en el panel se purga solo: el cambio se ve al instante. Sin ellas la copia dura un minuto, así que los cambios tardan como mucho eso. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
 cambias, hay que reconstruir la imagen.
@@ -615,9 +615,11 @@ Para que los cambios del panel se sigan viendo al instante, configura
 caché sola. El token se crea en **My Profile → API Tokens** con el permiso
 *Zone → Cache Purge → Purge*.
 
-Sin esas variables el sitio funciona igual, pero un cambio tarda hasta una
-hora en verse, o hay que purgar a mano en **Caching → Configuration → Purge
-Everything**.
+Sin esas variables el sitio funciona igual: la app se da cuenta de que no
+puede purgar y acorta la copia del borde a un minuto, de modo que un cambio
+del panel tarda como mucho ese minuto en verse. Se pierde algo de caché a
+cambio de que el panel no parezca roto; el propio panel lo avisa en su
+pantalla de inicio. La decisión se toma al arrancar, en `src/proxy.ts`.
 
 > **Nunca** incluyas `/admin`, `/staff`, `/barzucard` ni `/api`: leen cookies
 > de sesión y cachearlas mostraría la sesión de una persona a otra. Por eso la

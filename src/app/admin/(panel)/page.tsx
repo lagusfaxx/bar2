@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 
 import { listAudit } from "@/app/actions/admin/audit";
+import { isEdgePurgeConfigured } from "@/lib/cloudflare";
 import { AdminHeader, EmptyState, Panel, StatCard } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/section";
@@ -60,6 +61,7 @@ const TAREAS = [
 
 export default async function AdminDashboard() {
   const now = new Date();
+  const purgaConfigurada = isEdgePurgeConfigured();
 
   const [
     upcomingCount,
@@ -109,7 +111,7 @@ export default async function AdminDashboard() {
     <>
       <AdminHeader
         title="Panel de BARZUO"
-        description="Desde aquí se cambia todo lo que ve el público en la web. Lo que guardes se ve al instante: no hay que avisarle a nadie ni publicar aparte."
+        description="Desde aquí se cambia todo lo que ve el público en la web. Basta con guardar: no hay que avisarle a nadie ni publicar aparte."
         action={
           <ButtonLink href="/admin/eventos/nuevo" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -117,6 +119,23 @@ export default async function AdminDashboard() {
           </ButtonLink>
         }
       />
+
+      {/*
+        Cuanto tarda en verse un cambio.
+
+        Es la primera pregunta de quien guarda algo y no lo ve reflejado, y
+        hasta ahora no habia forma de responderla desde el panel: la copia del
+        sitio podia quedarse guardada una hora sin que nada lo dijera. El aviso
+        solo aparece cuando hay algo que explicar.
+      */}
+      {!purgaConfigurada && (
+        <p className="mb-6 border border-line bg-ink-soft px-4 py-3 text-sm text-muted">
+          Los cambios que guardes aquí tardan hasta{" "}
+          <strong className="text-bone-dim">un minuto</strong> en verse en la
+          web. Es normal. Se puede dejar en cero configurando la purga de
+          Cloudflare (ver el README).
+        </p>
+      )}
 
       {/* Guia breve, pensada para quien entra al panel por primera vez y no
           tiene por que saber que hace cada seccion. Va arriba de todo a
