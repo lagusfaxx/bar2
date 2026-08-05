@@ -7,12 +7,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { Section, SectionHeading } from "@/components/ui/section";
 import {
+  getClosedDays,
   getEventsInRange,
   getFeaturedEvents,
   getPastEvents,
   getSettings,
   getUpcomingEvents,
 } from "@/lib/content";
+import { dateOnlyKey } from "@/lib/format";
 import { absoluteUrl } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -50,13 +52,23 @@ function calendarRange() {
 export default async function EventosPage() {
   const { from, to } = calendarRange();
 
-  const [settings, upcoming, featured, past, rangeEvents] = await Promise.all([
-    getSettings(),
-    getUpcomingEvents(30),
-    getFeaturedEvents(3),
-    getPastEvents(6),
-    getEventsInRange(from, to),
-  ]);
+  const [settings, upcoming, featured, past, rangeEvents, cerrados] =
+    await Promise.all([
+      getSettings(),
+      getUpcomingEvents(30),
+      getFeaturedEvents(3),
+      getPastEvents(6),
+      getEventsInRange(from, to),
+      getClosedDays(),
+    ]);
+
+  // El calendario corre en el cliente y compara por dia: se le manda la fecha
+  // ya reducida a "YYYY-MM-DD" en la zona del local, que es la misma clave con
+  // la que agrupa los eventos.
+  const closedDays = cerrados.map((day) => ({
+    date: dateOnlyKey(day.date),
+    reason: day.reason,
+  }));
 
   // El calendario corre en el cliente: las fechas viajan serializadas.
   const calendarEvents: CalendarEvent[] = rangeEvents.map((event) => ({
@@ -110,11 +122,15 @@ export default async function EventosPage() {
         <SectionHeading
           eyebrow="Calendario"
           title="Elige tu noche"
-          lead="Los días marcados tienen función. Toca uno para ver el detalle, o cambia a la vista de lista."
+          lead={
+            closedDays.length > 0
+              ? "Los días en rojo tienen función y los grises son días en que el local no abre. Toca uno para ver el detalle, o cambia a la vista de lista."
+              : "Los días marcados tienen función. Toca uno para ver el detalle, o cambia a la vista de lista."
+          }
         />
 
         <div className="mt-12">
-          <EventCalendar events={calendarEvents} />
+          <EventCalendar events={calendarEvents} closedDays={closedDays} />
         </div>
       </Section>
 

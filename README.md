@@ -59,6 +59,10 @@ cambiar un texto, subir un afiche o publicar un show.
   informada, pagada, entregada).
 - **Canjes**: historial completo con comprobante y quién validó, más los cupones
   que los socios eligieron y todavía no se aplicaron.
+- **Días cerrados**: marcar una fecha en que el local no abre al público —el
+  caso típico es un evento privado— para que el calendario de la cartelera lo
+  avise. Si ese día había un show publicado, el panel lo señala para cambiarlo
+  de fecha o despublicarlo.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
 - **Mensajes**: bandeja del formulario de contacto.
 - **Ajustes**: identidad, portada (imagen horizontal, imagen vertical para el
@@ -414,14 +418,51 @@ Efecto secundario buscado: si se corta internet, se acaba el papel o alguien
 apaga la impresora, la comanda queda pendiente y se reintenta. No se pierde un
 pedido.
 
-**Qué hace falta**: impresoras térmicas de red que hablen ESC/POS (Epson
-TM-T20, Xprinter y similares) y un equipo encendido en el local — un PC de
-caja o una Raspberry Pi con Node 18+.
+**Qué hace falta**: impresoras térmicas que hablen ESC/POS (Epson TM-T20,
+Xprinter y similares), por USB o por red, y un equipo encendido en el local —
+el PC de la pantalla táctil, un PC de caja o una Raspberry Pi con Node 18+.
+
+#### Qué se imprime
+
+Cada envío de una mesa saca **dos comandas separadas**: una con los
+bebestibles para la barra y otra con los alimentos para la cocina. Si la mesa
+pidió solo de una de las dos, sale solo ese papel. Al cobrar —la mesa completa
+o la cuenta de una sola persona— sale además el **resumen del cobro**, con el
+detalle, el total, la forma de pago y el número de comprobante.
+
+Los tres salen diferenciados a propósito, porque con una sola impresora caen
+por la misma ranura: cada uno lleva una banda negra con su destino en letra
+doble y una textura propia alrededor (`#` cocina, `*` barra, `$` cobro), que
+se reconocen sin leer y aunque el papel quede boca abajo.
+
+#### Con una sola impresora
+
+Es el caso más común al empezar: una térmica colgada del USB del PC de la
+pantalla táctil. Todo sale por ahí.
 
 ```bash
-# En un equipo dentro del local
+# En el PC de la pantalla táctil, con la impresora en el USB
 BARZUO_URL=https://barzuo.com \
 PRINT_AGENT_TOKEN=el-mismo-token-del-servidor \
+PRINTER_DEFAULT=/dev/usb/lp0 \
+npm run print:agent
+```
+
+En **Windows** no hay una ruta de dispositivo que sirva: comparte la impresora
+(clic derecho → *Propiedades de impresora* → *Compartir*, con un nombre sin
+espacios) y apunta al recurso compartido:
+
+```bash
+PRINTER_DEFAULT=\\localhost\POS80
+```
+
+#### Cuando lleguen las demás
+
+Basta con nombrarlas. Lo que tenga la suya deja de usar `PRINTER_DEFAULT`, que
+sigue atendiendo al resto:
+
+```bash
+PRINTER_DEFAULT=/dev/usb/lp0 \
 PRINTER_COCINA=192.168.1.50 \
 PRINTER_BARRA=192.168.1.51 \
 npm run print:agent
@@ -430,17 +471,27 @@ npm run print:agent
 Antes del primer servicio, para dejar las impresoras a punto:
 
 ```bash
-npm run print:agent -- --test          # imprime una comanda de prueba
-npm run print:agent -- --test=render   # la muestra en pantalla, sin gastar papel
+npm run print:agent -- --test          # imprime los tres papeles de prueba
+npm run print:agent -- --test=render   # los muestra en pantalla, sin gastar papel
 ```
+
+La prueba imprime los tres seguidos justamente para lo que importa: comprobar
+con los papeles en la mano que se distinguen entre sí, antes del servicio y no
+en medio de él.
 
 | Variable | Descripción |
 | --- | --- |
 | `BARZUO_URL` | URL pública del sitio. |
 | `PRINT_AGENT_TOKEN` | El mismo valor que en el servidor. |
-| `PRINTER_COCINA` / `PRINTER_BARRA` | `IP` o `IP:puerto` de cada impresora. Por defecto el puerto 9100. |
+| `PRINTER_DEFAULT` | La impresora que recibe todo lo que no tenga una propia. Con una sola impresora, es la única que hace falta. |
+| `PRINTER_COCINA` / `PRINTER_BARRA` / `PRINTER_CAJA` | Opcionales, para cuando cada destino tenga la suya. |
 | `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
+
+Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,
+`\\localhost\POS80`) o como **dirección de red** si es de red (`192.168.1.50`
+o `192.168.1.50:9100`; el puerto por defecto es el 9100). El agente lo deduce:
+si lleva una barra, es una ruta.
 
 Conviene dejarlo como servicio del sistema (`systemd`, `pm2`) para que arranque
 solo cuando se enciende el equipo.

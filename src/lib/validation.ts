@@ -313,6 +313,13 @@ export const posTableSchema = z.object({
   active: z.coerce.boolean().default(true),
 });
 
+/** Un dia en que el local no abre (evento privado, vacaciones). */
+export const closedDaySchema = z.object({
+  date: trimmed.regex(/^\d{4}-\d{2}-\d{2}$/, "Indica el dia"),
+  reason: trimmed.max(80).optional().or(z.literal("")),
+  note: trimmed.max(300).optional().or(z.literal("")),
+});
+
 // --- Utilidades --------------------------------------------------------------
 
 /** Convierte "1.250,50" o "1250.5" a centesimos. */

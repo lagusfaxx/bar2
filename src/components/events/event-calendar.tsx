@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, ChevronLeft, ChevronRight, LayoutList } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, LayoutList, Lock } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -24,7 +24,16 @@ const MONTHS = [
 
 type View = "calendar" | "list";
 
-export function EventCalendar({ events }: { events: CalendarEvent[] }) {
+/** Un dia en que el local no abre, ya reducido a "YYYY-MM-DD" del local. */
+export type ClosedDay = { date: string; reason: string };
+
+export function EventCalendar({
+  events,
+  closedDays = [],
+}: {
+  events: CalendarEvent[];
+  closedDays?: ClosedDay[];
+}) {
   const today = new Date();
   const todayKey = dayKey(today);
 
@@ -73,20 +82,49 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
     return result;
   }, [cursor]);
 
+  /*
+   * Dias cerrados, indexados igual que los eventos.
+   *
+   * Un cierre gana sobre la cartelera: si el local se arrienda para un evento
+   * privado, lo que haya quedado publicado ese dia no va a ocurrir. Mostrar
+   * las dos cosas a la vez seria decirle al cliente que vaya a un show al que
+   * no lo van a dejar entrar.
+   */
+  const cerrados = useMemo(
+    () => new Map(closedDays.map((day) => [day.date, day.reason])),
+    [closedDays],
+  );
+
   const monthEvents = useMemo(
     () =>
       events
         .filter((event) => {
+          // Un show en un dia cerrado no va a ocurrir: no se anuncia.
+          if (cerrados.has(dayKey(event.startsAt))) return false;
+
           const date = new Date(event.startsAt);
           return (
             date.getFullYear() === cursor.year && date.getMonth() === cursor.month
           );
         })
         .sort((a, b) => a.startsAt.localeCompare(b.startsAt)),
-    [events, cursor],
+    [events, cursor, cerrados],
   );
 
   const selectedEvents = selected ? (byDay.get(selected) ?? []) : [];
+  const selectedClosed = selected ? cerrados.get(selected) : undefined;
+
+  /** "jueves 6 de agosto", para el titulo del panel lateral. */
+  const selectedFecha = selected
+    ? (() => {
+        // La clave es "YYYY-MM-DD"; se arma al mediodia para que la fecha no se
+        // corra al interpretarla en la zona del navegador.
+        const [year, month, day] = selected.split("-").map(Number) as number[];
+        const fecha = new Date(year!, month! - 1, day!, 12);
+        const parts = dateParts(fecha);
+        return `${parts.weekday} ${parts.day} de ${parts.monthLong}`;
+      })()
+    : "";
 
   const shift = (delta: number) => {
     setSelected(null);
@@ -205,7 +243,9 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                     return <div key={`empty-${index}`} role="gridcell" />;
                   }
 
-                  const dayEvents = byDay.get(cell.key) ?? [];
+                  const closedReason = cerrados.get(cell.key);
+                  const isClosed = closedReason !== undefined;
+                  const dayEvents = isClosed ? [] : (byDay.get(cell.key) ?? []);
                   const hasEvents = dayEvents.length > 0;
                   const isToday = cell.key === todayKey;
                   const isSelected = cell.key === selected;
@@ -215,12 +255,14 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                       key={cell.key}
                       role="gridcell"
                       type="button"
-                      disabled={!hasEvents}
+                      disabled={!hasEvents && !isClosed}
                       onClick={() => setSelected(isSelected ? null : cell.key)}
                       aria-label={`${cell.date.getDate()} de ${MONTHS[cursor.month]}${
-                        hasEvents
-                          ? `, ${dayEvents.length} evento${dayEvents.length > 1 ? "s" : ""}`
-                          : ", sin eventos"
+                        isClosed
+                          ? `, cerrado: ${closedReason}`
+                          : hasEvents
+                            ? `, ${dayEvents.length} evento${dayEvents.length > 1 ? "s" : ""}`
+                            : ", sin eventos"
                       }`}
                       aria-selected={isSelected}
                       className={cn(
@@ -229,11 +271,17 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                         // propiedad que cambie al seleccionar el dia se anima,
                         // incluidas las que afectan al tamano de la celda.
                         "relative flex aspect-square min-h-11 flex-col items-center justify-center gap-1 border text-sm transition-[background-color,border-color,color,box-shadow] duration-300",
-                        hasEvents
-                          ? "cursor-pointer border-crimson/35 bg-crimson/8 text-bone hover:border-crimson hover:bg-crimson/20"
-                          : "border-transparent text-muted-dark",
+                        // El cierre se ve distinto de un dia con show y de uno
+                        // vacio: apagado y rayado, no rojo.
+                        isClosed
+                          ? "cursor-pointer border-bone/25 bg-bone/8 text-bone-dim hover:border-bone/50"
+                          : hasEvents
+                            ? "cursor-pointer border-crimson/35 bg-crimson/8 text-bone hover:border-crimson hover:bg-crimson/20"
+                            : "border-transparent text-muted-dark",
                         isSelected &&
+                          !isClosed &&
                           "border-crimson bg-crimson text-bone shadow-[0_0_28px_-6px_rgba(225,29,42,0.8)]",
+                        isSelected && isClosed && "border-bone/60 bg-bone/20 text-bone",
                         isToday && !isSelected && "ring-1 ring-bone/35",
                       )}
                     >
@@ -245,6 +293,10 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                       >
                         {cell.date.getDate()}
                       </span>
+
+                      {isClosed && (
+                        <Lock className="size-3 text-bone-dim" aria-hidden />
+                      )}
 
                       {hasEvents && (
                         <span className="flex gap-0.5" aria-hidden>
@@ -274,12 +326,29 @@ export function EventCalendar({ events }: { events: CalendarEvent[] }) {
                 <span className="size-2.5 ring-1 ring-bone/40" />
                 Hoy
               </span>
+              {closedDays.length > 0 && (
+                <span className="inline-flex items-center gap-2">
+                  <span className="size-2.5 border border-bone/30 bg-bone/10" />
+                  Cerrado
+                </span>
+              )}
             </p>
           </div>
 
           {/* Panel lateral: detalle del dia elegido o agenda del mes. */}
           <aside className="lg:sticky lg:top-28 lg:self-start">
-            {selected && selectedEvents.length > 0 ? (
+            {selectedClosed ? (
+              <div className="card-bz p-6">
+                <h3 className="flex items-center gap-2 font-display text-xl text-bone capitalize">
+                  <Lock className="size-4 shrink-0 text-bone-dim" aria-hidden />
+                  {selectedFecha}
+                </h3>
+                <p className="mt-3 text-sm text-bone-dim">
+                  Ese día el local no abre al público.
+                </p>
+                <p className="mt-1 text-sm text-muted">{selectedClosed}</p>
+              </div>
+            ) : selected && selectedEvents.length > 0 ? (
               <>
                 <h3 className="mb-4 font-display text-xl text-bone capitalize">
                   {dateParts(selectedEvents[0]!.startsAt).weekday}{" "}

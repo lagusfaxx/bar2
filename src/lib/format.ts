@@ -46,12 +46,54 @@ export function dateParts(date: Date | string) {
   return {
     day: fmt({ day: "2-digit" }),
     month: fmt({ month: "short" }).replace(".", "").toUpperCase(),
+    // El mes en numero, para las fechas cortas del tipo "06/08". Sale del
+    // mismo formateador que el dia y no de `getMonth()`, que usa la zona del
+    // servidor: mezclarlos daba fechas imposibles como "31/09" en un show de
+    // fin de mes que empieza de noche.
+    monthNumeric: fmt({ month: "2-digit" }),
     monthLong: fmt({ month: "long" }),
     weekday: fmt({ weekday: "long" }),
     weekdayShort: fmt({ weekday: "short" }).replace(".", "").toUpperCase(),
     year: fmt({ year: "numeric" }),
     time: formatTime(value),
   };
+}
+
+/*
+ * Dias sueltos, sin hora.
+ *
+ * Las columnas `date` de Postgres guardan un dia y nada mas, y vuelven como la
+ * medianoche UTC de ese dia. Leerlas con la zona del local las retrocede: la
+ * medianoche UTC del 6 de agosto son las 20:00 del 5 en Santiago, asi que un
+ * cierre cargado para el jueves se mostraba —y se comparaba— como miercoles.
+ * Estas dos funciones las leen en UTC, que es donde el dia esta intacto.
+ *
+ * No sirven para un instante con hora (el inicio de un show, por ejemplo): ahi
+ * la zona del local es justamente lo que hay que aplicar.
+ */
+
+/** Clave YYYY-MM-DD de un dia suelto. */
+export function dateOnlyKey(date: Date | string) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(date));
+}
+
+/** Un dia suelto escrito en palabras: "jueves, 06 de agosto de 2026". */
+export function formatDateOnly(
+  date: Date | string,
+  opts?: Intl.DateTimeFormatOptions,
+) {
+  return new Intl.DateTimeFormat(LOCALE, {
+    timeZone: "UTC",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+    ...opts,
+  }).format(new Date(date));
 }
 
 /** Clave YYYY-MM-DD en la zona horaria del local (no en UTC). */

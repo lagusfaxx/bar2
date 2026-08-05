@@ -50,12 +50,22 @@ export async function GET(request: Request) {
       session: {
         select: {
           code: true,
+          guests: true,
           table: { select: { number: true, name: true } },
         },
       },
       items: {
         orderBy: { createdAt: "asc" },
         include: { diner: { select: { label: true } } },
+      },
+      // Solo lo traen las de cobro: el resumen se arma con las lineas que
+      // quedaron asociadas a ese pago, no con las de la comanda.
+      payment: {
+        include: {
+          diner: { select: { label: true } },
+          cashier: { select: { name: true } },
+          items: { orderBy: { createdAt: "asc" } },
+        },
       },
     },
   });
@@ -65,8 +75,9 @@ export async function GET(request: Request) {
       tickets: tickets.map((ticket) => ({
         id: ticket.id,
         number: ticket.number,
+        kind: ticket.kind,
         station: ticket.station,
-        stationLabel: STATION_LABELS[ticket.station],
+        stationLabel: ticket.station ? STATION_LABELS[ticket.station] : null,
         createdAt: ticket.createdAt.toISOString(),
         table: {
           number: ticket.session.table.number,
@@ -83,6 +94,35 @@ export async function GET(request: Request) {
             // garzon sabe delante de quien dejar cada trago.
             diner: item.diner?.label ?? null,
           })),
+
+        /*
+         * Resumen del cobro, ya calculado.
+         *
+         * Se manda resuelto y no en bruto porque el agente de impresion corre
+         * en un PC del local, sin acceso a la base y sin reglas de negocio:
+         * su unico trabajo es convertir esto en papel. Que los totales salgan
+         * del servidor evita que dos sitios distintos sumen y den distinto.
+         */
+        payment: ticket.payment
+          ? {
+              code: ticket.payment.code,
+              paidAt: ticket.payment.paidAt.toISOString(),
+              // A quien se le cobro: un comensal o la mesa entera.
+              dinerLabel: ticket.payment.diner?.label ?? null,
+              cashier: ticket.payment.cashier?.name ?? null,
+              method: ticket.payment.method,
+              subtotalCents: ticket.payment.subtotalCents,
+              discountCents: ticket.payment.discountCents,
+              totalCents: ticket.payment.totalCents,
+              lines: ticket.payment.items.map((item) => ({
+                quantity: item.quantity,
+                name: item.name,
+                // Lo que se cobro por esa linea, con su descuento aplicado.
+                totalCents:
+                  (item.unitPriceCents - item.discountCents) * item.quantity,
+              })),
+            }
+          : null,
       })),
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -43,8 +43,16 @@ export default async function PosPage() {
         en partes iguales: se gana un renglon y se pierde la adivinanza.
       */}
       <header className="shrink-0 border-b border-line bg-ink pt-safe">
-        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3 lg:max-w-none">
           <Logo src={settings.logoUrl} name={settings.barName} variant="compact" />
+
+          {/* En la pantalla tactil del local caben en la misma fila; en un
+              telefono no, y bajan a la suya. */}
+          <nav aria-label="Otras pantallas" className="hidden gap-2 lg:flex">
+            <HeaderLink href="/staff/cocina" icon={Utensils} label="Cocina" />
+            <HeaderLink href="/staff/barra" icon={Wine} label="Barra" />
+            <HeaderLink href="/staff" icon={Star} label="Tarjetas" />
+          </nav>
 
           <form action={logoutPanel}>
             <button
@@ -59,7 +67,7 @@ export default async function PosPage() {
 
         <nav
           aria-label="Otras pantallas"
-          className="mx-auto flex max-w-2xl gap-2 px-4 pb-3"
+          className="mx-auto flex max-w-2xl gap-2 px-4 pb-3 lg:hidden"
         >
           <HeaderLink href="/staff/cocina" icon={Utensils} label="Cocina" />
           <HeaderLink href="/staff/barra" icon={Wine} label="Barra" />
@@ -67,7 +75,16 @@ export default async function PosPage() {
         </nav>
       </header>
 
-      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 py-6 pb-safe">
+      {/*
+        El ancho depende de la pantalla.
+
+        La app nacio para el telefono del garzon y por eso todo vivia en una
+        columna de 42rem centrada. En la pantalla tactil del local —apaisada y
+        de 1024 puntos o mas— esa misma columna deja media pantalla negra y
+        obliga a desplazar para ver las mesas del fondo, que es justo lo que no
+        se quiere en una pantalla fija: la sala tiene que verse entera de una.
+      */}
+      <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 py-6 pb-safe lg:max-w-none lg:px-6">
         <h1 className="font-display text-2xl text-bone">Mesas</h1>
         <p className="mt-2 text-sm text-muted">
           Toca una mesa roja para ver su cuenta. Toca una gris para abrirla.

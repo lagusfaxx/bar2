@@ -229,7 +229,7 @@ export default async function EventoPage({ params }: Params) {
                   label="Fecha"
                   value={
                     <span className="capitalize">
-                      {parts.weekday} {parts.day}/{String(new Date(event.startsAt).getMonth() + 1).padStart(2, "0")}
+                      {parts.weekday} {parts.day}/{parts.monthNumeric}
                     </span>
                   }
                 />
