@@ -15,6 +15,29 @@ type EventCardProps = {
   className?: string;
 };
 
+/**
+ * Banda de "evento privado" sobre el afiche.
+ *
+ * Ese dia el local esta arrendado: el show existe y el flyer se sigue
+ * mostrando, pero no se entra comprando una entrada. La banda va cruzada sobre
+ * la imagen y no como una etiqueta en una esquina, porque tiene que leerse en
+ * el mismo golpe de vista que el afiche —si no, alguien llega a la puerta
+ * habiendo visto solo la foto.
+ *
+ * De paso hace de anuncio: quien la ve se entera de que el local se arrienda,
+ * que es la otra mitad de por que esto existe.
+ */
+function PrivateBand({ reason }: { reason: string }) {
+  return (
+    <span
+      aria-hidden
+      className="absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 -rotate-6 border-y border-ink/30 bg-gilt py-2 text-center text-sm font-bold tracking-[0.18em] text-ink uppercase shadow-lift"
+    >
+      {reason}
+    </span>
+  );
+}
+
 /** Bloque de fecha del afiche: dia grande sobre mes en versalitas. */
 function DateBlock({ date, className }: { date: Date; className?: string }) {
   const parts = dateParts(date);
@@ -68,6 +91,8 @@ export function EventCard({
             <div className="absolute inset-0 bg-gradient-to-br from-crimson-deep/40 to-ink" />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-ink/70" />
+
+          {event.privateReason && <PrivateBand reason={event.privateReason} />}
         </div>
 
         <div className="flex flex-col justify-between gap-4 p-5 sm:p-6">
@@ -137,6 +162,8 @@ export function EventCard({
 
         <div className="scrim absolute inset-0" />
 
+        {event.privateReason && <PrivateBand reason={event.privateReason} />}
+
         <DateBlock date={event.startsAt} className="absolute top-4 left-4 z-10" />
 
         <div className="absolute top-4 right-4 z-10 flex flex-col items-end gap-2">
@@ -167,10 +194,18 @@ export function EventCard({
           <span
             className={cn(
               "text-sm font-medium",
-              event.isFree ? "text-emerald-300" : "text-bone",
+              event.privateReason
+                ? "text-gilt-soft"
+                : event.isFree
+                  ? "text-emerald-300"
+                  : "text-bone",
             )}
           >
-            {event.isFree ? "Entrada libre" : formatPrice(event.priceCents)}
+            {event.privateReason
+              ? "Solo invitados"
+              : event.isFree
+                ? "Entrada libre"
+                : formatPrice(event.priceCents)}
           </span>
         </div>
 

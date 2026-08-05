@@ -1,6 +1,7 @@
 import { CalendarDays, Clock, DoorOpen, Music2, Ticket, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { EventCard } from "@/components/events/event-card";
@@ -12,6 +13,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Badge, Section, SectionHeading } from "@/components/ui/section";
 import {
   getEventBySlug,
+  getPrivateReason,
   getEventRatingSummary,
   getRelatedEvents,
   getSettings,
@@ -85,6 +87,9 @@ export default async function EventoPage({ params }: Params) {
   const isPast = event.startsAt < new Date();
   const url = absoluteUrl(`/eventos/${event.slug}`);
   const poster = event.posterUrl ?? event.coverUrl;
+
+  /** Motivo del cierre si ese dia el local esta arrendado. */
+  const privado = await getPrivateReason(event.startsAt);
 
   // Datos estructurados para que Google muestre el evento como tal.
   const jsonLd = {
@@ -180,6 +185,17 @@ export default async function EventoPage({ params }: Params) {
                   <span className="font-western text-5xl text-crimson/40">BZ</span>
                 </div>
               )}
+
+              {/* Cruzada sobre el afiche, igual que en la cartelera: quien
+                  llega directo a esta pagina tiene que enterarse aqui. */}
+              {privado && (
+                <span
+                  aria-hidden
+                  className="absolute inset-x-0 top-1/2 z-20 -translate-y-1/2 -rotate-6 border-y border-ink/30 bg-gilt py-2.5 text-center text-base font-bold tracking-[0.18em] text-ink uppercase shadow-lift"
+                >
+                  {privado}
+                </span>
+              )}
             </div>
           </Reveal>
 
@@ -249,7 +265,12 @@ export default async function EventoPage({ params }: Params) {
                   icon={<Ticket className="size-4" aria-hidden />}
                   label="Entrada"
                   value={
-                    event.isFree ? (
+                    // Con el local arrendado no hay entrada que valga, ni
+                    // libre ni pagada: decir "Libre" contradice el aviso de
+                    // abajo en la misma pantalla.
+                    privado ? (
+                      <span className="text-gilt-soft">Solo invitados</span>
+                    ) : event.isFree ? (
                       <span className="text-emerald-300">Libre</span>
                     ) : (
                       formatPrice(event.priceCents)
@@ -266,8 +287,40 @@ export default async function EventoPage({ params }: Params) {
               </dl>
             </Reveal>
 
+            {/*
+              Ese dia el local esta arrendado.
+
+              Se explica antes de los botones y con todas las letras, porque es
+              lo unico que cambia lo que esta persona iba a hacer. Y se
+              aprovecha para lo otro: quien lea esto se entera de que el local
+              se arrienda, con el enlace a mano.
+            */}
+            {privado && !isPast && (
+              <Reveal delay={180} className="mt-9">
+                <div className="border border-gilt/40 bg-gilt/8 p-5">
+                  <p className="font-display text-lg text-gilt-soft">
+                    {privado}
+                  </p>
+                  <p className="mt-2 text-sm text-bone-dim">
+                    Esa noche BARZUO está reservado y no abre al público: se
+                    entra solo con invitación.
+                  </p>
+                  <p className="mt-3 text-sm text-muted">
+                    ¿Quieres celebrar lo tuyo aquí?{" "}
+                    <Link
+                      href="/contacto"
+                      className="text-crimson-bright underline underline-offset-4"
+                    >
+                      Escríbenos
+                    </Link>{" "}
+                    y te contamos cómo arrendar el local.
+                  </p>
+                </div>
+              </Reveal>
+            )}
+
             <Reveal delay={200} className="mt-9 flex flex-wrap items-center gap-4">
-              {!isPast && event.ticketUrl && (
+              {!isPast && !privado && event.ticketUrl && (
                 <ButtonAnchor
                   href={event.ticketUrl}
                   target="_blank"
@@ -279,7 +332,7 @@ export default async function EventoPage({ params }: Params) {
                 </ButtonAnchor>
               )}
 
-              {!isPast && !event.ticketUrl && (
+              {!isPast && !privado && !event.ticketUrl && (
                 <ButtonLink href="/contacto" size="lg">
                   Reservar mesa
                 </ButtonLink>
