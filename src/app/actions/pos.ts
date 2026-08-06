@@ -10,13 +10,25 @@ import {
   generatePaymentCode,
   generateSessionCode,
   lineTotal,
-  pointsForSpend,
   priceFor,
   stationFor,
 } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
-import { tierForPoints } from "@/lib/barzucard";
-import { fieldErrors, posDinerSchema, posItemSchema, posOpenTableSchema, posPaymentSchema } from "@/lib/validation";
+import {
+  checkEligibility,
+  generateReceiptCode,
+  normalizeCardInput,
+} from "@/lib/barzucard";
+import { resolvePromotion } from "@/lib/promotions";
+import {
+  fieldErrors,
+  posCardSchema,
+  posDinerSchema,
+  posItemSchema,
+  posOpenTableSchema,
+  posPaymentSchema,
+  posPromotionSchema,
+} from "@/lib/validation";
 
 /**
  * Operacion de sala.
@@ -499,6 +511,338 @@ export async function moveTicket(
   return formSuccess(`Comanda #${ticket.number} actualizada.`);
 }
 
+// --- BarzuCard ---------------------------------------------------------------
+
+/**
+ * Presenta una BarzuCard en la mesa.
+ *
+ * Es el unico paso previo del programa: sin tarjeta en la mesa no se puede
+ * aplicar ningun beneficio, y con ella aplicados quedan a un toque. Se pide
+ * una vez, al principio, y vale para toda la noche —tambien para los cobros
+ * separados por comensal—.
+ *
+ * Acepta las tres formas en que la tarjeta llega a la garzona: el QR
+ * escaneado, el numero de 16 digitos tipeado y el codigo dictado en voz alta.
+ */
+export async function attachCard(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  await requireStaff();
+
+  const parsed = posCardSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Escanea o escribe la tarjeta.", fieldErrors(parsed.error));
+  }
+
+  const { sessionId, input } = parsed.data;
+
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, status: true },
+  });
+
+  if (!session) return formError("La mesa no existe.");
+  if (session.status === "CLOSED") return formError("La mesa ya está cerrada.");
+
+  const parsedInput = normalizeCardInput(input);
+
+  /*
+   * El cupon que el socio emite desde su telefono tambien identifica su
+   * tarjeta. Aceptarlo evita el callejon sin salida de escanear el QR
+   * equivocado y que la pantalla diga "no existe" teniendo al socio delante.
+   */
+  const card =
+    parsedInput.kind === "number"
+      ? await prisma.barzuCard.findUnique({
+          where: { cardNumber: parsedInput.value },
+          include: { member: { select: { fullName: true } } },
+        })
+      : parsedInput.kind === "voucher" || parsedInput.kind === "voucherCode"
+        ? await prisma.promotionVoucher
+            .findUnique({
+              where:
+                parsedInput.kind === "voucher"
+                  ? { token: parsedInput.value }
+                  : { code: parsedInput.value },
+              include: {
+                card: { include: { member: { select: { fullName: true } } } },
+              },
+            })
+            .then((voucher) => voucher?.card ?? null)
+        : await prisma.barzuCard.findUnique({
+            where: { qrToken: parsedInput.value },
+            include: { member: { select: { fullName: true } } },
+          });
+
+  if (!card) return formError("Esa BarzuCard no existe.");
+  if (card.status !== "ACTIVE") return formError("La tarjeta está suspendida.");
+
+  await prisma.tableSession.update({
+    where: { id: sessionId },
+    data: { cardId: card.id },
+  });
+
+  refresh(sessionId);
+
+  return formSuccess(`BarzuCard de ${card.member.fullName}`, {
+    cardId: card.id,
+  });
+}
+
+/**
+ * Saca la tarjeta de la mesa.
+ *
+ * Los beneficios ya aplicados se anulan con ella: existen porque habia una
+ * tarjeta, y dejarlos vivos seria regalar el descuento a quien no la tiene.
+ */
+export async function detachCard(sessionId: string): Promise<FormState> {
+  await requireStaff();
+
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, status: true },
+  });
+
+  if (!session) return formError("La mesa no existe.");
+  if (session.status === "CLOSED") return formError("La mesa ya está cerrada.");
+
+  await prisma.$transaction(async (tx) => {
+    await anularBeneficios(tx, { sessionId });
+
+    await tx.tableSession.update({
+      where: { id: sessionId },
+      data: { cardId: null },
+    });
+  });
+
+  refresh(sessionId);
+
+  return formSuccess("Tarjeta quitada de la mesa.");
+}
+
+/**
+ * Anula canjes vivos y devuelve el cupo al tope de cada promocion.
+ *
+ * `redeemedCount` es el contador global de la promocion ("solo 100 cupos"):
+ * si un canje se deshace, el cupo tiene que volver o la promocion se agota
+ * sola a fuerza de correcciones.
+ */
+async function anularBeneficios(
+  tx: Prisma.TransactionClient,
+  where: { sessionId: string } | { id: string },
+) {
+  const vivos = await tx.redemption.findMany({
+    where: { ...where, voidedAt: null },
+    select: { id: true, promotionId: true },
+  });
+
+  if (vivos.length === 0) return 0;
+
+  await tx.redemption.updateMany({
+    where: { id: { in: vivos.map((redemption) => redemption.id) } },
+    data: { voidedAt: new Date(), discountCents: 0 },
+  });
+
+  for (const redemption of vivos) {
+    await tx.promotion.update({
+      where: { id: redemption.promotionId },
+      data: { redeemedCount: { decrement: 1 } },
+    });
+  }
+
+  // Las lineas de cortesia que trajo el beneficio dejan de ser cortesia: si el
+  // producto ya salio de la cocina, se cobra.
+  await tx.orderItem.updateMany({
+    where: {
+      ...("sessionId" in where ? { sessionId: where.sessionId } : {}),
+      courtesy: true,
+      paymentId: null,
+    },
+    data: { courtesy: false },
+  });
+
+  return vivos.length;
+}
+
+/**
+ * Aplica un beneficio a una cuenta.
+ *
+ * Lo que ve la garzona es un toque; lo que ocurre debajo es: se revalida la
+ * tarjeta, se revalida la promocion, se agrega el producto si es una cortesia
+ * que todavia no esta en la cuenta y se deja registrado el canje. El descuento
+ * en si no se guarda como monto: se recalcula sobre las lineas cada vez que se
+ * lee la cuenta (ver getSessionDetail), de modo que anular un producto ajusta
+ * el descuento solo.
+ */
+export async function applyPromotion(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireStaff();
+
+  const parsed = posPromotionSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) return formError("No se pudo aplicar el beneficio.");
+
+  const { sessionId, promotionId, dinerId } = parsed.data;
+
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, status: true, cardId: true },
+  });
+
+  if (!session) return formError("La mesa no existe.");
+  if (session.status === "CLOSED") return formError("La mesa ya está cerrada.");
+
+  // La condicion de todo el programa: sin tarjeta, no hay descuento.
+  if (!session.cardId) {
+    return formError("Primero escanea la BarzuCard del cliente.");
+  }
+
+  const [card, promotion] = await Promise.all([
+    prisma.barzuCard.findUnique({
+      where: { id: session.cardId },
+      select: { id: true, status: true },
+    }),
+    prisma.promotion.findUnique({
+      where: { id: promotionId },
+      include: { product: { select: { id: true, name: true } } },
+    }),
+  ]);
+
+  if (!card) return formError("Esa BarzuCard no existe.");
+  if (!promotion) return formError("Esa promoción no existe.");
+
+  const yaEnLaMesa = await prisma.redemption.findFirst({
+    where: { sessionId, promotionId, voidedAt: null },
+    select: { id: true },
+  });
+
+  if (yaEnLaMesa) return formError("Ese beneficio ya está en la mesa.");
+
+  const usos = await prisma.redemption.count({
+    where: { cardId: card.id, promotionId, voidedAt: null },
+  });
+
+  const eligibility = checkEligibility({
+    promotion,
+    card,
+    redemptionsForThisPromotion: usos,
+  });
+
+  if (!eligibility.ok) return formError(eligibility.reason);
+
+  const receiptCode = generateReceiptCode();
+
+  const resultado = await prisma.$transaction(async (tx) => {
+    let agregado: string | null = null;
+
+    /*
+     * Cortesia cuyo producto no esta en la cuenta.
+     *
+     * Se carga la linea en vez de pedirle a la garzona que la cargue aparte:
+     * asi la comanda sale hacia la cocina —el producto hay que prepararlo
+     * igual— y el descuento tiene sobre que aplicarse.
+     */
+    if (promotion.type === "FREE_ITEM" && promotion.productId) {
+      const presente = await tx.orderItem.findFirst({
+        where: {
+          sessionId,
+          dinerId: dinerId || null,
+          productId: promotion.productId,
+          status: { not: "CANCELLED" },
+          paymentId: null,
+        },
+        select: { id: true },
+      });
+
+      if (!presente) {
+        const producto = await tx.menuProduct.findUnique({
+          where: { id: promotion.productId },
+          include: { category: { select: { station: true } } },
+        });
+
+        if (producto) {
+          const precio = priceFor(producto);
+
+          await tx.orderItem.create({
+            data: {
+              sessionId,
+              dinerId: dinerId || null,
+              productId: producto.id,
+              name: producto.name,
+              unitPriceCents: precio.unitPriceCents,
+              discountCents: precio.discountCents,
+              discountLabel: precio.discountLabel,
+              quantity: 1,
+              station: stationFor(producto),
+              courtesy: true,
+              note: promotion.title,
+              createdById: user.userId,
+            },
+          });
+
+          agregado = producto.name;
+        }
+      }
+    }
+
+    const redemption = await tx.redemption.create({
+      data: {
+        promotionId,
+        cardId: card.id,
+        sessionId,
+        dinerId: dinerId || null,
+        staffUserId: user.userId,
+        receiptCode,
+        note: promotion.title,
+      },
+      select: { id: true },
+    });
+
+    await tx.promotion.update({
+      where: { id: promotionId },
+      data: { redeemedCount: { increment: 1 } },
+    });
+
+    return { redemptionId: redemption.id, agregado };
+  });
+
+  refresh(sessionId);
+
+  return formSuccess(
+    resultado.agregado
+      ? `${promotion.title} · se agregó ${resultado.agregado} de cortesía`
+      : `${promotion.title} aplicada`,
+    { receiptCode, ...resultado },
+  );
+}
+
+/** Deshace un beneficio aplicado en la mesa. */
+export async function removePromotion(
+  redemptionId: string,
+): Promise<FormState> {
+  await requireStaff();
+
+  const redemption = await prisma.redemption.findUnique({
+    where: { id: redemptionId },
+    select: { id: true, sessionId: true, voidedAt: true },
+  });
+
+  if (!redemption) return formError("Ese beneficio no existe.");
+  if (redemption.voidedAt) return formError("Ese beneficio ya se quitó.");
+
+  await prisma.$transaction(async (tx) => {
+    await anularBeneficios(tx, { id: redemptionId });
+  });
+
+  refresh(redemption.sessionId ?? undefined);
+
+  return formSuccess("Beneficio quitado.");
+}
+
 // --- Cobro -------------------------------------------------------------------
 
 /**
@@ -520,11 +864,11 @@ export async function payAccount(
     return formError("Revisa el cobro.", fieldErrors(parsed.error));
   }
 
-  const { sessionId, dinerId, method, cardNumber } = parsed.data;
+  const { sessionId, dinerId, method } = parsed.data;
 
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
-    select: { id: true, status: true },
+    select: { id: true, status: true, cardId: true },
   });
 
   if (!session) return formError("La mesa no existe.");
@@ -540,9 +884,12 @@ export async function payAccount(
     },
     select: {
       id: true,
+      productId: true,
+      product: { select: { categoryId: true } },
       unitPriceCents: true,
       discountCents: true,
       quantity: true,
+      dinerId: true,
     },
   });
 
@@ -552,30 +899,61 @@ export async function payAccount(
     (total, item) => total + item.unitPriceCents * item.quantity,
     0,
   );
-  const discountCents = items.reduce(
+  const cartaCents = items.reduce(
     (total, item) => total + item.discountCents * item.quantity,
     0,
   );
-  const totalCents = items.reduce((total, item) => total + lineTotal(item), 0);
+  const consumoCents = items.reduce((total, item) => total + lineTotal(item), 0);
 
-  // BarzuCard presentada al pagar: se guarda en el cobro. Es el enganche para
-  // sumar puntos por consumo sin pedirle nada mas al garzon.
-  let cardId: string | null = null;
-  let puntos = 0;
+  /*
+   * Beneficios de BarzuCard de esta cuenta.
+   *
+   * Se recalculan aca, contra las lineas que realmente se estan cobrando, y
+   * recien en este momento se congelan: es el unico instante en que el monto
+   * deja de poder cambiar. Cobrar por comensal toma solo los beneficios de esa
+   * pestaña, que son los que la garzona le aplico.
+   */
+  const beneficios = await prisma.redemption.findMany({
+    where: {
+      sessionId,
+      voidedAt: null,
+      discountCents: 0,
+      ...(dinerId ? { dinerId } : { dinerId: null }),
+    },
+    include: { promotion: true },
+  });
 
-  if (cardNumber) {
-    const digits = cardNumber.replace(/\D/g, "");
+  const lineas = items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    categoryId: item.product?.categoryId ?? null,
+    unitPriceCents: item.unitPriceCents,
+    discountCents: item.discountCents,
+    quantity: item.quantity,
+  }));
 
-    const card = await prisma.barzuCard.findFirst({
-      where: { cardNumber: digits, status: "ACTIVE" },
-      select: { id: true, points: true },
-    });
+  let beneficioCents = 0;
+  const congelados: Array<{ id: string; discountCents: number }> = [];
 
-    if (!card) return formError("Esa BarzuCard no existe o está suspendida.");
+  for (const beneficio of beneficios) {
+    const resuelto = resolvePromotion(beneficio.promotion, lineas);
+    // Nunca por debajo de cero: varios beneficios sobre una cuenta chica no
+    // pueden terminar en que el local le deba plata al cliente.
+    const aplicado = Math.min(
+      resuelto.discountCents,
+      Math.max(0, consumoCents - beneficioCents),
+    );
 
-    cardId = card.id;
-    puntos = pointsForSpend(totalCents);
+    beneficioCents += aplicado;
+    congelados.push({ id: beneficio.id, discountCents: aplicado });
   }
+
+  const discountCents = cartaCents + beneficioCents;
+  const totalCents = Math.max(0, consumoCents - beneficioCents);
+
+  // La tarjeta presentada en la mesa queda en el cobro: es lo que despues
+  // permite ver que consumo trajo el programa.
+  const cardId = session.cardId;
 
   const code = generatePaymentCode();
 
@@ -600,6 +978,14 @@ export async function payAccount(
       data: { paymentId: payment.id },
     });
 
+    // Los beneficios de esta cuenta quedan con su monto definitivo.
+    for (const congelado of congelados) {
+      await tx.redemption.update({
+        where: { id: congelado.id },
+        data: { discountCents: congelado.discountCents },
+      });
+    }
+
     /*
      * El resumen del cobro tambien se imprime.
      *
@@ -619,25 +1005,14 @@ export async function payAccount(
       },
     });
 
-    if (cardId && puntos > 0) {
-      const card = await tx.barzuCard.findUniqueOrThrow({
-        where: { id: cardId },
-        select: { points: true },
-      });
-
-      const points = card.points + puntos;
-
-      await tx.barzuCard.update({
-        where: { id: cardId },
-        data: { points, tier: tierForPoints(points) },
-      });
-    }
   });
 
   refresh(sessionId);
 
   return formSuccess(
-    puntos > 0 ? `Cobrado · ${code} · +${puntos} puntos` : `Cobrado · ${code}`,
-    { code, totalCents, points: puntos },
+    beneficioCents > 0
+      ? `Cobrado · ${code} · BarzuCard descontó ${Math.round(beneficioCents / 100).toLocaleString("es-CL")}`
+      : `Cobrado · ${code}`,
+    { code, totalCents, discountCents: beneficioCents },
   );
 }

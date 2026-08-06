@@ -81,8 +81,6 @@ export default async function ImprimirTarjetaPage() {
           <CardVisual
             cardNumber={card.cardNumber}
             holder={member.fullName}
-            tier={card.tier}
-            points={card.points}
             qrDataUrl={qrDataUrl}
             issuedAt={card.issuedAt}
             status={card.status}

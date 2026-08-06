@@ -32,23 +32,23 @@ export async function generateMetadata(): Promise<Metadata> {
 const STEPS = [
   {
     icon: Sparkles,
-    title: "Regístrate",
-    text: "Crea tu cuenta en un minuto con tu nombre y tu email. Es gratis y no tiene costo de mantenimiento.",
+    title: "Regístrate gratis",
+    text: "Nombre, email y listo: menos de un minuto. No se paga nada, ni al entrar ni nunca.",
   },
   {
     icon: QrCode,
-    title: "Recibe tu tarjeta",
-    text: "Te emitimos una BarzuCard con número único y código QR. La guardas en el celular sin costo, y si la quieres impresa la pides en el local.",
+    title: "Tu QR queda activo al instante",
+    text: "La tarjeta vive en tu teléfono desde el segundo en que te registras. Si la quieres de plástico, la pides en el local.",
   },
   {
     icon: Gift,
-    title: "Canjea beneficios",
-    text: "Muestra el QR en la barra y el equipo valida la promoción al instante. Sin cupones ni papeles.",
+    title: "Muestra el QR al pedir",
+    text: "No al pagar: al pedir. La garzona lo escanea en la mesa y el descuento entra en la cuenta ahí mismo.",
   },
   {
     icon: TrendingUp,
-    title: "Sube de nivel",
-    text: "Cada canje suma puntos. Al acumularlos pasas a Plata y Oro, con beneficios exclusivos.",
+    title: "Se descuenta solo",
+    text: "El 2x1 o el porcentaje se aplican sobre lo que pediste, sin calcular nada y sin discutir con nadie.",
   },
 ];
 
@@ -121,54 +121,37 @@ export default async function BarzuCardPage() {
         </div>
       </Section>
 
-      {/* Niveles */}
+      {/* Que se lleva el socio */}
       <Section className="border-y border-line bg-ink-soft">
         <div className="container-bz">
           <SectionHeading
-            eyebrow="Niveles"
-            title="Cuanto más vienes, mejor"
-            lead="Los puntos se acumulan con cada beneficio canjeado en el local."
+            eyebrow="Sin letra chica"
+            title="Cómo funciona de verdad"
+            lead="Un programa sirve si el beneficio llega a la cuenta sin fricción. Este funciona así."
             align="center"
           />
 
           <div className="mt-14 grid gap-6 sm:grid-cols-3">
             {[
               {
-                tier: "Clásica",
-                points: "Desde 0 puntos",
-                perks: ["Acceso a todas las promociones generales", "Tarjeta con QR y número único"],
-                accent: "border-line",
+                title: "Gratis, siempre",
+                text: "Registrarse no cuesta nada y la tarjeta no vence. La versión de plástico es opcional: se paga solo si la quieres tener en la mano.",
               },
               {
-                tier: "Plata",
-                points: "Desde 400 puntos",
-                perks: ["Todo lo de Clásica", "Promociones exclusivas Plata", "Prioridad en reservas"],
-                accent: "border-slate-300/40",
+                title: "El descuento entra en la mesa",
+                text: "La garzona escanea tu QR, toca el beneficio y la cuenta baja al instante. Nada de comprobantes que después nadie sabe dónde aplicar.",
               },
               {
-                tier: "Oro",
-                points: "Desde 1200 puntos",
-                perks: ["Todo lo de Plata", "Beneficios exclusivos Oro", "Invitaciones a shows privados"],
-                accent: "border-gilt/50",
+                title: "Sabes qué te toca",
+                text: "Cada promoción dice sobre qué producto aplica y cuántas veces puedes usarla. Lo mismo que ve el local en su sistema.",
               },
-            ].map((level, index) => (
-              <Reveal key={level.tier} delay={index * 90}>
-                <article className={`h-full border bg-ink p-7 ${level.accent}`}>
-                  <p className="font-display text-2xl text-bone">{level.tier}</p>
-                  <p className="mt-1 text-xs tracking-[0.16em] text-crimson-bright uppercase">
-                    {level.points}
+            ].map((item, index) => (
+              <Reveal key={item.title} delay={index * 90}>
+                <article className="h-full border border-line bg-ink p-7">
+                  <p className="font-display text-xl text-bone">{item.title}</p>
+                  <p className="mt-4 text-sm leading-relaxed text-muted">
+                    {item.text}
                   </p>
-                  <ul className="mt-6 flex flex-col gap-3">
-                    {level.perks.map((perk) => (
-                      <li
-                        key={perk}
-                        className="flex items-start gap-2.5 text-sm text-muted"
-                      >
-                        <span className="mt-1.5 size-1.5 shrink-0 rotate-45 bg-crimson" />
-                        {perk}
-                      </li>
-                    ))}
-                  </ul>
                 </article>
               </Reveal>
             ))}
@@ -181,7 +164,7 @@ export default async function BarzuCardPage() {
         <SectionHeading
           eyebrow="Beneficios"
           title="Promociones vigentes"
-          lead="Estas son las promociones que puedes canjear ahora mismo presentando tu BarzuCard."
+          lead="Estas son las promociones que la garzona puede aplicarte hoy en la mesa, mostrando tu QR."
           action={
             <ButtonLink href="/barzucard/promociones" variant="outline">
               Ver todas
@@ -216,7 +199,7 @@ export default async function BarzuCardPage() {
             <SectionHeading
               eyebrow="Es gratis"
               title="Tu BarzuCard te espera"
-              lead="Regístrate hoy y empieza a acumular puntos desde tu próxima visita."
+              lead="Te registras en un minuto y el QR queda activo para tu próxima visita. Sin costo y sin letra chica."
             />
 
             <Reveal delay={120} className="mt-9 flex flex-wrap gap-4">

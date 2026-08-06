@@ -10,7 +10,6 @@ import {
   generateReceiptCode,
   isValidCardNumber,
   normalizeCardInput,
-  tierForPoints,
 } from "@/lib/barzucard";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
@@ -130,9 +129,7 @@ export type CardLookup = {
   card: {
     id: string;
     cardNumber: string;
-    tier: string;
     status: string;
-    points: number;
   };
   member: { fullName: string; email: string };
   promotions: Array<{
@@ -142,8 +139,9 @@ export type CardLookup = {
     terms: string | null;
     type: string;
     value: number;
-    pointsCost: number;
-    pointsReward: number;
+    /** Sobre que aplica, para nombrarlo en la pantalla de sala. */
+    scopeLabel: string;
+    targetName: string | null;
     used: number;
     maxPerCard: number;
     eligible: boolean;
@@ -241,12 +239,17 @@ export async function lookupCard(
       OR: [{ endsAt: null }, { endsAt: { gte: now } }],
     },
     orderBy: { position: "asc" },
+    include: {
+      product: { select: { name: true } },
+      category: { select: { name: true } },
+    },
   });
 
-  // Cuántas veces usó esta tarjeta cada promoción.
+  // Cuántas veces usó esta tarjeta cada promoción. Los canjes anulados no
+  // cuentan: fueron un error de la garzona, no un beneficio consumido.
   const usage = await prisma.redemption.groupBy({
     by: ["promotionId"],
-    where: { cardId: card.id },
+    where: { cardId: card.id, voidedAt: null },
     _count: { promotionId: true },
   });
 
@@ -258,16 +261,14 @@ export async function lookupCard(
     card: {
       id: card.id,
       cardNumber: card.cardNumber,
-      tier: card.tier,
       status: card.status,
-      points: card.points,
     },
     member: card.member,
     promotions: promotions.map((promotion) => {
       const used = usageByPromotion.get(promotion.id) ?? 0;
       const eligibility = checkEligibility({
         promotion,
-        card: { tier: card.tier, status: card.status, points: card.points },
+        card: { status: card.status },
         redemptionsForThisPromotion: used,
         now,
       });
@@ -279,8 +280,13 @@ export async function lookupCard(
         terms: promotion.terms,
         type: promotion.type,
         value: promotion.value,
-        pointsCost: promotion.pointsCost,
-        pointsReward: promotion.pointsReward,
+        scopeLabel:
+          promotion.scope === "PRODUCTO"
+            ? "Producto"
+            : promotion.scope === "CATEGORIA"
+              ? "Categoría"
+              : "Toda la cuenta",
+        targetName: promotion.product?.name ?? promotion.category?.name ?? null,
         used,
         maxPerCard: promotion.maxPerCard,
         eligible: eligibility.ok,
@@ -352,7 +358,11 @@ export async function redeemVoucher(
       }
 
       const used = await tx.redemption.count({
-        where: { cardId: voucher.cardId, promotionId: voucher.promotionId },
+        where: {
+          cardId: voucher.cardId,
+          promotionId: voucher.promotionId,
+          voidedAt: null,
+        },
       });
 
       const eligibility = checkEligibility({
@@ -371,8 +381,7 @@ export async function redeemVoucher(
           promotionId: voucher.promotionId,
           staffUserId: session.userId,
           receiptCode,
-          pointsSpent: voucher.promotion.pointsCost,
-          pointsEarned: voucher.promotion.pointsReward,
+          note: voucher.promotion.title,
         },
         select: { id: true },
       });
@@ -393,17 +402,7 @@ export async function redeemVoucher(
         data: { redeemedCount: { increment: 1 } },
       });
 
-      const points =
-        voucher.card.points -
-        voucher.promotion.pointsCost +
-        voucher.promotion.pointsReward;
-
-      await tx.barzuCard.update({
-        where: { id: voucher.cardId },
-        data: { points, tier: tierForPoints(points) },
-      });
-
-      return { receiptCode, points, title: voucher.promotion.title };
+      return { receiptCode, title: voucher.promotion.title };
     });
 
     await recordAudit(
@@ -421,7 +420,6 @@ export async function redeemVoucher(
     return formSuccess(`Canje confirmado · ${receipt.receiptCode}`, {
       receiptCode: receipt.receiptCode,
       title: receipt.title,
-      points: receipt.points,
     });
   } catch (error) {
     return formError(
@@ -465,7 +463,7 @@ export async function redeemPromotion(
       const [card, promotion] = await Promise.all([
         tx.barzuCard.findUnique({
           where: { id: cardId },
-          select: { id: true, tier: true, status: true, points: true },
+          select: { id: true, status: true },
         }),
         tx.promotion.findUnique({ where: { id: promotionId } }),
       ]);
@@ -474,7 +472,7 @@ export async function redeemPromotion(
       if (!promotion) throw new Error("La promoción ya no está disponible.");
 
       const used = await tx.redemption.count({
-        where: { cardId, promotionId },
+        where: { cardId, promotionId, voidedAt: null },
       });
 
       const eligibility = checkEligibility({
@@ -496,8 +494,6 @@ export async function redeemPromotion(
           staffUserId: session.userId,
           receiptCode,
           note: typeof note === "string" && note ? note.slice(0, 200) : null,
-          pointsSpent: promotion.pointsCost,
-          pointsEarned: promotion.pointsReward,
         },
       });
 
@@ -506,15 +502,7 @@ export async function redeemPromotion(
         data: { redeemedCount: { increment: 1 } },
       });
 
-      const points =
-        card.points - promotion.pointsCost + promotion.pointsReward;
-
-      await tx.barzuCard.update({
-        where: { id: cardId },
-        data: { points, tier: tierForPoints(points) },
-      });
-
-      return { receiptCode, points };
+      return { receiptCode };
     });
 
     await recordAudit(
@@ -530,7 +518,6 @@ export async function redeemPromotion(
 
     return formSuccess(`Canje confirmado · ${receipt.receiptCode}`, {
       receiptCode: receipt.receiptCode,
-      points: receipt.points,
     });
   } catch (error) {
     return formError(

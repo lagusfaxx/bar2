@@ -1,12 +1,12 @@
 "use client";
 
-import { AlertCircle, Check, Loader2, Star } from "lucide-react";
+import { AlertCircle, Check, Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { redeemVoucher } from "@/app/actions/admin/loyalty";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/section";
-import { formatCardNumber, promotionValueLabel, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, promotionValueLabel } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type { VoucherLookup } from "@/lib/vouchers";
 
@@ -88,19 +88,11 @@ export function VoucherRedeemer({ voucher }: { voucher: VoucherLookup }) {
           </Badge>
         </div>
 
-        {(voucher.promotion.pointsCost > 0 ||
-          voucher.promotion.pointsReward > 0) && (
-          <p className="mt-3 flex items-center gap-1.5 text-xs text-gilt-soft">
-            <Star className="size-3" aria-hidden />
-            {voucher.promotion.pointsCost > 0 &&
-              `Cuesta ${voucher.promotion.pointsCost} pts`}
-            {voucher.promotion.pointsCost > 0 &&
-              voucher.promotion.pointsReward > 0 &&
-              " · "}
-            {voucher.promotion.pointsReward > 0 &&
-              `Suma ${voucher.promotion.pointsReward} pts`}
-          </p>
-        )}
+        <p className="text-xs text-gilt-soft">
+          {voucher.promotion.targetName
+            ? `${voucher.promotion.scopeLabel}: ${voucher.promotion.targetName}`
+            : voucher.promotion.scopeLabel}
+        </p>
 
         {voucher.promotion.terms && (
           <p className="mt-3 border-t border-crimson/25 pt-3 text-xs leading-relaxed text-muted">
@@ -121,15 +113,9 @@ export function VoucherRedeemer({ voucher }: { voucher: VoucherLookup }) {
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <Badge tone={voucher.card.tier === "CLASICA" ? "muted" : "gilt"}>
-              {TIER_LABELS[voucher.card.tier]}
-            </Badge>
-            <span className="flex items-center gap-1.5 text-sm text-gilt-soft">
-              <Star className="size-3.5" aria-hidden />
-              {voucher.card.points} pts
-            </span>
-          </div>
+          <Badge tone={voucher.card.status === "ACTIVE" ? "free" : "crimson"}>
+            {voucher.card.status === "ACTIVE" ? "Activa" : "Suspendida"}
+          </Badge>
         </div>
 
         <p className="mt-4 font-mono text-xs tracking-[0.2em] text-muted-dark">

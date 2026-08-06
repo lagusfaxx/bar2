@@ -1,4 +1,4 @@
-import { Download, LogOut, Printer, QrCode, Sparkles, Star } from "lucide-react";
+import { Download, LogOut, Printer, QrCode, Sparkles } from "lucide-react";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
@@ -15,7 +15,7 @@ import { Section, SectionHeading, Badge } from "@/components/ui/section";
 import { getMemberSession } from "@/lib/auth";
 import { checkEligibility } from "@/lib/barzucard";
 import { getActivePromotions, getSettings } from "@/lib/content";
-import { formatCardNumber, formatDateTime, formatPrice, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, formatDateTime, formatPrice } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cardQrDataUrl } from "@/lib/qr";
 import { getActiveVoucher } from "@/lib/vouchers";
@@ -25,20 +25,6 @@ export const metadata: Metadata = {
   // Es un área privada: no debe indexarse.
   robots: { index: false, follow: false },
 };
-
-/** Puntos necesarios para el siguiente nivel. */
-function nextTierProgress(points: number) {
-  if (points >= 1200) return null;
-  const target = points >= 400 ? 1200 : 400;
-  const floor = points >= 400 ? 400 : 0;
-
-  return {
-    target,
-    label: points >= 400 ? "Oro" : "Plata",
-    missing: target - points,
-    percent: Math.round(((points - floor) / (target - floor)) * 100),
-  };
-}
 
 export default async function MiTarjetaPage({
   searchParams,
@@ -77,7 +63,6 @@ export default async function MiTarjetaPage({
   }
 
   const card = member.card;
-  const progress = nextTierProgress(card.points);
 
   const [qrDataUrl, activeVoucher] = await Promise.all([
     cardQrDataUrl(card.qrToken),
@@ -98,7 +83,7 @@ export default async function MiTarjetaPage({
     (promotion) =>
       checkEligibility({
         promotion,
-        card: { tier: card.tier, status: card.status, points: card.points },
+        card: { status: card.status },
         redemptionsForThisPromotion: usageByPromotion.get(promotion.id) ?? 0,
       }).ok,
   );
@@ -168,8 +153,6 @@ export default async function MiTarjetaPage({
               <CardVisual
                 cardNumber={card.cardNumber}
                 holder={member.fullName}
-                tier={card.tier}
-                points={card.points}
                 qrDataUrl={qrDataUrl}
                 issuedAt={card.issuedAt}
                 status={card.status}
@@ -230,59 +213,21 @@ export default async function MiTarjetaPage({
               reference={card.paymentReference}
             />
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="card-bz p-5">
-                <p className="eyebrow text-muted">Nivel</p>
-                <p className="mt-2 font-display text-2xl text-bone">
-                  {TIER_LABELS[card.tier]}
-                </p>
-              </div>
-
-              <div className="card-bz p-5">
-                <p className="eyebrow text-muted">Puntos</p>
-                <p className="mt-2 font-display text-2xl text-gilt-soft">
-                  {card.points}
-                </p>
-              </div>
-
-              <div className="card-bz p-5">
-                <p className="eyebrow text-muted">Canjes</p>
+                <p className="eyebrow text-muted">Beneficios usados</p>
                 <p className="mt-2 font-display text-2xl text-bone">
                   {card.redemptions.length}
                 </p>
               </div>
-            </div>
 
-            {progress && (
-              <div className="card-bz p-6">
-                <div className="flex items-baseline justify-between gap-4">
-                  <p className="text-sm text-bone-dim">
-                    Te faltan{" "}
-                    <span className="text-crimson-bright">
-                      {progress.missing} puntos
-                    </span>{" "}
-                    para el nivel {progress.label}
-                  </p>
-                  <p className="text-xs text-muted-dark tabular-nums">
-                    {card.points} / {progress.target}
-                  </p>
-                </div>
-
-                <div
-                  className="mt-4 h-1.5 w-full overflow-hidden bg-surface-2"
-                  role="progressbar"
-                  aria-valuenow={progress.percent}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-label={`Progreso hacia el nivel ${progress.label}`}
-                >
-                  <div
-                    className="h-full bg-gradient-to-r from-crimson to-gilt transition-[width] duration-1000"
-                    style={{ width: `${Math.max(3, progress.percent)}%` }}
-                  />
-                </div>
+              <div className="card-bz p-5">
+                <p className="eyebrow text-muted">Estado</p>
+                <p className="mt-2 font-display text-2xl text-bone">
+                  {card.status === "ACTIVE" ? "Activa" : "Suspendida"}
+                </p>
               </div>
-            )}
+            </div>
 
             {/* Historial */}
             <div>
@@ -312,10 +257,9 @@ export default async function MiTarjetaPage({
                       </div>
 
                       <div className="flex items-center gap-3">
-                        {redemption.pointsEarned > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-gilt-soft">
-                            <Star className="size-3" aria-hidden />+
-                            {redemption.pointsEarned}
+                        {redemption.discountCents > 0 && (
+                          <span className="text-xs text-emerald-300">
+                            −{formatPrice(redemption.discountCents)}
                           </span>
                         )}
                         <Badge tone="muted">{redemption.receiptCode}</Badge>

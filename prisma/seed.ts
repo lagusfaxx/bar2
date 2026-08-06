@@ -1120,6 +1120,13 @@ const GALLERY = [
   { file: 14, alt: "Público con las manos en alto durante el cierre", caption: "El cierre", tag: "público" },
 ];
 
+/**
+ * Promociones de ejemplo.
+ *
+ * Cada una dice sobre que aplica —`productSlug` o `categorySlug`—, que es lo
+ * que le permite al POS descontarla solo en la cuenta de la mesa. Una promo sin
+ * alcance definido aplica sobre el total de lo consumido.
+ */
 const PROMOTIONS: Array<{
   slug: string;
   title: string;
@@ -1129,85 +1136,83 @@ const PROMOTIONS: Array<{
   value: number;
   image: number;
   maxPerCard: number;
-  minTier?: "CLASICA" | "PLATA" | "ORO";
-  pointsCost?: number;
-  pointsReward?: number;
+  /** Slug del producto de la carta sobre el que aplica. */
+  productSlug?: string;
+  /** Slug de la categoria de la carta sobre la que aplica. */
+  categorySlug?: string;
   weekdays?: number[];
   maxTotal?: number;
 }> = [
   {
     slug: "2x1-en-cervezas",
-    title: "2x1 en cervezas de barril",
-    description: "Llévate dos cervezas de barril de 500cc pagando una, de 21:00 a 23:00.",
+    title: "2x1 en Schop Heineken",
+    description: "Pide dos schops Heineken y paga uno, de 21:00 a 23:00.",
     terms:
       "Válido de martes a jueves, de 21:00 a 23:00. Un uso por tarjeta por noche. No acumulable con otras promociones.",
     type: "TWO_FOR_ONE",
     value: 0,
     image: 1,
     maxPerCard: 0,
+    productSlug: "cervezas-schop-heineken",
     weekdays: [2, 3, 4],
-    pointsReward: 20,
   },
   {
     slug: "20-off-en-cervezas",
     title: "20% off en cervezas",
-    description: "Descuento sobre toda la carta de cervezas de barril y botella.",
+    description: "Descuento sobre toda la carta de cervezas, de barril y botella.",
     terms:
-      "Válido todos los días. Un uso por tarjeta. No aplica sobre promociones vigentes.",
+      "Válido todos los días. Un uso por tarjeta. No aplica sobre productos que ya estén en promoción.",
     type: "PERCENT_OFF",
     value: 20,
     image: 2,
     maxPerCard: 1,
-    pointsReward: 30,
+    categorySlug: "cervezas",
   },
   {
     slug: "tabla-barzuo-bonificada",
-    title: "Tabla BARZUO de cortesía",
-    description: "Una tabla para compartir sin cargo con el consumo de cuatro cervezas.",
+    title: "Tabla de charcutería de cortesía",
+    description: "La tabla para compartir va por cuenta de la casa.",
     terms:
-      "Requiere BarzuCard Plata. Un uso por tarjeta. Sujeto a disponibilidad de cocina.",
+      "Un uso por tarjeta. Sujeto a disponibilidad de cocina. La garzona la carga en la cuenta al aplicar el beneficio.",
     type: "FREE_ITEM",
     value: 0,
     image: 3,
     maxPerCard: 1,
-    minTier: "PLATA",
-    pointsCost: 200,
+    productSlug: "charcuteria-y-frituras-tabla-de-charcuteria",
   },
   {
-    slug: "entrada-con-descuento",
-    title: "$3.000 off en la entrada del show",
-    description: "Descuento fijo sobre el valor de la entrada de cualquier show con costo.",
+    slug: "3000-off-en-la-cuenta",
+    title: "$3.000 off en tu cuenta",
+    description: "Descuento fijo sobre el total de lo que consumas esta noche.",
     terms:
-      "Válido para shows con entrada paga. Un uso por tarjeta por show. Presentar antes de abonar.",
+      "Un uso por tarjeta por visita. Si la cuenta suma menos de $3.000, el descuento se ajusta a ese total.",
     type: "AMOUNT_OFF",
     value: 300000,
     image: 4,
     maxPerCard: 0,
-    pointsReward: 25,
   },
   {
     slug: "cumpleanos-barzuo",
     title: "Brindis de cumpleaños",
-    description: "Botella de espumante de la casa para tu mesa en la semana de tu cumpleaños.",
+    description: "Un espumante de la casa para tu mesa en la semana de tu cumpleaños.",
     terms:
-      "Válido durante los siete días posteriores a la fecha de cumpleaños registrada. Un uso por año. Mesa de mínimo cuatro personas.",
+      "Válido durante los siete días posteriores a la fecha de cumpleaños registrada. Un uso por año.",
     type: "FREE_ITEM",
     value: 0,
     image: 5,
     maxPerCard: 1,
-    pointsReward: 50,
+    productSlug: "vinos-undurraga-brut",
   },
   {
-    slug: "noche-oro",
-    title: "Cerveza de autor bonificada",
-    description: "Un schop de cerveza artesanal de cortesía para socios Oro.",
-    terms: "Exclusivo BarzuCard Oro. Un uso por mes. Sujeto a stock.",
+    slug: "papas-de-la-casa",
+    title: "Papas fritas de cortesía",
+    description: "Una porción de papas fritas para picar mientras llega el show.",
+    terms: "Un uso por tarjeta al mes. Sujeto a stock.",
     type: "FREE_ITEM",
     value: 0,
     image: 6,
     maxPerCard: 1,
-    minTier: "ORO",
-    pointsCost: 500,
+    productSlug: "charcuteria-y-frituras-porcion-de-papas-fritas",
     maxTotal: 100,
   },
 ];
@@ -1480,6 +1485,29 @@ async function main() {
   console.log(`· ${GALLERY.length} imágenes de galería`);
 
   for (const [index, promo] of PROMOTIONS.entries()) {
+    /*
+     * El alcance se resuelve contra la carta recien sembrada.
+     *
+     * Si el producto no existe —porque el local cambio su carta— la promocion
+     * se siembra igual pero apuntando a la cuenta completa: es preferible una
+     * promo mas generosa que una que el POS no pueda aplicar nunca.
+     */
+    const product = promo.productSlug
+      ? await prisma.menuProduct.findUnique({
+          where: { slug: promo.productSlug },
+          select: { id: true },
+        })
+      : null;
+
+    const category = promo.categorySlug
+      ? await prisma.menuCategory.findUnique({
+          where: { slug: promo.categorySlug },
+          select: { id: true },
+        })
+      : null;
+
+    const scope = product ? "PRODUCTO" : category ? "CATEGORIA" : "CUENTA";
+
     const data = {
       title: promo.title,
       description: promo.description,
@@ -1491,13 +1519,13 @@ async function main() {
       endsAt: daysFromNow(180, 23, 59),
       active: true,
       position: index,
-      minTier: promo.minTier ?? "CLASICA",
+      scope,
+      productId: product?.id ?? null,
+      categoryId: category?.id ?? null,
       maxPerCard: promo.maxPerCard,
       maxTotal: promo.maxTotal ?? 0,
-      pointsCost: promo.pointsCost ?? 0,
-      pointsReward: promo.pointsReward ?? 0,
       availableWeekdays: promo.weekdays ?? [],
-    };
+    } as const;
 
     await prisma.promotion.upsert({
       where: { slug: promo.slug },
@@ -1509,8 +1537,8 @@ async function main() {
 
   // Socios de ejemplo, para probar la app del personal de sala de inmediato.
   const demoMembers = [
-    { email: "sofia@ejemplo.com", fullName: "Sofía Ramírez", tier: "PLATA" as const, points: 620 },
-    { email: "martin@ejemplo.com", fullName: "Martín Cabrera", tier: "CLASICA" as const, points: 120 },
+    { email: "sofia@ejemplo.com", fullName: "Sofía Ramírez" },
+    { email: "martin@ejemplo.com", fullName: "Martín Cabrera" },
   ];
 
   for (const member of demoMembers) {
@@ -1535,8 +1563,6 @@ async function main() {
           memberId: saved.id,
           cardNumber: cardNumber(),
           qrToken: randomBytes(24).toString("base64url"),
-          tier: member.tier,
-          points: member.points,
         },
       });
     }

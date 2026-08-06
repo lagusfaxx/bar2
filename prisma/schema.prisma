@@ -149,7 +149,8 @@ model MenuCategory {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  products MenuProduct[]
+  products   MenuProduct[]
+  promotions Promotion[]
 
   @@index([active, position])
   @@map("menu_categories")
@@ -187,6 +188,7 @@ model MenuProduct {
   updatedAt DateTime @updatedAt
 
   orderItems OrderItem[]
+  promotions Promotion[]
 
   @@index([categoryId, position])
   @@index([available, featured])
@@ -244,12 +246,6 @@ model Media {
 // BarzuCard — programa de fidelizacion
 // ---------------------------------------------------------------------------
 
-enum CardTier {
-  CLASICA
-  PLATA
-  ORO
-}
-
 enum CardStatus {
   ACTIVE
   SUSPENDED
@@ -292,15 +288,14 @@ model BarzuCard {
   // Token opaco que viaja dentro del QR (rotable si la tarjeta se pierde)
   qrToken    String @unique
 
-  tier   CardTier   @default(CLASICA)
   status CardStatus @default(ACTIVE)
-  points Int        @default(0)
 
   issuedAt  DateTime  @default(now())
   printedAt DateTime? // fecha en que se imprimio la tarjeta fisica
 
-  // Pago y entrega de la tarjeta fisica (se abona por transferencia y se retira
-  // en el local). Los beneficios digitales funcionan desde el registro.
+  // Pago y entrega de la tarjeta fisica, que es OPCIONAL: el socio queda activo
+  // y con todos los beneficios desde que se registra, gratis. Esto solo sigue
+  // el estado de quien ademas quiso la tarjeta de plastico.
   paymentStatus    CardPaymentStatus @default(PENDING)
   paymentReference String? // numero de operacion o dato que deja el socio
   reportedAt       DateTime? // cuando el socio aviso la transferencia
@@ -313,6 +308,7 @@ model BarzuCard {
   redemptions Redemption[]
   vouchers    PromotionVoucher[]
   payments    Payment[]
+  sessions    TableSession[]
 
   @@index([status])
   @@index([paymentStatus])
@@ -322,9 +318,22 @@ model BarzuCard {
 enum PromotionType {
   PERCENT_OFF // % de descuento
   AMOUNT_OFF // monto fijo de descuento
-  TWO_FOR_ONE // 2x1
+  TWO_FOR_ONE // 2x1: por cada dos unidades, la mas barata sale gratis
   FREE_ITEM // producto de cortesia
-  OTHER
+}
+
+/**
+ * Sobre que se aplica el beneficio.
+ *
+ * Es lo que le faltaba al sistema anterior: una promocion era un texto y el
+ * canje, un comprobante. Nadie sabia sobre que producto descontar, asi que el
+ * descuento terminaba a mano —o no se aplicaba—. Con el alcance, el POS
+ * resuelve solo cuanto descontar de la cuenta.
+ */
+enum PromotionScope {
+  CUENTA // sobre todo lo consumido
+  CATEGORIA // sobre una categoria de la carta ("cervezas")
+  PRODUCTO // sobre un producto concreto ("Schop rubia 500cc")
 }
 
 model Promotion {
@@ -336,8 +345,18 @@ model Promotion {
   imageUrl    String?
   type        PromotionType @default(PERCENT_OFF)
 
-  // Valor asociado al tipo: % para PERCENT_OFF, centesimos para AMOUNT_OFF
+  // Valor asociado al tipo: % para PERCENT_OFF, centesimos para AMOUNT_OFF.
+  // TWO_FOR_ONE y FREE_ITEM no lo usan: el valor sale del precio del producto.
   value Int @default(0)
+
+  // Sobre que aplica. PRODUCTO exige productId; CATEGORIA exige categoryId.
+  scope PromotionScope @default(CUENTA)
+
+  productId String?
+  product   MenuProduct? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  categoryId String?
+  category   MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   startsAt DateTime  @default(now())
   endsAt   DateTime?
@@ -346,13 +365,10 @@ model Promotion {
   position Int     @default(0)
 
   // Reglas de canje
-  minTier           CardTier @default(CLASICA)
-  maxPerCard        Int      @default(1) // 0 = ilimitado
-  maxTotal          Int      @default(0) // 0 = sin tope global
-  redeemedCount     Int      @default(0)
-  pointsCost        Int      @default(0) // costo en puntos, 0 = gratuito
-  pointsReward      Int      @default(0) // puntos que otorga al canjear
-  availableWeekdays Int[]    @default([]) // 0=domingo .. 6=sabado; vacio = todos
+  maxPerCard        Int   @default(1) // 0 = ilimitado
+  maxTotal          Int   @default(0) // 0 = sin tope global
+  redeemedCount     Int   @default(0)
+  availableWeekdays Int[] @default([]) // 0=domingo .. 6=sabado; vacio = todos
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -361,6 +377,8 @@ model Promotion {
   vouchers    PromotionVoucher[]
 
   @@index([active, position])
+  @@index([productId])
+  @@index([categoryId])
   @@map("promotions")
 }
 
@@ -379,9 +397,27 @@ model Redemption {
   // Codigo corto mostrado al cliente como comprobante del canje
   receiptCode String @unique
 
-  note         String?
-  pointsSpent  Int     @default(0)
-  pointsEarned Int     @default(0)
+  note String?
+
+  /**
+   * La cuenta sobre la que se aplico.
+   *
+   * Vacio = canje fuera de mesa (la pantalla suelta de /staff/canjear). Con
+   * mesa, el descuento entra en la cuenta y se recalcula solo mientras la mesa
+   * siga abierta: si el producto de la promo se anula, deja de descontar.
+   */
+  sessionId String?
+  session   TableSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /** Comensal al que se le aplico. Vacio = a la cuenta compartida. */
+  dinerId String?
+  diner   Diner?  @relation(fields: [dinerId], references: [id], onDelete: SetNull)
+
+  /** Lo que descontó, congelado al cobrar. Mientras no se cobre se recalcula. */
+  discountCents Int @default(0)
+
+  /** El garzon la quito antes de cobrar: no cuenta para los topes. */
+  voidedAt DateTime?
 
   redeemedAt DateTime @default(now())
 
@@ -390,6 +426,7 @@ model Redemption {
 
   @@index([cardId, redeemedAt])
   @@index([promotionId])
+  @@index([sessionId])
   @@map("redemptions")
 }
 
@@ -658,16 +695,28 @@ model TableSession {
   openedById String?
   openedBy   User?   @relation("SessionOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
 
+  /**
+   * BarzuCard presentada en la mesa.
+   *
+   * Es la llave de todo el programa: sin tarjeta en la mesa no se puede
+   * aplicar ninguna promocion. Se pide una vez, al principio, y vale para toda
+   * la noche —incluidos los cobros separados por comensal—.
+   */
+  cardId String?
+  card   BarzuCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
   openedAt DateTime  @default(now())
   closedAt DateTime?
 
-  diners   Diner[]
-  items    OrderItem[]
-  tickets  OrderTicket[]
-  payments Payment[]
+  diners      Diner[]
+  items       OrderItem[]
+  tickets     OrderTicket[]
+  payments    Payment[]
+  redemptions Redemption[]
 
   @@index([status, openedAt])
   @@index([tableId, status])
+  @@index([cardId])
   @@map("pos_table_sessions")
 }
 
@@ -688,8 +737,9 @@ model Diner {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items    OrderItem[]
-  payments Payment[]
+  items       OrderItem[]
+  payments    Payment[]
+  redemptions Redemption[]
 
   @@index([sessionId, position])
   @@map("pos_diners")
@@ -725,8 +775,13 @@ model OrderItem {
   note           String? // "sin cebolla", "bien cocido"
 
   // Descuento ya resuelto al cargar la linea (promo vigente de la carta).
+  // Los beneficios de BarzuCard NO se guardan aca: viven en Redemption y se
+  // recalculan sobre la cuenta, para que quitar uno sea una sola operacion.
   discountCents Int     @default(0)
   discountLabel String?
+
+  /** Linea nacida de una cortesia de BarzuCard (FREE_ITEM). */
+  courtesy Boolean @default(false)
 
   station Station
   status  OrderItemStatus @default(DRAFT)

@@ -3,12 +3,15 @@
 import {
   ArrowLeft,
   Ban,
+  CreditCard,
+  Gift,
   Loader2,
   MessageSquarePlus,
   Minus,
   Plus,
   RotateCw,
   Send,
+  Trash2,
   UserPlus,
   Wallet,
 } from "lucide-react";
@@ -19,12 +22,16 @@ import {
   addDiner,
   cancelItem,
   closeTable,
+  detachCard,
   removeDiner,
+  removePromotion,
   reprintTicket,
   sendOrder,
   setItemQuantity,
 } from "@/app/actions/pos";
+import { CardSheet } from "@/components/staff/pos/card-sheet";
 import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
+import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
@@ -35,6 +42,7 @@ import type {
   AccountTab,
   PosMenuCategory,
   PosMenuProduct,
+  PromotionOffer,
   SessionDetail,
 } from "@/lib/pos";
 
@@ -49,11 +57,14 @@ export function Account({
   session,
   menu,
   frequent,
+  offers,
   autoOpenPicker = false,
 }: {
   session: SessionDetail;
   menu: PosMenuCategory[];
   frequent: PosMenuProduct[];
+  /** Beneficios ya resueltos por pestaña ("mesa" = la cuenta compartida). */
+  offers: Record<string, PromotionOffer[]>;
   /** Mesa recien abierta: se entra directo a cargar, sin un toque de mas. */
   autoOpenPicker?: boolean;
 }) {
@@ -62,6 +73,8 @@ export function Account({
   const [noting, setNoting] = useState<AccountItem | null>(null);
   const [paying, setPaying] = useState<"tab" | "table" | null>(null);
   const [addingDiner, setAddingDiner] = useState(false);
+  const [scanningCard, setScanningCard] = useState(false);
+  const [choosingPromo, setChoosingPromo] = useState(false);
   const [feedback, setFeedback] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
 
@@ -108,6 +121,10 @@ export function Account({
 
   /** La mesa esta repartida entre varias personas. */
   const cuentaSeparada = session.diners.length > 0;
+
+  /** Beneficios que esta pestaña puede usar ahora mismo. */
+  const ofertas = offers[tab.dinerId ?? "mesa"] ?? [];
+  const disponibles = ofertas.filter((offer) => offer.available).length;
 
   /**
    * Abre el cobro.
@@ -415,7 +432,116 @@ export function Account({
                   ))}
                 </ul>
               )}
+
+              {/* Lo que descuenta la BarzuCard en esta cuenta. Va pegado al
+                  consumo y no al pie: es parte de lo que se lee en voz alta
+                  cuando el cliente pregunta cuanto es. */}
+              {tab.promotions.length > 0 && (
+                <ul className="mt-3 flex flex-col gap-2">
+                  {tab.promotions.map((promotion) => (
+                    <li
+                      key={promotion.redemptionId}
+                      className="flex items-center justify-between gap-3 border border-emerald-500/40 bg-emerald-500/5 px-3 py-2.5"
+                    >
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-bone">
+                          <Gift className="size-4 shrink-0 text-emerald-300" aria-hidden />
+                          {promotion.title}
+                        </p>
+                        <p className="mt-0.5 text-xs text-muted">
+                          {promotion.missing
+                            ? "Ya no aplica: el producto salió de la cuenta"
+                            : promotion.detail || "Beneficio BarzuCard"}
+                          {" · "}
+                          {promotion.receiptCode}
+                        </p>
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-2">
+                        <p className="font-display text-emerald-300">
+                          −{formatPrice(promotion.discountCents)}
+                        </p>
+
+                        {!cerrada && (
+                          <button
+                            type="button"
+                            disabled={pending}
+                            onClick={() =>
+                              run(() => removePromotion(promotion.redemptionId))
+                            }
+                            aria-label={`Quitar ${promotion.title}`}
+                            className="flex size-10 items-center justify-center border border-line text-muted hover:border-crimson hover:text-crimson-bright"
+                          >
+                            <Trash2 className="size-4" aria-hidden />
+                          </button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </section>
+
+            {/*
+              BarzuCard de la mesa.
+
+              El programa entero cuelga de este bloque: sin tarjeta presentada
+              no hay beneficio posible, y por eso el boton esta a la vista
+              desde el primer momento en vez de escondido en el cobro —que es
+              donde estaba y donde ya no sirve de nada, porque el cliente pide
+              su descuento cuando pide, no cuando paga—.
+            */}
+            {!cerrada && (
+              <section className="mt-8">
+                {session.card ? (
+                  <div className="border border-gilt/40 bg-gilt/5 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="flex items-center gap-2 text-bone">
+                          <CreditCard className="size-4 shrink-0 text-gilt" aria-hidden />
+                          {session.card.memberName}
+                        </p>
+                        <p className="mt-0.5 font-mono text-xs tracking-[0.12em] text-muted">
+                          •••• {session.card.cardNumber.slice(-4)}
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => run(() => detachCard(session.id))}
+                        className="shrink-0 text-sm text-muted underline underline-offset-4 hover:text-crimson-bright"
+                      >
+                        Quitar
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setChoosingPromo(true)}
+                      className="mt-4 flex h-14 w-full items-center justify-center gap-2 bg-gilt text-base font-medium text-ink"
+                    >
+                      <Gift className="size-5" aria-hidden />
+                      Aplicar un beneficio
+                      {disponibles > 0 && (
+                        <span className="rounded-full bg-ink/20 px-2 py-0.5 text-sm">
+                          {disponibles}
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setScanningCard(true)}
+                    className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-gilt/50 text-base text-gilt-soft"
+                  >
+                    <CreditCard className="size-5" aria-hidden />
+                    ¿Tiene BarzuCard?
+                  </button>
+                )}
+              </section>
+            )}
 
             {/*
               Los papeles que se imprimieron en cocina y barra.
@@ -601,6 +727,23 @@ export function Account({
         </div>
       )}
 
+      {scanningCard && (
+        <CardSheet
+          sessionId={session.id}
+          onClose={() => setScanningCard(false)}
+        />
+      )}
+
+      {choosingPromo && (
+        <PromoSheet
+          sessionId={session.id}
+          dinerId={tab.dinerId}
+          tabLabel={tab.dinerId ? tab.label : "la mesa"}
+          offers={ofertas}
+          onClose={() => setChoosingPromo(false)}
+        />
+      )}
+
       {noting && (
         <NoteSheet
           itemId={noting.id}
@@ -616,6 +759,14 @@ export function Account({
           tab={paying === "tab" ? tab : null}
           totalCents={
             paying === "tab" ? tab.pendingCents : session.pendingCents
+          }
+          discountCents={
+            paying === "tab"
+              ? tab.promotionDiscountCents
+              : session.tabs.reduce(
+                  (total, candidate) => total + candidate.promotionDiscountCents,
+                  0,
+                )
           }
           onClose={() => setPaying(null)}
         />

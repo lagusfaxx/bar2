@@ -3,7 +3,13 @@ import "server-only";
 import { randomInt } from "node:crypto";
 
 import type { Station, TicketKind } from "@/generated/prisma/enums";
+import { checkEligibility } from "@/lib/barzucard";
 import { prisma } from "@/lib/prisma";
+import {
+  requirementLabel,
+  resolvePromotion,
+  type PromoLine,
+} from "@/lib/promotions";
 
 /**
  * POS de sala: precios, cuentas y estado de las mesas.
@@ -71,17 +77,6 @@ export function stationFor(product: {
   category: { station: Station };
 }): Station {
   return product.station ?? product.category.station;
-}
-
-/**
- * Puntos de BarzuCard que otorga un consumo: 1 por cada $1.000 cobrados.
- *
- * Es la via realista para subir de nivel. Solo con canjes harian falta decenas
- * de visitas, asi que la tarjeta no tenia motivo para salir de la billetera.
- * Se calcula sobre lo efectivamente cobrado, ya con descuentos aplicados.
- */
-export function pointsForSpend(totalCents: number) {
-  return Math.floor(totalCents / 100_000);
 }
 
 /** Lo que se cobra por una linea, ya con su descuento y su cantidad. */
@@ -379,6 +374,23 @@ export type AccountItem = {
   status: "DRAFT" | "SENT" | "CANCELLED";
   paid: boolean;
   dinerId: string | null;
+  /** Linea regalada por una cortesia de BarzuCard. */
+  courtesy: boolean;
+};
+
+/** Un beneficio de BarzuCard ya aplicado a la cuenta. */
+export type AppliedPromotion = {
+  redemptionId: string;
+  promotionId: string;
+  title: string;
+  /** null = aplica a la cuenta compartida de la mesa. */
+  dinerId: string | null;
+  /** Lo que descuenta ahora mismo, recalculado sobre las lineas vivas. */
+  discountCents: number;
+  detail: string;
+  /** Sigue aplicada pero hoy no descuenta: falta el producto en la cuenta. */
+  missing: boolean;
+  receiptCode: string;
 };
 
 export type AccountTab = {
@@ -387,8 +399,21 @@ export type AccountTab = {
   label: string;
   color: string | null;
   items: AccountItem[];
+  /** Beneficios de BarzuCard aplicados a esta pestaña. */
+  promotions: AppliedPromotion[];
+  /** Suma de los beneficios de BarzuCard de esta pestaña. */
+  promotionDiscountCents: number;
+  /** Lo que falta cobrar, ya con los beneficios descontados. */
   pendingCents: number;
   paidCents: number;
+};
+
+/** La BarzuCard presentada en la mesa, tal como la ve la garzona. */
+export type SessionCard = {
+  id: string;
+  cardNumber: string;
+  memberName: string;
+  status: string;
 };
 
 export type SessionDetail = {
@@ -399,6 +424,8 @@ export type SessionDetail = {
   note: string | null;
   openedAt: string;
   table: { id: string; number: number; name: string | null };
+  /** Sin tarjeta no hay beneficios: es la condicion de todo el programa. */
+  card: SessionCard | null;
   diners: Array<{ id: string; label: string; color: string | null }>;
   tabs: AccountTab[];
   draftCount: number;
@@ -439,7 +466,18 @@ export async function getSessionDetail(
     include: {
       table: { select: { id: true, number: true, name: true } },
       diners: { orderBy: { position: "asc" } },
-      items: { orderBy: { createdAt: "asc" } },
+      items: {
+        orderBy: { createdAt: "asc" },
+        // La categoria del producto la pide el motor de promociones: un "20%
+        // en cervezas" necesita saber de que categoria es cada linea.
+        include: { product: { select: { categoryId: true } } },
+      },
+      card: { include: { member: { select: { fullName: true } } } },
+      redemptions: {
+        where: { voidedAt: null },
+        orderBy: { redeemedAt: "asc" },
+        include: { promotion: true },
+      },
       payments: {
         orderBy: { paidAt: "desc" },
         include: { diner: { select: { label: true } } },
@@ -463,6 +501,7 @@ export async function getSessionDetail(
     status: item.status,
     paid: item.paymentId !== null,
     dinerId: item.dinerId,
+    courtesy: item.courtesy,
   });
 
   const vivos = session.items.filter((item) => item.status !== "CANCELLED");
@@ -472,18 +511,54 @@ export async function getSessionDetail(
     label: string,
     color: string | null,
   ): AccountTab => {
-    const items = vivos
-      .filter((item) => item.dinerId === dinerId)
-      .map(toAccountItem);
+    const propias = vivos.filter((item) => item.dinerId === dinerId);
+    const items = propias.map(toAccountItem);
+
+    const consumoPendiente = items
+      .filter((item) => !item.paid)
+      .reduce((total, item) => total + item.totalCents, 0);
+
+    /*
+     * Los beneficios se recalculan sobre lo que hay AHORA sin cobrar.
+     *
+     * Guardarlos como un monto fijo al aplicarlos era la via corta y mentia:
+     * si despues se anula el producto del 2x1, la cuenta seguia descontando
+     * plata por algo que nadie consumio. Aca el descuento nace de las lineas,
+     * asi que no puede quedar desfasado.
+     */
+    const lineas = promoLines(propias.filter((item) => item.paymentId === null));
+
+    let acumulado = 0;
+    const promotions: AppliedPromotion[] = session.redemptions
+      .filter((redemption) => (redemption.dinerId ?? null) === dinerId)
+      .map((redemption) => {
+        const resolved = resolvePromotion(redemption.promotion, lineas);
+
+        // Ninguna combinacion de beneficios puede dejar la cuenta en negativo.
+        const disponible = Math.max(0, consumoPendiente - acumulado);
+        const discountCents = Math.min(resolved.discountCents, disponible);
+        acumulado += discountCents;
+
+        return {
+          redemptionId: redemption.id,
+          promotionId: redemption.promotionId,
+          title: redemption.promotion.title,
+          dinerId: redemption.dinerId,
+          discountCents,
+          detail: resolved.detail,
+          missing: resolved.missing,
+          receiptCode: redemption.receiptCode,
+        };
+      });
 
     return {
       dinerId,
       label,
       color,
       items,
-      pendingCents: items
-        .filter((item) => !item.paid)
-        .reduce((total, item) => total + item.totalCents, 0),
+      promotions,
+      promotionDiscountCents: acumulado,
+      pendingCents: Math.max(0, consumoPendiente - acumulado),
       paidCents: items
         .filter((item) => item.paid)
         .reduce((total, item) => total + item.totalCents, 0),
@@ -503,6 +578,14 @@ export async function getSessionDetail(
     note: session.note,
     openedAt: session.openedAt.toISOString(),
     table: session.table,
+    card: session.card
+      ? {
+          id: session.card.id,
+          cardNumber: session.card.cardNumber,
+          memberName: session.card.member.fullName,
+          status: session.card.status,
+        }
+      : null,
     diners: session.diners.map((diner) => ({
       id: diner.id,
       label: diner.label,
@@ -531,6 +614,188 @@ export async function getSessionDetail(
       lastError: ticket.lastError,
     })),
   };
+}
+
+/** Traduce lineas de la cuenta a lo que entiende el motor de promociones. */
+function promoLines(
+  items: Array<{
+    id: string;
+    productId: string | null;
+    product: { categoryId: string } | null;
+    unitPriceCents: number;
+    discountCents: number;
+    quantity: number;
+  }>,
+): PromoLine[] {
+  return items.map((item) => ({
+    id: item.id,
+    productId: item.productId,
+    categoryId: item.product?.categoryId ?? null,
+    unitPriceCents: item.unitPriceCents,
+    discountCents: item.discountCents,
+    quantity: item.quantity,
+  }));
+}
+
+/** Una promocion tal como se le ofrece a la garzona en la mesa. */
+export type PromotionOffer = {
+  id: string;
+  title: string;
+  description: string;
+  terms: string | null;
+  typeLabel: string;
+  scopeLabel: string;
+  /** Producto o categoria sobre la que aplica, para nombrarlo en pantalla. */
+  targetName: string | null;
+  /** Lo que descontaria ahora mismo en esta cuenta. */
+  previewCents: number;
+  detail: string;
+  /** Se puede aplicar. Si no, `reason` dice por que no. */
+  available: boolean;
+  reason: string | null;
+  /** Ya esta aplicada en esta mesa. */
+  applied: boolean;
+  /**
+   * Cortesia cuyo producto todavia no esta en la cuenta: al aplicarla, el POS
+   * lo agrega solo y sale la comanda. No es un impedimento.
+   */
+  addsProduct: boolean;
+};
+
+const TYPE_SHORT: Record<string, string> = {
+  PERCENT_OFF: "% off",
+  AMOUNT_OFF: "Monto fijo",
+  TWO_FOR_ONE: "2x1",
+  FREE_ITEM: "Cortesía",
+};
+
+/**
+ * Las promociones que esta mesa puede usar, ya resueltas contra su cuenta.
+ *
+ * Devuelve todas las vigentes —tambien las que hoy no aplican— con el motivo
+ * escrito. Esconder las que no se pueden usar obliga a la garzona a explicar
+ * de memoria por que el cliente no ve su promo; mostrarlas con el motivo
+ * ("necesita 2 x Schop en la cuenta") convierte el problema en una venta.
+ */
+export async function getPromotionOffers(
+  sessionId: string,
+  dinerId: string | null,
+  now = new Date(),
+): Promise<PromotionOffer[]> {
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { id: true, cardId: true },
+  });
+
+  if (!session?.cardId) return [];
+
+  const [card, promotions, items] = await Promise.all([
+    prisma.barzuCard.findUnique({
+      where: { id: session.cardId },
+      select: { id: true, status: true },
+    }),
+    prisma.promotion.findMany({
+      where: { active: true },
+      orderBy: { position: "asc" },
+      include: {
+        product: { select: { name: true } },
+        category: { select: { name: true } },
+      },
+    }),
+    prisma.orderItem.findMany({
+      where: {
+        sessionId,
+        dinerId,
+        status: { not: "CANCELLED" },
+        paymentId: null,
+      },
+      select: {
+        id: true,
+        productId: true,
+        product: { select: { categoryId: true } },
+        unitPriceCents: true,
+        discountCents: true,
+        quantity: true,
+      },
+    }),
+  ]);
+
+  if (!card) return [];
+
+  // Cuantas veces uso ya cada promocion esta tarjeta (los canjes anulados no
+  // cuentan: la garzona se equivoco de boton y lo deshizo).
+  const usos = await prisma.redemption.groupBy({
+    by: ["promotionId"],
+    where: { cardId: card.id, voidedAt: null },
+    _count: { _all: true },
+  });
+
+  const usosPorPromo = new Map(
+    usos.map((uso) => [uso.promotionId, uso._count._all]),
+  );
+
+  const aplicadas = new Set(
+    (
+      await prisma.redemption.findMany({
+        where: { sessionId, voidedAt: null },
+        select: { promotionId: true },
+      })
+    ).map((redemption) => redemption.promotionId),
+  );
+
+  const lineas = promoLines(items);
+
+  return promotions.map((promotion) => {
+    const eligibility = checkEligibility({
+      promotion,
+      card,
+      redemptionsForThisPromotion: usosPorPromo.get(promotion.id) ?? 0,
+      now,
+    });
+
+    const resolved = resolvePromotion(promotion, lineas);
+    const applied = aplicadas.has(promotion.id);
+
+    // La cortesia es el unico beneficio que no necesita nada cargado: al
+    // aplicarla se agrega el producto a la cuenta y sale hacia la cocina.
+    const addsProduct =
+      promotion.type === "FREE_ITEM" &&
+      promotion.scope === "PRODUCTO" &&
+      resolved.missing;
+
+    const faltaConsumo = resolved.missing && !addsProduct;
+
+    return {
+      id: promotion.id,
+      title: promotion.title,
+      description: promotion.description,
+      terms: promotion.terms,
+      typeLabel: TYPE_SHORT[promotion.type] ?? "Beneficio",
+      scopeLabel:
+        promotion.scope === "PRODUCTO"
+          ? "Producto"
+          : promotion.scope === "CATEGORIA"
+            ? "Categoría"
+            : "Toda la cuenta",
+      targetName: promotion.product?.name ?? promotion.category?.name ?? null,
+      previewCents: resolved.discountCents,
+      detail: resolved.detail,
+      available: eligibility.ok && !applied && !faltaConsumo,
+      reason: applied
+        ? "Ya aplicada en esta mesa"
+        : !eligibility.ok
+          ? eligibility.reason
+          : faltaConsumo
+            ? requirementLabel(
+                promotion,
+                promotion.product?.name,
+                promotion.category?.name,
+              )
+            : null,
+      applied,
+      addsProduct,
+    };
+  });
 }
 
 /** Etiquetas de estacion, para no repetir el switch en cada pantalla. */

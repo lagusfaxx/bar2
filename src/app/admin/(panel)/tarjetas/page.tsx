@@ -18,7 +18,7 @@ import {
   Th,
 } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/section";
-import { formatCardNumber, formatDate, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, formatDate } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Socios y tarjetas" };
@@ -119,9 +119,7 @@ export default async function AdminTarjetasPage({
                 <tr>
                   <Th>Socio</Th>
                   <Th className="hidden md:table-cell">Tarjeta</Th>
-                  <Th>Nivel</Th>
-                  <Th className="hidden lg:table-cell">Puntos</Th>
-                  <Th className="hidden lg:table-cell">Canjes</Th>
+                  <Th className="hidden lg:table-cell">Beneficios usados</Th>
                   <Th>Estado</Th>
                   <Th>Tarjeta física</Th>
                   <Th className="text-right">Acciones</Th>
@@ -149,20 +147,6 @@ export default async function AdminTarjetasPage({
                           Impresa {formatDate(member.card.printedAt, { month: "short" })}
                         </span>
                       )}
-                    </Td>
-
-                    <Td>
-                      {member.card ? (
-                        <Badge tone={member.card.tier === "CLASICA" ? "muted" : "gilt"}>
-                          {TIER_LABELS[member.card.tier]}
-                        </Badge>
-                      ) : (
-                        "—"
-                      )}
-                    </Td>
-
-                    <Td className="hidden text-sm text-bone-dim tabular-nums lg:table-cell">
-                      {member.card?.points ?? 0}
                     </Td>
 
                     <Td className="hidden text-sm text-muted tabular-nums lg:table-cell">

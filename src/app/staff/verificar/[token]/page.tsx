@@ -59,10 +59,14 @@ export default async function VerificarTokenPage({
           OR: [{ endsAt: null }, { endsAt: { gte: now } }],
         },
         orderBy: { position: "asc" },
+        include: {
+          product: { select: { name: true } },
+          category: { select: { name: true } },
+        },
       }),
       prisma.redemption.groupBy({
         by: ["promotionId"],
-        where: { cardId: card.id },
+        where: { cardId: card.id, voidedAt: null },
         _count: { promotionId: true },
       }),
     ]);
@@ -75,16 +79,14 @@ export default async function VerificarTokenPage({
       card: {
         id: card.id,
         cardNumber: card.cardNumber,
-        tier: card.tier,
         status: card.status,
-        points: card.points,
       },
       member: card.member,
       promotions: promotions.map((promotion) => {
         const used = usageByPromotion.get(promotion.id) ?? 0;
         const eligibility = checkEligibility({
           promotion,
-          card: { tier: card.tier, status: card.status, points: card.points },
+          card: { status: card.status },
           redemptionsForThisPromotion: used,
           now,
         });
@@ -96,8 +98,14 @@ export default async function VerificarTokenPage({
           terms: promotion.terms,
           type: promotion.type,
           value: promotion.value,
-          pointsCost: promotion.pointsCost,
-          pointsReward: promotion.pointsReward,
+          scopeLabel:
+            promotion.scope === "PRODUCTO"
+              ? "Producto"
+              : promotion.scope === "CATEGORIA"
+                ? "Categoría"
+                : "Toda la cuenta",
+          targetName:
+            promotion.product?.name ?? promotion.category?.name ?? null,
           used,
           maxPerCard: promotion.maxPerCard,
           eligible: eligibility.ok,

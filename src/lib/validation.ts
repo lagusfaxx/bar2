@@ -130,24 +130,53 @@ export const galleryImageSchema = z.object({
 
 // --- Promociones -------------------------------------------------------------
 
-export const promotionSchema = z.object({
-  title: trimmed.min(2, "El titulo es obligatorio").max(140),
-  slug: trimmed.max(90).optional().or(z.literal("")),
-  description: trimmed.min(2, "Describe el beneficio").max(600),
-  terms: trimmed.max(1200).optional().or(z.literal("")),
-  imageUrl: optionalUrl,
-  type: z.enum(["PERCENT_OFF", "AMOUNT_OFF", "TWO_FOR_ONE", "FREE_ITEM", "OTHER"]),
-  value: trimmed.optional().or(z.literal("")),
-  startsAt: trimmed.min(1, "Indica desde cuando aplica"),
-  endsAt: trimmed.optional().or(z.literal("")),
-  active: z.coerce.boolean().default(true),
-  minTier: z.enum(["CLASICA", "PLATA", "ORO"]).default("CLASICA"),
-  maxPerCard: z.coerce.number().int().min(0).max(999).default(1),
-  maxTotal: z.coerce.number().int().min(0).max(1_000_000).default(0),
-  pointsCost: z.coerce.number().int().min(0).max(100_000).default(0),
-  pointsReward: z.coerce.number().int().min(0).max(100_000).default(0),
-  availableWeekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
-});
+export const promotionSchema = z
+  .object({
+    title: trimmed.min(2, "El titulo es obligatorio").max(140),
+    slug: trimmed.max(90).optional().or(z.literal("")),
+    description: trimmed.min(2, "Describe el beneficio").max(600),
+    terms: trimmed.max(1200).optional().or(z.literal("")),
+    imageUrl: optionalUrl,
+    type: z.enum(["PERCENT_OFF", "AMOUNT_OFF", "TWO_FOR_ONE", "FREE_ITEM"]),
+    value: trimmed.optional().or(z.literal("")),
+    scope: z.enum(["CUENTA", "CATEGORIA", "PRODUCTO"]).default("CUENTA"),
+    productId: trimmed.max(40).optional().or(z.literal("")),
+    categoryId: trimmed.max(40).optional().or(z.literal("")),
+    startsAt: trimmed.min(1, "Indica desde cuando aplica"),
+    endsAt: trimmed.optional().or(z.literal("")),
+    active: z.coerce.boolean().default(true),
+    maxPerCard: z.coerce.number().int().min(0).max(999).default(1),
+    maxTotal: z.coerce.number().int().min(0).max(1_000_000).default(0),
+    availableWeekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
+  })
+  /*
+   * Una promocion sin objetivo es una promocion que el POS no puede aplicar.
+   *
+   * Es la validacion que le faltaba al sistema anterior: se podia crear un
+   * "2x1" que no decia de que, y la garzona quedaba con un boton que no sabia
+   * que descontar. Se corta al guardar, no en la mesa.
+   */
+  .refine((data) => data.scope !== "PRODUCTO" || !!data.productId, {
+    path: ["productId"],
+    error: "Elige el producto sobre el que aplica",
+  })
+  .refine((data) => data.scope !== "CATEGORIA" || !!data.categoryId, {
+    path: ["categoryId"],
+    error: "Elige la categoria sobre la que aplica",
+  })
+  .refine(
+    (data) =>
+      data.type !== "FREE_ITEM" ||
+      (data.scope === "PRODUCTO" && !!data.productId),
+    {
+      path: ["productId"],
+      error: "Una cortesia tiene que decir que producto se regala",
+    },
+  )
+  .refine((data) => data.type !== "TWO_FOR_ONE" || data.scope !== "CUENTA", {
+    path: ["scope"],
+    error: "Un 2x1 aplica sobre un producto o una categoria, no sobre la cuenta",
+  });
 
 // --- Ajustes -----------------------------------------------------------------
 
@@ -301,7 +330,20 @@ export const posPaymentSchema = z.object({
   /** Vacio = se cobra la mesa completa. */
   dinerId: trimmed.max(40).optional().or(z.literal("")),
   method: z.enum(["EFECTIVO", "DEBITO", "CREDITO", "TRANSFERENCIA", "OTRO"]),
-  cardNumber: trimmed.max(25).optional().or(z.literal("")),
+});
+
+/** Tarjeta presentada en la mesa: numero tipeado, QR escaneado o codigo. */
+export const posCardSchema = z.object({
+  sessionId: trimmed.min(1),
+  input: trimmed.min(1, "Escanea o escribe la tarjeta").max(200),
+});
+
+/** Beneficio que la garzona aplica a una cuenta. */
+export const posPromotionSchema = z.object({
+  sessionId: trimmed.min(1),
+  promotionId: trimmed.min(1),
+  /** Vacio = a la cuenta compartida de la mesa. */
+  dinerId: trimmed.max(40).optional().or(z.literal("")),
 });
 
 export const posTableSchema = z.object({

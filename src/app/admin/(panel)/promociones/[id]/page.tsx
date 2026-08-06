@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PromotionForm } from "@/components/admin/promotion-form";
 import { AdminHeader } from "@/components/admin/ui";
 import { toDateInput } from "@/lib/format";
+import { getMenuTargets } from "@/lib/menu-targets";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Editar promoción" };
@@ -13,7 +14,10 @@ export default async function EditarPromocionPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const promotion = await prisma.promotion.findUnique({ where: { id } });
+  const [promotion, menu] = await Promise.all([
+    prisma.promotion.findUnique({ where: { id } }),
+    getMenuTargets(),
+  ]);
 
   if (!promotion) notFound();
 
@@ -25,6 +29,7 @@ export default async function EditarPromocionPage({
         back={{ href: "/admin/promociones", label: "Volver a promociones" }}
       />
       <PromotionForm
+        menu={menu}
         promotion={{
           id: promotion.id,
           slug: promotion.slug,
@@ -40,11 +45,11 @@ export default async function EditarPromocionPage({
           startsAt: toDateInput(promotion.startsAt),
           endsAt: toDateInput(promotion.endsAt),
           active: promotion.active,
-          minTier: promotion.minTier,
+          scope: promotion.scope,
+          productId: promotion.productId,
+          categoryId: promotion.categoryId,
           maxPerCard: promotion.maxPerCard,
           maxTotal: promotion.maxTotal,
-          pointsCost: promotion.pointsCost,
-          pointsReward: promotion.pointsReward,
           availableWeekdays: promotion.availableWeekdays,
         }}
       />

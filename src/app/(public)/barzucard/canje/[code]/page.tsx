@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, Info, Star } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Info, Tag } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
@@ -157,19 +157,13 @@ export default async function CanjePage({
           </span>
         </div>
 
-        {(voucher.promotion.pointsCost > 0 ||
-          voucher.promotion.pointsReward > 0) && (
-          <p className="flex items-center gap-2 text-xs text-gilt-soft">
-            <Star className="size-3.5" aria-hidden />
-            {voucher.promotion.pointsCost > 0 &&
-              `Al canjearlo se descuentan ${voucher.promotion.pointsCost} puntos`}
-            {voucher.promotion.pointsCost > 0 &&
-              voucher.promotion.pointsReward > 0 &&
-              " · "}
-            {voucher.promotion.pointsReward > 0 &&
-              `Suma ${voucher.promotion.pointsReward} puntos`}
-          </p>
-        )}
+        {/* Sobre que aplica: el socio lo lee antes de pedirlo en la barra. */}
+        <p className="flex items-center gap-2 text-xs text-gilt-soft">
+          <Tag className="size-3.5" aria-hidden />
+          {voucher.promotion.targetName
+            ? `Aplica sobre ${voucher.promotion.targetName}`
+            : "Aplica sobre toda la cuenta"}
+        </p>
 
         <div className="flex flex-wrap gap-3">
           <ButtonLink href="/barzucard/tarjeta" variant="outline" size="sm">

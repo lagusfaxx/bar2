@@ -22,14 +22,13 @@ export type VoucherLookup = {
     terms: string | null;
     type: string;
     value: number;
-    pointsCost: number;
-    pointsReward: number;
+    /** Sobre que aplica, para que sala sepa que descontar. */
+    scopeLabel: string;
+    targetName: string | null;
   };
   card: {
     cardNumber: string;
-    tier: string;
     status: string;
-    points: number;
   };
   member: { fullName: string };
   /** Si no se puede canjear, el motivo, ya resuelto en el servidor. */
@@ -50,7 +49,12 @@ export async function lookupVoucher(where: Where): Promise<VoucherLookup | null>
   const voucher = await prisma.promotionVoucher.findUnique({
     where: where as { token: string } & { code: string },
     include: {
-      promotion: true,
+      promotion: {
+        include: {
+          product: { select: { name: true } },
+          category: { select: { name: true } },
+        },
+      },
       redemption: { select: { receiptCode: true } },
       card: { include: { member: { select: { fullName: true } } } },
     },
@@ -104,14 +108,22 @@ export async function lookupVoucher(where: Where): Promise<VoucherLookup | null>
       terms: voucher.promotion.terms,
       type: voucher.promotion.type,
       value: voucher.promotion.value,
-      pointsCost: voucher.promotion.pointsCost,
-      pointsReward: voucher.promotion.pointsReward,
+      scopeLabel:
+        voucher.promotion.scope === "PRODUCTO"
+          ? "Producto"
+          : voucher.promotion.scope === "CATEGORIA"
+            ? "Categoría"
+            : "Toda la cuenta",
+      targetName:
+        voucher.promotion.product?.name ??
+        voucher.promotion.category?.name ??
+        null,
     },
     card: {
       cardNumber: voucher.card.cardNumber,
-      tier: voucher.card.tier,
+
       status: voucher.card.status,
-      points: voucher.card.points,
+
     },
     member: { fullName: voucher.card.member.fullName },
     blockedReason,
