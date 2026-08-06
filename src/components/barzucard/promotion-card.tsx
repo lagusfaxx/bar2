@@ -23,9 +23,19 @@ type Promotion = {
 
 export function PromotionCard({
   promotion,
+  compact = false,
   className,
 }: {
   promotion: Promotion;
+  /**
+   * Version en fila, sin imagen.
+   *
+   * En la pantalla del socio habia cinco tarjetas con foto de 3:2 una debajo
+   * de otra: la pagina medía casi siete mil pixeles en el telefono y el
+   * beneficio, que es lo unico que se va a tocar, quedaba a cuatro pantallas
+   * de distancia. Ahí se usa esta.
+   */
+  compact?: boolean;
   className?: string;
 }) {
   // Lo que el socio necesita saber para pedirlo bien en la barra.
@@ -37,6 +47,41 @@ export function PromotionCard({
           .map((day) => WEEKDAY_LABELS[day]?.slice(0, 3))
           .join(" · ")
       : null;
+
+  if (compact) {
+    return (
+      <article
+        className={cn(
+          "flex h-full flex-col gap-2 border border-line bg-ink-soft p-5",
+          className,
+        )}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-display text-lg leading-tight text-bone">
+            {promotion.title}
+          </h3>
+          <span className="shrink-0 font-display text-base text-crimson-bright">
+            {promotionValueLabel(promotion.type, promotion.value)}
+          </span>
+        </div>
+
+        <p className="text-sm leading-relaxed text-muted">
+          {promotion.description}
+        </p>
+
+        <p className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-2 text-xs text-muted-dark">
+          <span className="flex items-center gap-1.5">
+            <Tag className="size-3" aria-hidden />
+            {targetName ?? "Toda la cuenta"}
+          </span>
+          {days && <span>{days}</span>}
+          {promotion.endsAt && (
+            <span>Hasta el {formatDate(promotion.endsAt, { month: "short" })}</span>
+          )}
+        </p>
+      </article>
+    );
+  }
 
   return (
     <article className={cn("card-bz hover-ember flex h-full flex-col", className)}>

@@ -1,3 +1,4 @@
+import { Check, Gift, QrCode } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,6 +16,27 @@ export const metadata: Metadata = {
     "Regístrate gratis y recibe tu BarzuCard con código QR y número único para canjear beneficios en BARZUO.",
 };
 
+/**
+ * Lo que se lleva quien se registra, en tres líneas.
+ *
+ * Van arriba del formulario y no en una columna al costado: en el teléfono esa
+ * columna terminaba debajo del botón de enviar, donde ya no convence a nadie.
+ */
+const VENTAJAS = [
+  {
+    icon: QrCode,
+    text: "Tu QR queda activo al instante, en el teléfono.",
+  },
+  {
+    icon: Gift,
+    text: "Los descuentos se aplican en la mesa, al pedir.",
+  },
+  {
+    icon: Check,
+    text: "Gratis, sin costo de mantención y sin vencimiento.",
+  },
+];
+
 export default async function RegistroPage() {
   const session = await getMemberSession();
 
@@ -28,56 +50,66 @@ export default async function RegistroPage() {
       <PageHeader
         eyebrow="Registro"
         title="Pide tu BarzuCard"
-        lead="Completa tus datos y te emitimos la tarjeta al instante, con su QR y su número único. La cuenta y los beneficios digitales no tienen costo."
+        lead="Es gratis y toma menos de un minuto. Al terminar tienes tu tarjeta con QR lista para usar esta misma noche."
         image="/demo/promo-3.jpg"
       />
 
       <Section className="container-bz">
-        <div className="mx-auto grid max-w-4xl gap-12 lg:grid-cols-[1fr_18rem]">
-          <div>
+        <div className="mx-auto flex max-w-xl flex-col gap-8">
+          {/* Quien ya es socio no tiene que leer nada mas: la salida va
+              primero, no al final de la pagina. */}
+          <p className="flex flex-wrap items-center justify-between gap-3 border border-line bg-ink-soft px-5 py-4 text-sm text-muted">
+            ¿Ya tienes cuenta?
+            <Link
+              href="/barzucard/ingresar"
+              className="text-crimson-bright underline-offset-4 hover:underline"
+            >
+              Iniciar sesión
+            </Link>
+          </p>
+
+          <ul className="flex flex-col gap-3">
+            {VENTAJAS.map((ventaja) => (
+              <li
+                key={ventaja.text}
+                className="flex items-start gap-3 text-sm text-bone-dim"
+              >
+                <ventaja.icon
+                  className="mt-0.5 size-4 shrink-0 text-crimson"
+                  aria-hidden
+                />
+                {ventaja.text}
+              </li>
+            ))}
+          </ul>
+
+          {/* El formulario, dentro de su caja: antes los campos flotaban
+              sueltos sobre el fondo mientras las notas al costado sí tenían
+              recuadro, y la pantalla se leía como tres cosas sin relación. */}
+          <div className="card-bz p-6 sm:p-8">
             <MemberRegisterForm loyaltyTitle={settings.loyaltyTitle} />
           </div>
 
-          <aside className="lg:sticky lg:top-28 lg:self-start">
-            <div className="card-bz p-6">
-              <h2 className="eyebrow mb-4 text-bone">¿Ya tienes cuenta?</h2>
-              <p className="text-sm text-muted">
-                Ingresa con tu email y accede a tu tarjeta desde cualquier
-                dispositivo.
-              </p>
-              <Link
-                href="/barzucard/ingresar"
-                className="mt-4 inline-block text-sm text-crimson-bright underline-offset-4 hover:underline"
-              >
-                Iniciar sesión
-              </Link>
-            </div>
-
-            <div className="card-bz mt-6 p-6">
-              <h2 className="eyebrow mb-4 text-bone">La tarjeta física</h2>
-              <p className="text-sm leading-relaxed text-muted">
-                Si la quieres impresa, tiene un valor de{" "}
-                <span className="text-bone">{formatPrice(settings.cardPriceCents)}</span>
-                . Se paga por transferencia y se retira en el local; los datos
-                aparecen en tu tarjeta apenas te registras.
-              </p>
-            </div>
-
-            <div className="card-bz mt-6 p-6">
-              <h2 className="eyebrow mb-4 text-bone">Tus datos</h2>
-              <p className="text-sm leading-relaxed text-muted">
-                Usamos tu email solo para gestionar la tarjeta y, si lo
-                autorizas, avisarte de la cartelera. Puedes darte de baja cuando
-                quieras.
-              </p>
+          <div className="flex flex-col gap-3 border-t border-line pt-6 text-xs leading-relaxed text-muted-dark">
+            <p>
+              La tarjeta de plástico es opcional y cuesta{" "}
+              <span className="text-bone-dim">
+                {formatPrice(settings.cardPriceCents)}
+              </span>
+              . Los beneficios funcionan igual sin ella, desde el QR del
+              teléfono.
+            </p>
+            <p>
+              Usamos tu email solo para gestionar la tarjeta y, si lo autorizas,
+              avisarte de la cartelera.{" "}
               <Link
                 href="/legales"
-                className="mt-4 inline-block text-xs text-muted-dark underline-offset-4 hover:text-bone-dim hover:underline"
+                className="underline-offset-4 hover:text-bone-dim hover:underline"
               >
-                Ver términos y privacidad
+                Términos y privacidad
               </Link>
-            </div>
-          </aside>
+            </p>
+          </div>
         </div>
       </Section>
     </>
