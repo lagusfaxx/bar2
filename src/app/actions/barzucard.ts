@@ -69,7 +69,7 @@ export async function requestVoucher(
   const [card, promotion] = await Promise.all([
     prisma.barzuCard.findUnique({
       where: { memberId: session.memberId },
-      select: { id: true, tier: true, status: true, points: true },
+      select: { id: true, status: true },
     }),
     prisma.promotion.findUnique({ where: { id: promotionId } }),
   ]);
@@ -78,7 +78,7 @@ export async function requestVoucher(
   if (!promotion) return formError("Esa promoción ya no está disponible.");
 
   const used = await prisma.redemption.count({
-    where: { cardId: card.id, promotionId },
+    where: { cardId: card.id, promotionId, voidedAt: null },
   });
 
   const eligibility = checkEligibility({

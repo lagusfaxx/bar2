@@ -251,11 +251,14 @@ export async function savePromotion(
     startsAt: new Date(input.startsAt),
     endsAt: input.endsAt ? new Date(input.endsAt) : null,
     active: input.active,
-    minTier: input.minTier,
+    scope: input.scope,
+    // El objetivo se limpia al cambiar de alcance: una promo que fue "20% en
+    // cervezas" y pasa a ser de cuenta no puede quedar apuntando a la
+    // categoria vieja, o el POS descontaria sobre ella.
+    productId: input.scope === "PRODUCTO" ? input.productId || null : null,
+    categoryId: input.scope === "CATEGORIA" ? input.categoryId || null : null,
     maxPerCard: input.maxPerCard,
     maxTotal: input.maxTotal,
-    pointsCost: input.pointsCost,
-    pointsReward: input.pointsReward,
     availableWeekdays: input.availableWeekdays,
   };
 

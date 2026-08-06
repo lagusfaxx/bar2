@@ -13,7 +13,7 @@ import {
   SubmitButton,
   TextareaField,
 } from "@/components/ui/form";
-import { PROMOTION_TYPE_LABELS, TIER_LABELS, WEEKDAY_LABELS } from "@/lib/format";
+import { formatPrice, PROMOTION_TYPE_LABELS, WEEKDAY_LABELS } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
 
 export type PromotionValues = {
@@ -25,22 +25,49 @@ export type PromotionValues = {
   imageUrl?: string | null;
   type?: string;
   value?: string;
+  scope?: string;
+  productId?: string | null;
+  categoryId?: string | null;
   startsAt?: string;
   endsAt?: string;
   active?: boolean;
-  minTier?: string;
   maxPerCard?: number;
   maxTotal?: number;
-  pointsCost?: number;
-  pointsReward?: number;
   availableWeekdays?: number[];
 };
 
-export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
+/** La carta, para elegir sobre que aplica el beneficio. */
+export type MenuTargets = {
+  categories: Array<{ id: string; name: string }>;
+  products: Array<{
+    id: string;
+    name: string;
+    categoryId: string;
+    categoryName: string;
+    priceCents: number;
+  }>;
+};
+
+export function PromotionForm({
+  promotion,
+  menu,
+}: {
+  promotion?: PromotionValues;
+  menu: MenuTargets;
+}) {
   const [state, action] = useActionState(savePromotion, IDLE);
   const [type, setType] = useState(promotion?.type ?? "PERCENT_OFF");
+  const [scope, setScope] = useState(promotion?.scope ?? "CUENTA");
 
   const needsValue = type === "PERCENT_OFF" || type === "AMOUNT_OFF";
+
+  /*
+   * Una cortesia regala un producto y un 2x1 necesita algo que contar de a
+   * pares: ninguno de los dos tiene sentido "sobre toda la cuenta". En vez de
+   * dejar elegir y rechazar al guardar, el alcance se ajusta solo.
+   */
+  const scopeFijo = type === "FREE_ITEM";
+  const scopeReal = scopeFijo ? "PRODUCTO" : scope;
 
   return (
     <form action={action} className="flex flex-col gap-6">
@@ -76,7 +103,16 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                   label="Tipo de beneficio"
                   name="type"
                   value={type}
-                  onChange={(event) => setType(event.target.value)}
+                  onChange={(event) => {
+                    setType(event.target.value);
+                    if (event.target.value === "FREE_ITEM") setScope("PRODUCTO");
+                    if (
+                      event.target.value === "TWO_FOR_ONE" &&
+                      scope === "CUENTA"
+                    ) {
+                      setScope("PRODUCTO");
+                    }
+                  }}
                   error={state.errors?.type}
                 >
                   {Object.entries(PROMOTION_TYPE_LABELS).map(([value, label]) => (
@@ -107,6 +143,80 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                 )}
               </div>
 
+              {/*
+                Sobre que aplica.
+
+                Es el campo que convierte una promocion en algo que el POS
+                puede cobrar. Sin el, "2x1 en cervezas" era una frase bonita
+                que la garzona tenia que interpretar con la calculadora.
+              */}
+              <div className="border border-line bg-ink p-4">
+                <SelectField
+                  label="Se aplica sobre"
+                  name="scope"
+                  value={scopeReal}
+                  disabled={scopeFijo}
+                  onChange={(event) => setScope(event.target.value)}
+                  error={state.errors?.scope}
+                >
+                  {!scopeFijo && type !== "TWO_FOR_ONE" && (
+                    <option value="CUENTA">Toda la cuenta</option>
+                  )}
+                  <option value="CATEGORIA">Una categoría de la carta</option>
+                  <option value="PRODUCTO">Un producto</option>
+                </SelectField>
+
+                {/* Un select deshabilitado no viaja en el formulario. */}
+                {scopeFijo && (
+                  <input type="hidden" name="scope" value="PRODUCTO" />
+                )}
+
+                {scopeReal === "CATEGORIA" && (
+                  <div className="mt-5">
+                    <SelectField
+                      label="Categoría"
+                      name="categoryId"
+                      defaultValue={promotion?.categoryId ?? ""}
+                      error={state.errors?.categoryId}
+                    >
+                      <option value="">Elige una categoría…</option>
+                      {menu.categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
+                )}
+
+                {scopeReal === "PRODUCTO" && (
+                  <div className="mt-5">
+                    <SelectField
+                      label="Producto"
+                      name="productId"
+                      defaultValue={promotion?.productId ?? ""}
+                      error={state.errors?.productId}
+                    >
+                      <option value="">Elige un producto…</option>
+                      {menu.products.map((product) => (
+                        <option key={product.id} value={product.id}>
+                          {product.categoryName} · {product.name} ·{" "}
+                          {formatPrice(product.priceCents)}
+                        </option>
+                      ))}
+                    </SelectField>
+                  </div>
+                )}
+
+                <p className="mt-3 text-xs text-muted-dark">
+                  {type === "FREE_ITEM"
+                    ? "La cortesía se agrega sola a la cuenta cuando la garzona aplica el beneficio, y sale la comanda hacia la cocina o la barra."
+                    : type === "TWO_FOR_ONE"
+                      ? "Por cada dos unidades en la cuenta, la más barata del par sale gratis."
+                      : "El POS descuenta esto solo, en la cuenta de la mesa, cuando el cliente presenta su BarzuCard."}
+                </p>
+              </div>
+
               <TextareaField
                 label="Términos y condiciones"
                 name="terms"
@@ -129,7 +239,7 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
 
           <Panel
             title="Reglas de canje"
-            description="Determinan qué valida el sistema cuando el personal de sala escanea una BarzuCard."
+            description="Lo que valida el sistema cuando la garzona aplica el beneficio en la mesa."
           >
             <div className="flex flex-col gap-5">
               <div className="grid gap-5 sm:grid-cols-2">
@@ -150,40 +260,6 @@ export function PromotionForm({ promotion }: { promotion?: PromotionValues }) {
                   defaultValue={promotion?.maxTotal ?? 0}
                   hint="0 = sin tope global."
                   error={state.errors?.maxTotal}
-                />
-              </div>
-
-              <div className="grid gap-5 sm:grid-cols-3">
-                <SelectField
-                  label="Nivel mínimo"
-                  name="minTier"
-                  defaultValue={promotion?.minTier ?? "CLASICA"}
-                  error={state.errors?.minTier}
-                >
-                  {Object.entries(TIER_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </SelectField>
-
-                <Field
-                  label="Cuesta (puntos)"
-                  name="pointsCost"
-                  type="number"
-                  min={0}
-                  defaultValue={promotion?.pointsCost ?? 0}
-                  hint="0 = gratuito."
-                  error={state.errors?.pointsCost}
-                />
-
-                <Field
-                  label="Otorga (puntos)"
-                  name="pointsReward"
-                  type="number"
-                  min={0}
-                  defaultValue={promotion?.pointsReward ?? 0}
-                  error={state.errors?.pointsReward}
                 />
               </div>
 

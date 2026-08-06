@@ -14,7 +14,7 @@ import {
 } from "@/components/admin/ui";
 import { ButtonLink } from "@/components/ui/button";
 import { Badge } from "@/components/ui/section";
-import { formatDate, promotionValueLabel, TIER_LABELS } from "@/lib/format";
+import { formatDate, promotionValueLabel} from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Promociones" };
@@ -22,7 +22,11 @@ export const metadata = { title: "Promociones" };
 export default async function AdminPromocionesPage() {
   const promotions = await prisma.promotion.findMany({
     orderBy: { position: "asc" },
-    include: { _count: { select: { redemptions: true } } },
+    include: {
+      _count: { select: { redemptions: true } },
+      product: { select: { name: true } },
+      category: { select: { name: true } },
+    },
   });
 
   return (
@@ -75,9 +79,15 @@ export default async function AdminPromocionesPage() {
                           <Badge tone={promotion.active ? "free" : "muted"}>
                             {promotion.active ? "Activa" : "Pausada"}
                           </Badge>
-                          {promotion.minTier !== "CLASICA" && (
-                            <Badge tone="gilt">{TIER_LABELS[promotion.minTier]}</Badge>
-                          )}
+                          {/* Sobre que aplica: es lo primero que se necesita
+                              saber de una promocion al revisar la lista. */}
+                          <Badge tone="gilt">
+                            {promotion.scope === "PRODUCTO"
+                              ? (promotion.product?.name ?? "Producto")
+                              : promotion.scope === "CATEGORIA"
+                                ? (promotion.category?.name ?? "Categoría")
+                                : "Toda la cuenta"}
+                          </Badge>
                         </span>
                       </Link>
                     </Td>
@@ -91,7 +101,6 @@ export default async function AdminPromocionesPage() {
                         ? "Usos ilimitados"
                         : `${promotion.maxPerCard} uso${promotion.maxPerCard === 1 ? "" : "s"} por tarjeta`}
                       {promotion.maxTotal > 0 && ` · cupo ${promotion.maxTotal}`}
-                      {promotion.pointsCost > 0 && ` · ${promotion.pointsCost} pts`}
                     </Td>
 
                     <Td className="hidden whitespace-nowrap text-xs text-muted lg:table-cell">

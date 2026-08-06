@@ -1,10 +1,13 @@
 import { PromotionForm } from "@/components/admin/promotion-form";
 import { AdminHeader } from "@/components/admin/ui";
 import { toDateInput } from "@/lib/format";
+import { getMenuTargets } from "@/lib/menu-targets";
 
 export const metadata = { title: "Nueva promoción" };
 
-export default function NuevaPromocionPage() {
+export default async function NuevaPromocionPage() {
+  const menu = await getMenuTargets();
+
   return (
     <>
       <AdminHeader
@@ -13,14 +16,13 @@ export default function NuevaPromocionPage() {
         back={{ href: "/admin/promociones", label: "Volver a promociones" }}
       />
       <PromotionForm
+        menu={menu}
         promotion={{
           type: "PERCENT_OFF",
+          scope: "CUENTA",
           active: true,
           maxPerCard: 1,
           maxTotal: 0,
-          pointsCost: 0,
-          pointsReward: 0,
-          minTier: "CLASICA",
           startsAt: toDateInput(new Date()),
           availableWeekdays: [],
         }}

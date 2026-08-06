@@ -42,7 +42,7 @@ export default async function PromocionesPage() {
   const card = session
     ? await prisma.barzuCard.findUnique({
         where: { memberId: session.memberId },
-        select: { id: true, tier: true, status: true, points: true },
+        select: { id: true, status: true },
       })
     : null;
 
@@ -51,7 +51,7 @@ export default async function PromocionesPage() {
   if (card) {
     const usage = await prisma.redemption.groupBy({
       by: ["promotionId"],
-      where: { cardId: card.id },
+      where: { cardId: card.id, voidedAt: null },
       _count: { promotionId: true },
     });
 

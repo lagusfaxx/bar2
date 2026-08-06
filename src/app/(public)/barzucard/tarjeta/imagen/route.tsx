@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getMemberSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
-import { formatCardNumber, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, } from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 import { cardQrDataUrl } from "@/lib/qr";
 
@@ -20,11 +20,8 @@ import { cardQrDataUrl } from "@/lib/qr";
 const WIDTH = 1012;
 const HEIGHT = 638; // proporcion de una tarjeta bancaria (85,6 × 54 mm)
 
-const TIER_COLORS: Record<string, { accent: string; glow: string }> = {
-  CLASICA: { accent: "#f2555f", glow: "rgba(225,29,42,0.35)" },
-  PLATA: { accent: "#dbe2ea", glow: "rgba(203,213,225,0.28)" },
-  ORO: { accent: "#e8c583", glow: "rgba(232,197,131,0.3)" },
-};
+/** Una sola tarjeta, un solo color: ya no hay niveles que distinguir. */
+const COLORS = { accent: "#f2555f", glow: "rgba(225,29,42,0.35)" };
 
 export async function GET() {
   const session = await getMemberSession();
@@ -42,8 +39,6 @@ export async function GET() {
           select: {
             cardNumber: true,
             qrToken: true,
-            tier: true,
-            points: true,
             issuedAt: true,
           },
         },
@@ -58,16 +53,16 @@ export async function GET() {
 
   const card = member.card;
   const qr = await cardQrDataUrl(card.qrToken);
-  const colors = TIER_COLORS[card.tier] ?? TIER_COLORS.CLASICA;
+  const colors = COLORS;
 
   // El motor de imagenes exige que cada bloque tenga un unico hijo de texto,
   // asi que las lineas se arman antes de dibujar.
-  const tierLine = `${settings.loyaltyTitle} ${TIER_LABELS[card.tier] ?? card.tier}`;
+  const tierLine = settings.loyaltyTitle;
   const since = new Intl.DateTimeFormat("es-CL", {
     month: "2-digit",
     year: "numeric",
   }).format(card.issuedAt);
-  const pointsLine = `${card.points} ${card.points === 1 ? "punto" : "puntos"} · socio desde ${since}`;
+  const pointsLine = `Socio desde ${since}`;
 
   return new ImageResponse(
     (

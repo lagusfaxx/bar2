@@ -1,13 +1,8 @@
-import { CalendarClock, Star } from "lucide-react";
+import { CalendarClock, Tag } from "lucide-react";
 import Image from "next/image";
 
 import { Badge } from "@/components/ui/section";
-import {
-  formatDate,
-  promotionValueLabel,
-  TIER_LABELS,
-  WEEKDAY_LABELS,
-} from "@/lib/format";
+import { formatDate, promotionValueLabel, WEEKDAY_LABELS } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type Promotion = {
@@ -19,10 +14,11 @@ type Promotion = {
   type: string;
   value: number;
   endsAt: Date | null;
-  minTier: string;
   maxPerCard: number;
-  pointsCost: number;
   availableWeekdays: number[];
+  /** Sobre que aplica. Vacios los dos = toda la cuenta. */
+  product?: { name: string } | null;
+  category?: { name: string } | null;
 };
 
 export function PromotionCard({
@@ -32,6 +28,9 @@ export function PromotionCard({
   promotion: Promotion;
   className?: string;
 }) {
+  // Lo que el socio necesita saber para pedirlo bien en la barra.
+  const targetName = promotion.product?.name ?? promotion.category?.name ?? null;
+
   const days =
     promotion.availableWeekdays.length > 0
       ? promotion.availableWeekdays
@@ -60,9 +59,9 @@ export function PromotionCard({
           {promotionValueLabel(promotion.type, promotion.value)}
         </p>
 
-        {promotion.minTier !== "CLASICA" && (
+        {targetName && (
           <Badge tone="gilt" className="absolute top-4 right-4">
-            Solo {TIER_LABELS[promotion.minTier]}
+            {targetName}
           </Badge>
         )}
       </div>
@@ -87,12 +86,12 @@ export function PromotionCard({
 
           {days && <li>Válido: {days}</li>}
 
-          {promotion.pointsCost > 0 && (
-            <li className="flex items-center gap-1.5 text-gilt-soft">
-              <Star className="size-3" aria-hidden />
-              Cuesta {promotion.pointsCost} puntos
-            </li>
-          )}
+          <li className="flex items-center gap-1.5">
+            <Tag className="size-3" aria-hidden />
+            {targetName
+              ? `Sobre ${targetName}`
+              : "Sobre toda la cuenta"}
+          </li>
 
           {promotion.endsAt && (
             <li className="flex items-center gap-1.5">

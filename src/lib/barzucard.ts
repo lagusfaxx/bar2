@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomBytes, randomInt } from "node:crypto";
 
-import type { CardTier, Promotion } from "@/generated/prisma/client";
+import type { Promotion } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -11,12 +11,6 @@ import { prisma } from "@/lib/prisma";
  */
 const CARD_PREFIX = "5210";
 const CARD_LENGTH = 16;
-
-const TIER_ORDER: Record<CardTier, number> = {
-  CLASICA: 0,
-  PLATA: 1,
-  ORO: 2,
-};
 
 /** Digito verificador de Luhn: detecta tipeos del personal de sala al cargar el numero. */
 function luhnCheckDigit(digits: string) {
@@ -163,14 +157,12 @@ export type EligibilityInput = {
     | "active"
     | "startsAt"
     | "endsAt"
-    | "minTier"
     | "maxPerCard"
     | "maxTotal"
     | "redeemedCount"
-    | "pointsCost"
     | "availableWeekdays"
   >;
-  card: { tier: CardTier; status: string; points: number };
+  card: { status: string };
   redemptionsForThisPromotion: number;
   now?: Date;
 };
@@ -180,9 +172,13 @@ export type Eligibility =
   | { ok: false; reason: string };
 
 /**
- * Unica fuente de verdad sobre si una promocion se puede canjear. La usan la
- * app del personal de sala (para habilitar el boton) y el canje real (para autorizarlo),
- * de modo que la pantalla nunca prometa algo que el servidor luego rechaza.
+ * Unica fuente de verdad sobre si una promocion se puede canjear: vigencia,
+ * dia habilitado y topes de uso. La usan la app de sala (para habilitar el
+ * boton) y el canje real (para autorizarlo), de modo que la pantalla nunca
+ * prometa algo que el servidor luego rechaza.
+ *
+ * Lo que NO decide es cuanto descuenta: de eso se ocupa `resolvePromotion` en
+ * lib/promotions.ts, contra las lineas de la mesa.
  */
 export function checkEligibility({
   promotion,
@@ -204,13 +200,6 @@ export function checkEligibility({
 
   if (promotion.endsAt && promotion.endsAt < now) {
     return { ok: false, reason: "La promocion ya vencio" };
-  }
-
-  if (TIER_ORDER[card.tier] < TIER_ORDER[promotion.minTier]) {
-    return {
-      ok: false,
-      reason: `Requiere BarzuCard ${promotion.minTier.toLowerCase()}`,
-    };
   }
 
   if (promotion.availableWeekdays.length > 0) {
@@ -237,13 +226,6 @@ export function checkEligibility({
     };
   }
 
-  if (promotion.pointsCost > 0 && card.points < promotion.pointsCost) {
-    return {
-      ok: false,
-      reason: `Faltan ${promotion.pointsCost - card.points} puntos`,
-    };
-  }
-
   return { ok: true };
 }
 
@@ -256,11 +238,4 @@ function weekdayInVenueTimeZone(date: Date) {
   }).format(date);
 
   return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(label);
-}
-
-/** Umbrales de nivel. Al canjear se recalcula el tier del socio. */
-export function tierForPoints(points: number): CardTier {
-  if (points >= 1200) return "ORO";
-  if (points >= 400) return "PLATA";
-  return "CLASICA";
 }

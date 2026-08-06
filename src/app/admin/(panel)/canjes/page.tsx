@@ -9,7 +9,12 @@ import {
   Th,
 } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/section";
-import { formatCardNumber, formatDateTime, promotionValueLabel } from "@/lib/format";
+import {
+  formatCardNumber,
+  formatDateTime,
+  formatPrice,
+  promotionValueLabel,
+} from "@/lib/format";
 import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Canjes" };
@@ -202,10 +207,16 @@ export default async function AdminCanjesPage() {
 
                     <Td className="font-mono text-xs whitespace-nowrap text-gilt-soft">
                       {redemption.receiptCode}
-                      {(redemption.pointsEarned > 0 || redemption.pointsSpent > 0) && (
+                      {/* Lo que costo de verdad el beneficio: sale de la
+                          cuenta en la que se aplico, no de una tabla aparte. */}
+                      {redemption.discountCents > 0 && (
+                        <span className="mt-1 block text-[0.6rem] text-emerald-300">
+                          −{formatPrice(redemption.discountCents)}
+                        </span>
+                      )}
+                      {redemption.voidedAt && (
                         <span className="mt-1 block text-[0.6rem] text-muted-dark">
-                          {redemption.pointsSpent > 0 && `−${redemption.pointsSpent} pts `}
-                          {redemption.pointsEarned > 0 && `+${redemption.pointsEarned} pts`}
+                          Anulado
                         </span>
                       )}
                     </Td>

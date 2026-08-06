@@ -1,13 +1,11 @@
 import Image from "next/image";
 
-import { formatCardNumber, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 type CardVisualProps = {
   cardNumber: string;
   holder: string;
-  tier: string;
-  points: number;
   /** Data URL del QR, generado en el servidor. */
   qrDataUrl?: string;
   issuedAt?: Date;
@@ -15,18 +13,6 @@ type CardVisualProps = {
   /** Nombre del local; el de fabrica es BARZUO. */
   barName?: string;
   className?: string;
-};
-
-const TIER_STYLES: Record<string, string> = {
-  CLASICA: "from-surface-2 via-ink to-crimson-deep/40 border-bone/15",
-  PLATA: "from-slate-500/25 via-ink to-slate-300/10 border-slate-300/30",
-  ORO: "from-gilt/25 via-ink to-gilt/10 border-gilt/40",
-};
-
-const TIER_ACCENT: Record<string, string> = {
-  CLASICA: "text-crimson-bright",
-  PLATA: "text-slate-200",
-  ORO: "text-gilt-soft",
 };
 
 /**
@@ -43,8 +29,6 @@ const TIER_ACCENT: Record<string, string> = {
 export function CardVisual({
   cardNumber,
   holder,
-  tier,
-  points,
   qrDataUrl,
   issuedAt,
   status = "ACTIVE",
@@ -56,8 +40,7 @@ export function CardVisual({
   return (
     <div
       className={cn(
-        "print-card relative aspect-[1.586/1] w-full overflow-hidden rounded-2xl border bg-gradient-to-br p-5 shadow-lift sm:p-6",
-        TIER_STYLES[tier] ?? TIER_STYLES.CLASICA,
+        "print-card relative aspect-[1.586/1] w-full overflow-hidden rounded-2xl border border-bone/15 bg-gradient-to-br from-surface-2 via-ink to-crimson-deep/40 p-5 shadow-lift sm:p-6",
         suspended && "grayscale",
         className,
       )}
@@ -78,13 +61,8 @@ export function CardVisual({
             <p className="truncate font-western text-xl leading-none text-crimson sm:text-2xl">
               {barName}
             </p>
-            <p
-              className={cn(
-                "mt-2 text-xs font-medium sm:text-sm",
-                TIER_ACCENT[tier] ?? TIER_ACCENT.CLASICA,
-              )}
-            >
-              BarzuCard {TIER_LABELS[tier] ?? tier}
+            <p className="mt-2 text-xs font-medium text-crimson-bright sm:text-sm">
+              BarzuCard
             </p>
           </div>
 
@@ -97,19 +75,15 @@ export function CardVisual({
               {formatCardNumber(cardNumber)}
             </p>
 
-            <p className="mt-2 text-xs text-muted sm:text-sm">
-              {points} {points === 1 ? "punto" : "puntos"}
-              {issuedAt && (
-                <>
-                  {" · "}
-                  socio desde{" "}
-                  {new Intl.DateTimeFormat("es-CL", {
-                    month: "2-digit",
-                    year: "numeric",
-                  }).format(issuedAt)}
-                </>
-              )}
-            </p>
+            {issuedAt && (
+              <p className="mt-2 text-xs text-muted sm:text-sm">
+                Socio desde{" "}
+                {new Intl.DateTimeFormat("es-CL", {
+                  month: "2-digit",
+                  year: "numeric",
+                }).format(issuedAt)}
+              </p>
+            )}
           </div>
         </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, CreditCard, Loader2, X } from "lucide-react";
+import { Check, Gift, Loader2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { payAccount } from "@/app/actions/pos";
@@ -28,22 +28,24 @@ export function PaySheet({
   sessionId,
   tab,
   totalCents,
+  discountCents,
   onClose,
 }: {
   sessionId: string;
   /** null = se cobra todo lo pendiente de la mesa. */
   tab: AccountTab | null;
+  /** Lo que hay que cobrar, ya con los beneficios descontados. */
   totalCents: number;
+  /** Lo que descontó la BarzuCard, para mostrarlo desglosado. */
+  discountCents: number;
   onClose: () => void;
 }) {
   const [state, setState] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
   const [method, setMethod] = useState<string>("EFECTIVO");
-  const [cardNumber, setCardNumber] = useState("");
 
   const receipt =
     state.status === "success" ? String(state.data?.code ?? "") : null;
-  const points = state.status === "success" ? Number(state.data?.points ?? 0) : 0;
 
   /*
    * Cuanto se cobro, segun el servidor.
@@ -64,7 +66,6 @@ export function PaySheet({
     formData.set("sessionId", sessionId);
     formData.set("method", method);
     if (tab?.dinerId) formData.set("dinerId", tab.dinerId);
-    if (cardNumber.trim()) formData.set("cardNumber", cardNumber.trim());
 
     startTransition(async () => {
       setState(await payAccount(IDLE, formData));
@@ -87,9 +88,9 @@ export function PaySheet({
               N° de comprobante: {receipt}
             </p>
 
-            {points > 0 && (
-              <p className="mt-3 text-sm text-gilt-soft">
-                +{points} puntos a su BarzuCard
+            {discountCents > 0 && (
+              <p className="mt-3 text-sm text-emerald-300">
+                La BarzuCard le descontó {formatPrice(discountCents)}
               </p>
             )}
 
@@ -125,6 +126,12 @@ export function PaySheet({
               {formatPrice(totalCents)}
             </p>
 
+            {discountCents > 0 && (
+              <p className="text-sm text-muted">
+                Ya con {formatPrice(discountCents)} de descuento
+              </p>
+            )}
+
             <fieldset className="mt-5">
               <legend className="text-sm text-bone">¿Cómo paga?</legend>
 
@@ -148,24 +155,19 @@ export function PaySheet({
               </div>
             </fieldset>
 
-            <label className="mt-5 block">
-              <span className="flex items-center gap-2 text-sm text-bone">
-                <CreditCard className="size-4" aria-hidden />
-                ¿Tiene BarzuCard? (opcional)
-              </span>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={cardNumber}
-                onChange={(event) => setCardNumber(event.target.value)}
-                placeholder="16 dígitos de la tarjeta"
-                className="mt-2 h-12 w-full border border-line bg-ink px-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
-              />
-              <span className="mt-1 block text-xs text-muted">
-                Si no tiene o no la trajo, deja esto vacío y cobra igual. Suma
-                1 punto por cada $1.000 de consumo.
-              </span>
-            </label>
+            {/* Los beneficios ya estan aplicados en la cuenta: aca solo se
+                muestran, para poder decirle al cliente cuanto se le rebajo. */}
+            {discountCents > 0 && (
+              <p className="mt-4 flex items-center justify-between gap-3 border border-emerald-500/40 bg-emerald-500/5 px-4 py-3 text-sm">
+                <span className="flex items-center gap-2 text-bone-dim">
+                  <Gift className="size-4 text-emerald-300" aria-hidden />
+                  Beneficios BarzuCard
+                </span>
+                <span className="font-display text-emerald-300">
+                  −{formatPrice(discountCents)}
+                </span>
+              </p>
+            )}
 
             {state.status === "error" && (
               <p role="alert" className="mt-4 text-sm text-crimson-bright">

@@ -334,5 +334,11 @@ export function getActivePromotions() {
       OR: [{ endsAt: null }, { endsAt: { gte: now } }],
     },
     orderBy: { position: "asc" },
+    // El nombre del producto o la categoria se muestra en la tarjeta publica:
+    // "20% off" no dice nada; "20% off en cervezas" si.
+    include: {
+      product: { select: { name: true } },
+      category: { select: { name: true } },
+    },
   });
 }

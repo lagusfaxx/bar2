@@ -8,15 +8,15 @@ import {
   Loader2,
   RotateCcw,
   Search,
-  Star,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 
 import { lookupCard, redeemPromotion, type CardLookup } from "@/app/actions/admin/loyalty";
+import { useQrScanner } from "@/components/staff/use-qr-scanner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/section";
-import { formatCardNumber, promotionValueLabel, TIER_LABELS } from "@/lib/format";
+import { formatCardNumber, promotionValueLabel } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import { cn } from "@/lib/utils";
 
@@ -46,8 +46,6 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
   const [state, setState] = useState<FormState>(IDLE);
   const [lookup, setLookup] = useState<CardLookup | null>(initial ?? null);
   const [pending, startTransition] = useTransition();
-  const [scanning, setScanning] = useState(false);
-  const [scanError, setScanError] = useState<string | null>(null);
 
   /**
    * Último canje confirmado. Se guarda aquí arriba y no en la fila de la
@@ -60,9 +58,6 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
     receiptCode: string;
   } | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -91,135 +86,21 @@ export function CardVerifier({ initial }: { initial?: CardLookup }) {
     });
   };
 
-  const stopCamera = useCallback(() => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
-    streamRef.current = null;
-    setScanning(false);
-  }, []);
-
-  useEffect(() => stopCamera, [stopCamera]);
-
-  const startCamera = useCallback(async () => {
-    setScanError(null);
-
-    // Los navegadores solo entregan la camara en sitios seguros. Si el local
-    // todavia entra por http://, conviene decirlo con todas las letras: es la
-    // causa mas habitual de que el boton "no haga nada".
-    if (!window.isSecureContext) {
-      setScanError(
-        "La cámara solo funciona con https://. Mientras el sitio esté en http, abre la cámara del teléfono y apunta al QR de la tarjeta: se abre esta misma pantalla con los datos del socio.",
-      );
-      return;
-    }
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setScanError(
-        "Este navegador no da acceso a la cámara. Abre la cámara del teléfono y apunta al QR de la tarjeta: se abre esta misma pantalla.",
-      );
-      return;
-    }
-
-    /**
-     * Lector de QR. Se prefiere BarcodeDetector porque lo resuelve el sistema
-     * operativo; cuando no existe —Safari, Firefox— se carga jsQR bajo demanda,
-     * para no sumar peso a quienes no lo necesitan.
-     */
-    const Detector = (
-      window as unknown as {
-        BarcodeDetector?: new (options: { formats: string[] }) => {
-          detect: (source: CanvasImageSource) => Promise<Array<{ rawValue: string }>>;
-        };
-      }
-    ).BarcodeDetector;
-
-    const native = Detector ? new Detector({ formats: ["qr_code"] }) : null;
-    const jsQR = native ? null : (await import("jsqr")).default;
-
-    const readFrame = async (video: HTMLVideoElement): Promise<string | null> => {
-      if (native) {
-        const codes = await native.detect(video);
-        return codes[0]?.rawValue ?? null;
-      }
-
-      if (!jsQR || !video.videoWidth) return null;
-
-      // Se decodifica sobre un lienzo reducido: alcanza para leer el QR y
-      // mantiene la busqueda fluida en telefonos modestos.
-      const canvas = (canvasRef.current ??= document.createElement("canvas"));
-      const side = Math.min(video.videoWidth, video.videoHeight, 640);
-      canvas.width = side;
-      canvas.height = side;
-
-      const context = canvas.getContext("2d", { willReadFrequently: true });
-      if (!context) return null;
-
-      context.drawImage(
-        video,
-        (video.videoWidth - side) / 2,
-        (video.videoHeight - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        side,
-        side,
-      );
-
-      const image = context.getImageData(0, 0, side, side);
-      return jsQR(image.data, side, side, { inversionAttempts: "dontInvert" })?.data ?? null;
-    };
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        // La cámara trasera es la que apunta a la tarjeta del cliente.
-        video: { facingMode: { ideal: "environment" } },
-      });
-
-      streamRef.current = stream;
-      setScanning(true);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // iOS solo reproduce en linea y sin sonido; sin esto la imagen se
-        // abriria a pantalla completa y el escaneo no llegaria a empezar.
-        videoRef.current.muted = true;
-        videoRef.current.playsInline = true;
-        await videoRef.current.play();
-      }
-
-      const tick = async () => {
-        if (!streamRef.current || !videoRef.current) return;
-
-        try {
-          const value = await readFrame(videoRef.current);
-
-          if (value) {
-            stopCamera();
-            if (inputRef.current) inputRef.current.value = value;
-            formRef.current?.requestSubmit();
-            return;
-          }
-        } catch {
-          // Un fotograma ilegible no es un error: seguimos con el siguiente.
-        }
-
-        requestAnimationFrame(() => void tick());
-      };
-
-      requestAnimationFrame(() => void tick());
-    } catch (error) {
-      const denied =
-        error instanceof DOMException &&
-        (error.name === "NotAllowedError" || error.name === "SecurityError");
-
-      setScanError(
-        denied
-          ? "El navegador bloqueó la cámara. Permítela para este sitio en los ajustes del teléfono y vuelve a intentarlo. Mientras tanto puedes escribir los 16 dígitos."
-          : "No pudimos abrir la cámara. Revisa que ninguna otra aplicación la esté usando, o escribe los 16 dígitos.",
-      );
-      stopCamera();
-    }
-  }, [stopCamera]);
+  /*
+   * Camara. La logica de lectura vive en useQrScanner: la comparte con la
+   * hoja de BarzuCard del POS, que escanea exactamente lo mismo.
+   */
+  const {
+    videoRef,
+    scanning,
+    error: scanError,
+    start: startCamera,
+    stop: stopCamera,
+    setError: setScanError,
+  } = useQrScanner((value) => {
+    if (inputRef.current) inputRef.current.value = value;
+    formRef.current?.requestSubmit();
+  });
 
   const reset = () => {
     setLookup(null);
@@ -402,15 +283,9 @@ function CardResult({
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <Badge tone={lookup.card.tier === "CLASICA" ? "muted" : "gilt"}>
-              {TIER_LABELS[lookup.card.tier]}
-            </Badge>
-            <span className="flex items-center gap-1.5 text-sm text-gilt-soft">
-              <Star className="size-3.5" aria-hidden />
-              {lookup.card.points} pts
-            </span>
-          </div>
+          <Badge tone={lookup.card.status === "ACTIVE" ? "free" : "crimson"}>
+            {lookup.card.status === "ACTIVE" ? "Activa" : "Suspendida"}
+          </Badge>
         </div>
 
         {suspended && (
@@ -552,14 +427,8 @@ function RedeemRow({
         receiptCode: String(result.data?.receiptCode ?? ""),
       });
 
-      const points =
-        typeof result.data?.points === "number"
-          ? result.data.points
-          : lookup.card.points;
-
       onRefresh({
         ...lookup,
-        card: { ...lookup.card, points },
         promotions: lookup.promotions.map((item) =>
           item.id === promotion.id
             ? {
@@ -595,13 +464,13 @@ function RedeemRow({
         </Badge>
       </div>
 
-      {(promotion.pointsCost > 0 || promotion.pointsReward > 0) && (
-        <p className="mt-3 text-xs text-gilt-soft">
-          {promotion.pointsCost > 0 && `Cuesta ${promotion.pointsCost} pts`}
-          {promotion.pointsCost > 0 && promotion.pointsReward > 0 && " · "}
-          {promotion.pointsReward > 0 && `Suma ${promotion.pointsReward} pts`}
-        </p>
-      )}
+      {/* Sobre que aplica: en un canje fuera de mesa es lo que la garzona
+          necesita saber para descontarlo bien. */}
+      <p className="mt-3 text-xs text-gilt-soft">
+        {promotion.targetName
+          ? `${promotion.scopeLabel}: ${promotion.targetName}`
+          : promotion.scopeLabel}
+      </p>
 
       {promotion.terms && confirming && (
         <p className="mt-3 border-t border-line pt-3 text-xs leading-relaxed text-muted-dark">
