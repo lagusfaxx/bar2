@@ -826,14 +826,19 @@ enum TicketStatus {
 /**
  * Estado de PREPARACION de la comanda (ver `prep`).
  *
- * Es lo que mueven cocina y barra desde su pantalla, y no tiene nada que ver
- * con si el papel salio: un local puede trabajar solo con pantallas, solo con
- * impresoras, o con las dos.
+ * Son solo dos, y no por simplificar: en cocina no hay manos limpias para
+ * tocar una pantalla. La comanda esta pendiente hasta que alguien se la lleva,
+ * y quien la cierra es el garzon que va a buscar el plato —desde su telefono,
+ * que si maneja con las manos secas—. Los tres estados anteriores (nueva, en
+ * curso, lista) obligaban a la cocina a tocar dos veces cada comanda con las
+ * manos mojadas, y en la practica nadie los movia.
+ *
+ * No tiene nada que ver con si el papel salio (ver `status`): un local puede
+ * trabajar solo con pantallas, solo con impresoras, o con las dos.
  */
 enum PrepStatus {
-  NUEVA
-  EN_CURSO
-  LISTA
+  PENDIENTE
+  RETIRADA
 }
 
 /**
@@ -879,10 +884,9 @@ model OrderTicket {
   lastError String?
   printedAt DateTime?
 
-  /** Preparacion: lo que ven y mueven cocina y barra en su pantalla. */
-  prep      PrepStatus @default(NUEVA)
-  startedAt DateTime?
-  readyAt   DateTime?
+  /** Preparacion: lo que se ve en la pantalla de la estacion. */
+  prep       PrepStatus @default(PENDIENTE)
+  pickedUpAt DateTime?
 
   createdById String?
   createdBy   User?   @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)

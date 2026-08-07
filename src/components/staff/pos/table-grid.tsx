@@ -2,9 +2,10 @@
 
 import { Loader2, Plus, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { openTable } from "@/app/actions/pos";
+import { Elapsed } from "@/components/staff/pos/elapsed";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
@@ -78,6 +79,18 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
                   <p className="font-display text-lg text-bone">
                     {formatPrice(table.session!.pendingCents)}
                   </p>
+                  {/* Comandas que la cocina ya preparo o esta preparando y
+                      que nadie fue a buscar. La pantalla de la estacion no se
+                      puede tocar, asi que esta es la unica forma de que el
+                      garzon vea que hay algo esperandolo. */}
+                  {table.session!.pendingTickets > 0 && (
+                    <p className="mt-1 text-xs font-medium text-gilt-soft">
+                      {table.session!.pendingTickets === 1
+                        ? "1 comanda por retirar"
+                        : `${table.session!.pendingTickets} comandas por retirar`}
+                    </p>
+                  )}
+
                   <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
                     <Users className="size-3.5" aria-hidden />
                     <span>
@@ -110,34 +123,6 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
       {opening && (
         <OpenTableSheet table={opening} onClose={() => setOpening(null)} />
       )}
-    </>
-  );
-}
-
-/**
- * Hace cuanto se abrio la mesa.
- *
- * Se calcula despues de montar y se refresca cada minuto: leer el reloj en el
- * render daria un valor distinto en el servidor y en el cliente.
- */
-function Elapsed({ since }: { since: string }) {
-  const [minutes, setMinutes] = useState<number | null>(null);
-
-  useEffect(() => {
-    const update = () =>
-      setMinutes(Math.max(0, Math.round((Date.now() - Date.parse(since)) / 60000)));
-
-    update();
-    const timer = setInterval(update, 60_000);
-    return () => clearInterval(timer);
-  }, [since]);
-
-  if (minutes === null) return null;
-  if (minutes < 60) return <>{minutes} min</>;
-
-  return (
-    <>
-      {Math.floor(minutes / 60)} h {minutes % 60} min
     </>
   );
 }

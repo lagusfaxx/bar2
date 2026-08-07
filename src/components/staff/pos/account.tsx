@@ -8,6 +8,7 @@ import {
   Loader2,
   MessageSquarePlus,
   Minus,
+  PackageCheck,
   Plus,
   RotateCw,
   Send,
@@ -23,6 +24,7 @@ import {
   cancelItem,
   closeTable,
   detachCard,
+  markTicketPickedUp,
   removeDiner,
   removePromotion,
   reprintTicket,
@@ -31,6 +33,7 @@ import {
 } from "@/app/actions/pos";
 import { CardSheet } from "@/components/staff/pos/card-sheet";
 import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
+import { Elapsed } from "@/components/staff/pos/elapsed";
 import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
@@ -136,6 +139,9 @@ export function Account({
     }
     return "a cocina y barra";
   })();
+
+  /** Comandas que siguen en cocina o barra esperando que alguien las lleve. */
+  const pendientes = session.tickets.filter((ticket) => ticket.pendiente);
 
   /** La mesa esta repartida entre varias personas. */
   const cuentaSeparada = session.diners.length > 0;
@@ -558,6 +564,51 @@ export function Account({
                     ¿Tiene BarzuCard?
                   </button>
                 )}
+              </section>
+            )}
+
+            {/*
+              Lo que sigue esperando en la estacion.
+
+              Es el otro extremo del tablero de cocina: alli la comanda no se
+              puede tocar —nadie tiene las manos limpias— asi que sale de la
+              pantalla cuando el garzon marca aca que se la llevo. Mientras no
+              lo haga, la comanda envejece en rojo en la pared.
+            */}
+            {pendientes.length > 0 && !cerrada && (
+              <section className="mt-8">
+                <h2 className="text-sm font-medium text-bone-dim">
+                  Esperando en la estación
+                </h2>
+
+                <ul className="mt-2 flex flex-col gap-2">
+                  {pendientes.map((ticket) => (
+                    <li
+                      key={ticket.id}
+                      className="flex items-center justify-between gap-3 border border-gilt/40 bg-ink-soft px-3 py-2"
+                    >
+                      <span className="min-w-0">
+                        <span className="block text-bone">
+                          {ticket.station === "BARRA" ? "Barra" : "Cocina"} · N°
+                          {ticket.number}
+                        </span>
+                        <span className="block text-xs text-muted">
+                          Enviada hace <Elapsed since={ticket.createdAt} />
+                        </span>
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={pending}
+                        onClick={() => run(() => markTicketPickedUp(ticket.id))}
+                        className="flex h-11 shrink-0 items-center gap-2 border border-bone/25 px-4 text-sm text-bone disabled:opacity-50"
+                      >
+                        <PackageCheck className="size-4" aria-hidden />
+                        Ya la retiré
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </section>
             )}
 

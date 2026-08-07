@@ -115,12 +115,29 @@ export async function closeTable(sessionId: string): Promise<FormState> {
     );
   }
 
-  await prisma.tableSession.update({
-    where: { id: sessionId },
-    data: { status: "CLOSED", closedAt: new Date() },
-  });
+  await prisma.$transaction([
+    prisma.tableSession.update({
+      where: { id: sessionId },
+      data: { status: "CLOSED", closedAt: new Date() },
+    }),
+    /*
+     * Nada de esta mesa sigue esperando en cocina.
+     *
+     * La pantalla de la estacion ya no se limpia sola —nadie la toca— asi que
+     * una comanda que el garzon olvido marcar se quedaria ahi toda la noche,
+     * envejeciendo en rojo, de una mesa que ya se fue. Cerrar la mesa es la
+     * prueba de que no queda nada por entregar.
+     */
+    prisma.orderTicket.updateMany({
+      where: { sessionId, kind: "COMANDA", prep: "PENDIENTE" },
+      data: { prep: "RETIRADA", pickedUpAt: new Date() },
+    }),
+  ]);
 
   refresh(sessionId);
+  revalidatePath("/staff/cocina");
+  revalidatePath("/staff/barra");
+
   return formSuccess("Mesa cerrada.");
 }
 
@@ -472,43 +489,44 @@ export async function reprintTicket(ticketId: string): Promise<FormState> {
   return formSuccess(`Comanda #${ticket.number} reenviada.`);
 }
 
-// --- Pantallas de cocina y barra ---------------------------------------------
+// --- Comandas en la estacion -------------------------------------------------
 
 /**
- * Avanza o retrocede una comanda en la pantalla de su estacion.
+ * El garzon se lleva la comanda de la estacion.
  *
- * Nueva → en preparacion → lista. Se admite volver atras porque el error mas
- * comun en una barra llena es tocar el boton de la comanda de al lado.
+ * Es el unico movimiento que le queda a una comanda, y no lo hace la cocina:
+ * lo hace quien va a buscar el plato, desde su telefono. En la cocina no hay
+ * manos limpias para tocar una pantalla —estan mojadas o con grasa—, asi que
+ * su tablero es algo que solo se mira: sale de ahi cuando alguien se la lleva.
+ *
+ * Es idempotente a proposito: dos garzones que tocan a la vez, o el mismo
+ * tocando dos veces porque la pantalla tardo, no tienen por que ver un error.
  */
-export async function moveTicket(
-  ticketId: string,
-  prep: "NUEVA" | "EN_CURSO" | "LISTA",
-): Promise<FormState> {
+export async function markTicketPickedUp(ticketId: string): Promise<FormState> {
   await requireStaff();
 
   const ticket = await prisma.orderTicket.findUnique({
     where: { id: ticketId },
-    select: { station: true, number: true, startedAt: true },
+    select: { number: true, prep: true, station: true, sessionId: true },
   });
 
   if (!ticket) return formError("Esa comanda ya no está.");
 
+  if (ticket.prep === "RETIRADA") {
+    return formSuccess(`La comanda #${ticket.number} ya estaba retirada.`);
+  }
+
   await prisma.orderTicket.update({
     where: { id: ticketId },
-    data: {
-      prep,
-      // La hora de inicio se guarda la primera vez y no se pisa: sirve para
-      // saber cuanto tardo de verdad.
-      startedAt:
-        prep === "NUEVA" ? null : (ticket.startedAt ?? new Date()),
-      readyAt: prep === "LISTA" ? new Date() : null,
-    },
+    data: { prep: "RETIRADA", pickedUpAt: new Date() },
   });
 
-  revalidatePath(`/staff/${ticket.station === "BARRA" ? "barra" : "cocina"}`);
-  revalidatePath("/staff/pos");
+  if (ticket.station) {
+    revalidatePath(`/staff/${ticket.station === "BARRA" ? "barra" : "cocina"}`);
+  }
+  refresh(ticket.sessionId);
 
-  return formSuccess(`Comanda #${ticket.number} actualizada.`);
+  return formSuccess(`Comanda #${ticket.number} retirada.`);
 }
 
 // --- BarzuCard ---------------------------------------------------------------

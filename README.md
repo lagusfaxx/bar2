@@ -83,8 +83,8 @@ Como respaldo se puede buscar la tarjeta por QR o por número y elegir la
 promoción a mano.
 
 **Sala (`/staff/pos`).** El POS: abrir mesas, repartir la cuenta entre los
-comensales, mandar comandas a cocina y barra, y cobrar. Ver
-[POS de sala](#pos-de-sala).
+comensales, mandar comandas a cocina y barra, retirarlas cuando están listas y
+cobrar. Ver [POS de sala](#pos-de-sala).
 
 **Karaoke (`/staff/karaoke`).** La cola de la noche, la pantalla que se
 proyecta y los pedidos que llegan desde el QR de cada mesa. Ver
@@ -360,10 +360,15 @@ Vive en `/staff/pos` y entra cualquier usuario del panel.
    tragos, cervezas y jugos a barra. Cada comanda va agrupada por comensal,
    para que la barra arme los tragos separados. Sale por la impresora, por la
    pantalla de la estación, o por las dos.
-5. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
+5. **Retirar.** Cocina o barra tocan la campana cuando está listo. El garzón va
+   a buscarlo y marca **"Ya la retiré"** en la cuenta de la mesa: con eso la
+   comanda sale de la pantalla de la estación, que nadie ahí puede tocar.
+6. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
    a uno **no cierra la mesa**: los demás siguen consumiendo, y quien ya pagó
    puede volver a pedir y se le hace otro cobro.
-6. **Cerrar la mesa** cuando no queda nada pendiente, y queda libre.
+7. **Cerrar la mesa** cuando no queda nada por cobrar, y queda libre. Una mesa
+   abierta por error, sin nada cargado, se cierra igual: no hay que inventarle
+   un consumo.
 
 Al cobrar se puede ingresar el número de una BarzuCard: suma **1 punto por
 cada $1.000** de consumo y recalcula el nivel del socio.
@@ -397,15 +402,37 @@ estación: es lo que se pasa por alto y hace volver el plato.
 
 ### Pantallas de cocina y barra
 
-`/staff/cocina` y `/staff/barra`. Pensadas para dejar una tablet o un monitor
-encendido: se actualizan solas cada diez segundos y no hay que tocarlas.
+`/staff/cocina` y `/staff/barra`. Una tablet o un monitor colgado, encendido
+toda la noche.
 
-Tres columnas —**nuevas**, **en preparación**, **listas**— con un botón por
-comanda para avanzarla, y otro para volver atrás cuando alguien toca la de al
-lado. El tiempo de espera de cada comanda pasa a rojo a los diez minutos.
+**No tienen un solo botón, y es a propósito.** Quien cocina tiene las manos
+mojadas o con grasa y no las va a secar para tocar una pantalla. La versión
+anterior pedía dos toques por comanda —"empezar" y "listo"— que en la práctica
+no daba nadie, así que el tablero mostraba un estado que no era cierto.
 
-Las comandas listas se quedan un rato a la vista y después desaparecen solas:
-nadie tiene que limpiar la pantalla.
+Lo que muestran es lo que sirve de verdad:
+
+- La lista de **lo que falta preparar**, la más vieja arriba y en grande.
+- El **tiempo de espera** de cada comanda, del tamaño del número de mesa: ámbar
+  a los 8 minutos, rojo a los 15, con la tarjeta entera marcada para verlo
+  desde el otro extremo de la cocina.
+- Un **resumen sumado por producto** de todo lo pendiente. En la barra es lo
+  que evita hacer los mismos cuatro pisco sours de a uno.
+- Las **notas** destacadas, que es lo que hace volver un plato.
+
+Se actualizan solas cada diez segundos y piden un *wake lock* al navegador para
+que la pantalla no se apague — despertarla tocándola es justo lo que no se
+puede hacer.
+
+**Que el plato está listo lo sigue avisando la campana**, como siempre. La
+comanda desaparece de la pantalla cuando el garzón marca **"Ya la retiré"**
+desde su teléfono, en la cuenta de la mesa. Mientras no lo haga, la comanda
+envejece en rojo en la pared, que es exactamente el aviso que se quiere.
+
+En la sala, cada mesa con algo esperando muestra **"N comandas por retirar"**,
+para saber a dónde ir cuando suena la campana. Cerrar una mesa cierra también
+sus comandas pendientes: una mesa que se fue no puede seguir ocupando la
+pantalla de cocina.
 
 Funcionan **con o sin impresoras**. Un local puede trabajar solo con pantallas,
 solo con papel, o con las dos cosas a la vez: son estados independientes.
