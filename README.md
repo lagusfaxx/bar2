@@ -21,11 +21,12 @@ cambiar un texto, subir un afiche o publicar un show.
 7. [Rutas](#rutas)
 8. [Cómo funciona la BarzuCard](#cómo-funciona-la-barzucard)
 9. [POS de sala](#pos-de-sala)
-10. [Karaoke](#karaoke)
-11. [Despliegue en Coolify](#despliegue-en-coolify)
-12. [Operación del día a día](#operación-del-día-a-día)
-13. [Comandos disponibles](#comandos-disponibles)
-14. [Decisiones técnicas](#decisiones-técnicas)
+10. [El servicio en vivo](#el-servicio-en-vivo)
+11. [Karaoke](#karaoke)
+12. [Despliegue en Coolify](#despliegue-en-coolify)
+13. [Operación del día a día](#operación-del-día-a-día)
+14. [Comandos disponibles](#comandos-disponibles)
+15. [Decisiones técnicas](#decisiones-técnicas)
 
 ---
 
@@ -47,6 +48,10 @@ cambiar un texto, subir un afiche o publicar un show.
 | Legales | `/legales` | Términos, privacidad y condiciones del programa. |
 
 ### Panel administrativo (`/admin`)
+
+**El servicio en vivo (`/admin/en-vivo`).** Cómo va la noche mientras pasa:
+demoras, ventas, ocupación y avisos de lo que hay que ir a resolver. Ver
+[El servicio en vivo](#el-servicio-en-vivo).
 
 - **Cartelera**: alta, edición, borrado, publicar/despublicar, destacar, precio
   o entrada libre, afiche, SEO por evento y cierre de calificaciones.
@@ -267,8 +272,8 @@ mostrarlas y al cargarlas desde el panel.
 **Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`,
 `/barzucard/canje/[codigo]`.
 
-**Panel** (`ADMIN` o `EDITOR`) — `/admin` y sus secciones: `eventos`, `carta`,
-`galeria`, `promociones`, `tarjetas`, `canjes`, `resenas`, `mensajes`,
+**Panel** (`ADMIN` o `EDITOR`) — `/admin` y sus secciones: `en-vivo`, `eventos`,
+`carta`, `galeria`, `promociones`, `tarjetas`, `canjes`, `resenas`, `mensajes`,
 `ajustes`, `usuarios` (solo `ADMIN`).
 
 **Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
@@ -541,6 +546,41 @@ solo cuando se enciende el equipo.
 
 El cierre del día está en Panel → Sala → Caja: lo vendido, cómo pagaron, cuánto
 se fue en promociones, los más vendidos y las mesas que siguen abiertas.
+
+---
+
+## El servicio en vivo
+
+`/admin/en-vivo`. La pantalla que mira quien administra el local **mientras el
+local está abierto**. Se actualiza sola cada 30 segundos y funciona igual en el
+teléfono.
+
+Arriba de todo va **lo que hay que ir a resolver**, ordenado por urgencia y con
+un enlace al lugar donde se arregla:
+
+| Aviso | Cuándo aparece |
+| --- | --- |
+| Comanda demorada | Lleva 8 minutos sin que nadie la retire (urgente a los 15). |
+| Productos sin mandar | El garzón los cargó hace más de 5 minutos y la estación todavía no los vio. |
+| Mesa sin pedir | Abierta hace más de 20 minutos y sin un solo producto cargado. |
+| Mesa larga | Más de 2 h 30 abierta y con consumo sin cobrar. |
+| Impresión fallida | La impresora rechazó una comanda. |
+
+Debajo, los números de la jornada: **vendido**, **lo que hay sin cobrar en las
+mesas**, **ocupación** y la **demora promedio de la cocina** (medida de verdad:
+desde que se manda la comanda hasta que el garzón la retira, con la peor espera
+al lado). Después, el **ritmo hora por hora**, la **cola de la estación**, **lo
+más vendido**, el **consumo por estación**, las **formas de pago** y **quién
+está cobrando**.
+
+**La jornada empieza a las 06:00**, no a medianoche: un bar que cierra a las
+tres tiene media noche después de las doce, y cortar ahí dejaría la pantalla en
+cero justo cuando el local está más lleno. Las seis son **las del local**
+(`NEXT_PUBLIC_TIME_ZONE`), no las del servidor, que en producción corre en UTC.
+
+> Ojo con la diferencia: **`/admin/caja` cuenta desde la medianoche** porque es
+> el cuadre contable del día. Las dos pantallas responden preguntas distintas y
+> por eso pueden mostrar totales distintos entre medianoche y las seis.
 
 ---
 

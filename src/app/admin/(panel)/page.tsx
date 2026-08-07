@@ -76,6 +76,7 @@ export default async function AdminDashboard() {
     redemptionCount,
     pendingRatings,
     unreadMessages,
+    openTables,
     nextEvents,
     audit,
   ] = await Promise.all([
@@ -90,6 +91,7 @@ export default async function AdminDashboard() {
     prisma.redemption.count(),
     prisma.eventRating.count({ where: { approved: false } }),
     prisma.contactMessage.count({ where: { read: false, archived: false } }),
+    prisma.tableSession.count({ where: { status: "OPEN" } }),
     prisma.event.findMany({
       where: { startsAt: { gte: now } },
       orderBy: { startsAt: "asc" },
@@ -148,6 +150,35 @@ export default async function AdminDashboard() {
           pueden tardar hasta una hora en verse en la web.{" "}
           <span className="text-muted">{purgaFallida.detail}</span>
         </p>
+      )}
+
+      {/*
+        El local esta abierto ahora mismo.
+
+        Este panel es sobre todo para editar la web —eso se hace de dia y con
+        calma—, pero si hay mesas abiertas hay una noche corriendo, y entonces
+        lo urgente no es la cartelera del mes: es como va el servicio.
+      */}
+      {openTables > 0 && (
+        <Link
+          href="/admin/en-vivo"
+          className="mb-6 flex items-center justify-between gap-4 border border-crimson/50 bg-crimson/10 px-4 py-3 transition-colors hover:border-crimson"
+        >
+          <span>
+            <span className="flex items-center gap-2 text-bone">
+              <span
+                className="size-2 animate-pulse rounded-full bg-crimson-bright"
+                aria-hidden
+              />
+              El servicio está en marcha
+            </span>
+            <span className="mt-0.5 block text-xs text-muted">
+              {openTables} mesa(s) abiertas ahora mismo. Mira demoras, ventas y
+              ocupación en vivo.
+            </span>
+          </span>
+          <span className="shrink-0 text-sm text-crimson-bright">Ver →</span>
+        </Link>
       )}
 
       {/* Guia breve, pensada para quien entra al panel por primera vez y no

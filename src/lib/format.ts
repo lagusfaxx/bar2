@@ -2,6 +2,61 @@ const LOCALE = "es-CL";
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
 const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "CLP";
 
+/**
+ * La hora del local, no la del servidor.
+ *
+ * El servidor corre en UTC —en Coolify y en casi cualquier nube— y el bar vive
+ * en Santiago. Cualquier cuenta que dependa de "que hora es" (a que hora
+ * arranca la jornada, en que hora del grafico cae un cobro) tiene que hacerse
+ * en la zona del local: con `getHours()` a secas, la noche del sabado se parte
+ * en dos a las nueve de la noche.
+ */
+export function zonedHour(date: Date | string) {
+  return Number(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: TIME_ZONE,
+      hour: "2-digit",
+      hour12: false,
+    }).format(new Date(date)),
+  );
+}
+
+/**
+ * El instante en que empieza cierta hora del dia local.
+ *
+ * Devuelve un `Date` real (en UTC por dentro, como todos) que corresponde a las
+ * `hour:00` de la fecha local de `reference`. Con `daysAgo` se retrocede en
+ * dias del calendario local, que no siempre son 24 horas exactas: en el cambio
+ * de horario de Chile son 23 o 25.
+ */
+export function zonedStartOfHour(reference: Date, hour: number, daysAgo = 0) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(reference);
+
+  const get = (type: string) =>
+    Number(parts.find((part) => part.type === type)!.value);
+
+  const dia = Date.UTC(get("year"), get("month") - 1, get("day") - daysAgo, hour);
+
+  /*
+   * De hora de pared a instante.
+   *
+   * `dia` es la hora que marca el reloj del local escrita como si fuera UTC.
+   * El desfase se mide sobre ese mismo dia —no sobre hoy— porque entre medio
+   * puede haber cambiado el horario de verano.
+   */
+  const tentativa = new Date(dia);
+  const desfase =
+    new Date(tentativa.toLocaleString("en-US", { timeZone: "UTC" })).getTime() -
+    new Date(tentativa.toLocaleString("en-US", { timeZone: TIME_ZONE })).getTime();
+
+  return new Date(dia + desfase);
+}
+
 /** Precios se guardan en centesimos para evitar errores de coma flotante. */
 export function formatPrice(cents: number | null | undefined) {
   if (cents == null) return "";
