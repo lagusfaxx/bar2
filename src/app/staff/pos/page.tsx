@@ -1,4 +1,4 @@
-import { LogOut, Star, Utensils, Wine, type LucideIcon } from "lucide-react";
+import { LogOut, Mic, Star, Utensils, Wine, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -51,6 +51,7 @@ export default async function PosPage() {
           <nav aria-label="Otras pantallas" className="hidden gap-2 lg:flex">
             <HeaderLink href="/staff/cocina" icon={Utensils} label="Cocina" />
             <HeaderLink href="/staff/barra" icon={Wine} label="Barra" />
+            <HeaderLink href="/staff/karaoke" icon={Mic} label="Karaoke" />
             <HeaderLink href="/staff" icon={Star} label="Tarjetas" />
           </nav>
 
@@ -71,6 +72,7 @@ export default async function PosPage() {
         >
           <HeaderLink href="/staff/cocina" icon={Utensils} label="Cocina" />
           <HeaderLink href="/staff/barra" icon={Wine} label="Barra" />
+          <HeaderLink href="/staff/karaoke" icon={Mic} label="Karaoke" />
           <HeaderLink href="/staff" icon={Star} label="Tarjetas" />
         </nav>
       </header>
@@ -113,7 +115,10 @@ function HeaderLink({
       href={href}
       className="flex h-11 flex-1 items-center justify-center gap-2 border border-line px-2 text-sm text-muted transition-colors hover:border-crimson hover:text-crimson-bright"
     >
-      <Icon className="size-4 shrink-0" aria-hidden />
+      {/* Cuatro accesos en la fila del telefono no dejan lugar para el icono y
+          la palabra a la vez. Se cae el icono, que es el que menos dice: la
+          palabra sola se entiende, el icono solo hay que adivinarlo. */}
+      <Icon className="hidden size-4 shrink-0 min-[420px]:block" aria-hidden />
       {label}
     </Link>
   );

@@ -21,10 +21,11 @@ cambiar un texto, subir un afiche o publicar un show.
 7. [Rutas](#rutas)
 8. [Cómo funciona la BarzuCard](#cómo-funciona-la-barzucard)
 9. [POS de sala](#pos-de-sala)
-10. [Despliegue en Coolify](#despliegue-en-coolify)
-11. [Operación del día a día](#operación-del-día-a-día)
-12. [Comandos disponibles](#comandos-disponibles)
-13. [Decisiones técnicas](#decisiones-técnicas)
+10. [Karaoke](#karaoke)
+11. [Despliegue en Coolify](#despliegue-en-coolify)
+12. [Operación del día a día](#operación-del-día-a-día)
+13. [Comandos disponibles](#comandos-disponibles)
+14. [Decisiones técnicas](#decisiones-técnicas)
 
 ---
 
@@ -84,6 +85,10 @@ promoción a mano.
 **Sala (`/staff/pos`).** El POS: abrir mesas, repartir la cuenta entre los
 comensales, mandar comandas a cocina y barra, y cobrar. Ver
 [POS de sala](#pos-de-sala).
+
+**Karaoke (`/staff/karaoke`).** La cola de la noche, la pantalla que se
+proyecta y los pedidos que llegan desde el QR de cada mesa. Ver
+[Karaoke](#karaoke).
 
 ---
 
@@ -168,6 +173,7 @@ de demostración.
 | `SEED_ON_START` | No | Si es `true`, el contenedor siembra el contenido de demostración al arrancar. No hace nada si la base ya tiene contenido. |
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 | `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
+| `YOUTUBE_API_KEY` | Para el karaoke | Clave de la YouTube Data API v3. Sin ella el karaoke funciona igual, pero solo con el catálogo que el local ya tenga cargado. |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, el HTML público se guarda una hora en el borde y al guardar en el panel se purga solo: el cambio se ve al instante. Sin ellas la copia dura un minuto, así que los cambios tardan como mucho eso. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
@@ -256,7 +262,7 @@ mostrarlas y al cargarlas desde el panel.
 **Públicas** — `/`, `/eventos`, `/eventos/[slug]`, `/carta`, `/nosotros`,
 `/galeria`, `/ubicacion`, `/contacto`, `/legales`, `/barzucard`,
 `/barzucard/registro`, `/barzucard/ingresar`, `/barzucard/promociones`,
-`/sitemap.xml`, `/robots.txt`.
+`/karaoke` (el QR de las mesas; sin indexar), `/sitemap.xml`, `/robots.txt`.
 
 **Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`,
 `/barzucard/canje/[codigo]`.
@@ -267,7 +273,8 @@ mostrarlas y al cargarlas desde el panel.
 
 **Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
 `/staff/canjear/[token]`, `/staff/pos`, `/staff/pos/[sessionId]`,
-`/staff/cocina`, `/staff/barra`.
+`/staff/cocina`, `/staff/barra`, `/staff/karaoke`, `/staff/karaoke/pantalla`,
+`/staff/karaoke/qr`.
 
 **Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
 impresión, autenticado con `PRINT_AGENT_TOKEN`).
@@ -507,6 +514,68 @@ solo cuando se enciende el equipo.
 
 El cierre del día está en Panel → Sala → Caja: lo vendido, cómo pagaron, cuánto
 se fue en promociones, los más vendidos y las mesas que siguen abiertas.
+
+---
+
+## Karaoke
+
+Tres pantallas y una cola.
+
+| Pantalla | Para quién | Qué hace |
+| --- | --- | --- |
+| `/staff/karaoke` | El encargado, en su teléfono | Busca canciones, arma la cola, acepta los pedidos de las mesas y abre o cierra la noche. |
+| `/staff/karaoke/pantalla` | La TV del local | Reproduce el turno actual y pasa solo al siguiente cuando el video termina. |
+| `/staff/karaoke/qr` | La impresora | Un QR por mesa, listo para recortar y pegar. |
+| `/karaoke` | El cliente | Lo que abre ese QR: pide su canción y ve cuántos van adelante. |
+
+### La cuota de YouTube, que es lo que manda el diseño
+
+La YouTube Data API v3 da **10.000 unidades al día** y cada búsqueda cuesta
+**100**: unas cien búsquedas diarias para todo el local. Por eso:
+
+- **Solo el encargado busca en YouTube**, y con un botón aparte que dice que lo
+  está haciendo. El resto de la pantalla busca en el catálogo del local.
+- **Cada canción que se encola queda guardada** (`KaraokeTrack`). La segunda vez
+  que alguien la pide sale del catálogo sin gastar nada. Un karaoke repite
+  mucho: a las pocas noches casi todo sale de ahí.
+- **Los pedidos de las mesas nunca llaman a la API.** El cliente elige del
+  catálogo o escribe su canción con palabras, y el encargado le busca el video
+  al aceptarla.
+
+Si la cuota se acaba, el buscador lo dice con todas las letras y el catálogo
+sigue funcionando.
+
+### Pedidos desde la mesa
+
+El QR lleva a `/karaoke?mesa=N`. El pedido **no entra directo a la cola**: queda
+como *pedida* hasta que alguien de sala la acepta, que es lo que evita que la
+TV termine reproduciendo cualquier cosa. Además hay tope de tres canciones
+esperando por mesa y límite de pedidos por conexión.
+
+El karaoke se abre y se cierra desde `/staff/karaoke`. Cerrado, el QR avisa que
+esta noche no hay en vez de juntar pedidos que nadie va a mirar.
+
+### YouTube Premium
+
+No se conecta por código: **no existe** credencial ni ajuste que meta una
+suscripción Premium en un reproductor incrustado. Los avisos dependen de la
+sesión del navegador que reproduce. Si la TV del local abre
+`/staff/karaoke/pantalla` en un navegador con la cuenta Premium del bar
+iniciada, sale sin avisos; si no, salen. Un bloqueo de cookies de terceros en
+ese navegador también lo rompe.
+
+### Antes de usarlo
+
+1. **Configura `YOUTUBE_API_KEY`** (Google Cloud → habilitar *YouTube Data API
+   v3* → crear credencial de tipo clave). Sin ella solo funciona el catálogo.
+2. **Imprime los QR** desde `/staff/karaoke/qr` y pégalos en las mesas.
+3. **Deja la TV** en `/staff/karaoke/pantalla`, con sesión iniciada, en el
+   navegador que tenga la cuenta de YouTube del local.
+4. **Abre el karaoke** desde `/staff/karaoke` cuando arranque la noche.
+
+Reproducir música en el local es ejecución pública: los términos de YouTube
+están escritos para uso personal, y en Chile el local paga igual sus derechos
+(SCD). Eso lo resuelve el bar, no la app.
 
 ---
 

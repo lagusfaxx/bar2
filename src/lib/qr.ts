@@ -44,3 +44,24 @@ export async function voucherQrDataUrl(token: string) {
     },
   });
 }
+
+/**
+ * QR del karaoke, uno por mesa.
+ *
+ * Lleva a /karaoke con el numero de mesa puesto, para que quien lo escanea no
+ * tenga que buscarse a si mismo en una lista. Ese numero no autoriza nada
+ * —solo dice desde donde piden— asi que no necesita ser un token secreto: se
+ * imprime una vez y vive pegado a la mesa. Va en blanco y negro puros porque
+ * se imprime en papel comun.
+ */
+export async function karaokeQrDataUrl(tableNumber: number) {
+  return QRCode.toDataURL(absoluteUrl(`/karaoke?mesa=${tableNumber}`), {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 480,
+    color: {
+      dark: "#000000ff",
+      light: "#ffffffff",
+    },
+  });
+}

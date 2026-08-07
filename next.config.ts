@@ -8,6 +8,15 @@ const nextConfig: NextConfig = {
   compress: true,
 
   images: {
+    /*
+     * Las miniaturas del karaoke no pasan por aca.
+     *
+     * Vienen de i.ytimg.com y se pintan con `unoptimized`: ya llegan
+     * comprimidas y en el tamaño exacto en que se muestran, asi que hacerlas
+     * pasar por el optimizador solo agregaria trabajo al servidor —y lo
+     * pondria a descargar y servir imagenes de un tercero— sin ahorrar un byte.
+     */
+
     // Los archivos subidos desde el CMS se sirven por /uploads/*
     //
     // Solo WebP, sin AVIF. Medido con sharp sobre una imagen de 2400px como
