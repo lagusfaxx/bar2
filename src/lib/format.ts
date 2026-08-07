@@ -14,6 +14,19 @@ export function formatPrice(cents: number | null | undefined) {
   }).format(cents / 100);
 }
 
+/**
+ * Duracion de una cancion: "4:07".
+ *
+ * Vive aca y no en `lib/karaoke.ts` porque la pantalla del karaoke la usa
+ * desde el cliente, y ese modulo es `server-only`.
+ */
+export function formatDuration(seconds: number | null | undefined) {
+  if (!seconds || seconds <= 0) return null;
+
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
 export function formatDate(date: Date | string, opts?: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat(LOCALE, {
     timeZone: TIME_ZONE,

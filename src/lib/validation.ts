@@ -355,6 +355,52 @@ export const posTableSchema = z.object({
   active: z.coerce.boolean().default(true),
 });
 
+// --- Karaoke -----------------------------------------------------------------
+
+/** Un video de YouTube: 11 caracteres de alfabeto propio. */
+const youtubeVideoId = trimmed.regex(
+  /^[A-Za-z0-9_-]{11}$/,
+  "Identificador de video invalido",
+);
+
+/** Busqueda del encargado, la unica que gasta cuota de la API. */
+export const karaokeSearchSchema = z.object({
+  query: trimmed.min(2, "Escribe la canción que buscas").max(120),
+});
+
+/** Turno que carga sala directamente, ya con el video elegido. */
+export const karaokeQueueSchema = z.object({
+  videoId: youtubeVideoId,
+  title: trimmed.min(1).max(200),
+  channel: trimmed.max(120).optional().or(z.literal("")),
+  durationSeconds: z.coerce.number().int().min(0).max(36000).optional(),
+  thumbnailUrl: trimmed.max(400).optional().or(z.literal("")),
+  singer: trimmed.min(2, "¿Quién canta?").max(60),
+  /** Vacio = nadie anoto la mesa (pasa cuando la pide alguien de pie). */
+  tableId: trimmed.max(40).optional().or(z.literal("")),
+  note: trimmed.max(140).optional().or(z.literal("")),
+});
+
+/**
+ * Pedido desde el QR de la mesa.
+ *
+ * Puede venir con una cancion del catalogo (`trackId`) o escrita a mano
+ * (`requestText`), que es lo que pasa cuando el local todavia no tiene esa
+ * cancion vista. La accion exige una de las dos.
+ */
+export const karaokeRequestSchema = z.object({
+  singer: trimmed.min(2, "Escribe con qué nombre te llamamos").max(60),
+  tableNumber: z.coerce
+    .number()
+    .int()
+    .min(1, "Indica tu mesa")
+    .max(999)
+    .optional(),
+  trackId: trimmed.max(40).optional().or(z.literal("")),
+  requestText: trimmed.max(120).optional().or(z.literal("")),
+  website: z.string().max(0, "Solicitud rechazada").optional().or(z.literal("")),
+});
+
 /** Un dia en que el local no abre (evento privado, vacaciones). */
 export const closedDaySchema = z.object({
   date: trimmed.regex(/^\d{4}-\d{2}-\d{2}$/, "Indica el dia"),

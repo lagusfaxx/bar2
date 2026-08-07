@@ -39,6 +39,7 @@ model User {
   tickets        OrderTicket[]  @relation("TicketCreatedBy")
   closedDays     ClosedDay[]    @relation("ClosedDayCreatedBy")
   payments       Payment[]      @relation("PaymentCashier")
+  karaokeEntries KaraokeEntry[] @relation("KaraokeQueuedBy")
 
   @@index([role])
   @@map("users")
@@ -551,6 +552,15 @@ model SiteSettings {
   loyaltyDescription String? @db.Text
   loyaltyTerms       String? @db.Text
 
+  /**
+   * Karaoke abierto.
+   *
+   * No es una preferencia del sitio sino el estado de esta noche: lo prende y
+   * lo apaga el encargado desde /staff/karaoke, y de el depende que la pagina
+   * del QR de las mesas acepte pedidos o avise que hoy no hay.
+   */
+  karaokeOpen Boolean @default(false)
+
   // Tarjeta fisica: se abona por transferencia y se retira en el local.
   cardPriceCents  Int     @default(550000)
   cardPaymentInfo String? @db.Text // datos de la transferencia
@@ -665,6 +675,7 @@ model PosTable {
   updatedAt DateTime @updatedAt
 
   sessions TableSession[]
+  karaoke  KaraokeEntry[]
 
   @@index([active, position])
   @@map("pos_tables")
@@ -951,4 +962,105 @@ model AuditLog {
 
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Karaoke
+//
+// Dos piezas: el catalogo de canciones que el local ya uso alguna vez y la
+// cola de esta noche. El catalogo existe por una razon concreta: la API de
+// YouTube da 10.000 unidades al dia y cada busqueda cuesta 100 —cien busquedas
+// y se acabo—, asi que cada video que se encola queda guardado y la segunda
+// vez que alguien pide la misma cancion no se gasta nada. Un karaoke repite
+// mucho: a las pocas noches casi todo sale de aca.
+// ---------------------------------------------------------------------------
+
+/**
+ * Una cancion ya vista, con su video de YouTube.
+ */
+model KaraokeTrack {
+  id      String  @id @default(cuid())
+  videoId String  @unique // el de YouTube: 11 caracteres
+  title   String
+  channel String?
+
+  durationSeconds Int?
+  thumbnailUrl    String?
+
+  /// Titulo y canal en minusculas y sin tildes: es contra esto que busca la
+  /// pagina de las mesas, que nunca llama a la API.
+  search String
+
+  timesQueued  Int       @default(0)
+  lastQueuedAt DateTime?
+
+  /// Se saca del buscador sin borrar el historial: la version con mala pista,
+  /// la que resulto no ser karaoke, la que el local no quiere que suene.
+  blocked Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries KaraokeEntry[]
+
+  @@index([blocked, timesQueued])
+  @@index([search])
+  @@map("karaoke_tracks")
+}
+
+enum KaraokeEntryStatus {
+  PEDIDA // la pidio una mesa por el QR; falta que sala la acepte
+  EN_COLA
+  CANTANDO
+  CANTADA
+  DESCARTADA
+}
+
+enum KaraokeSource {
+  SALA // la cargo el encargado
+  MESA // llego por el QR de la mesa
+}
+
+/**
+ * Un turno en la cola.
+ *
+ * Puede nacer sin video: quien pide desde la mesa busca en el catalogo del
+ * local, y si su cancion no esta todavia, la escribe con palabras
+ * (`requestText`). El encargado la busca en YouTube al aceptarla y recien ahi
+ * queda enganchada a un `KaraokeTrack`.
+ */
+model KaraokeEntry {
+  id String @id @default(cuid())
+
+  trackId String?
+  track   KaraokeTrack? @relation(fields: [trackId], references: [id], onDelete: SetNull)
+
+  /// Lo que se pidio cuando todavia no hay video asignado.
+  requestText String?
+
+  /// Como se le llama por el microfono. No es el nombre legal de nadie.
+  singer String
+
+  tableId String?
+  table   PosTable? @relation(fields: [tableId], references: [id], onDelete: SetNull)
+
+  status KaraokeEntryStatus @default(EN_COLA)
+  source KaraokeSource      @default(SALA)
+
+  /// Orden dentro de la cola. Menor canta antes.
+  position Int     @default(0)
+  note     String?
+
+  queuedById String?
+  queuedBy   User?   @relation("KaraokeQueuedBy", fields: [queuedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  @@index([status, position])
+  @@index([tableId, status])
+  @@index([createdAt])
+  @@map("karaoke_entries")
 }

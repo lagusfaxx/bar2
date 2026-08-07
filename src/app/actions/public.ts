@@ -3,11 +3,17 @@
 import { revalidatePath } from "next/cache";
 
 import { fingerprint, getMemberSession } from "@/lib/auth";
+import { searchCatalog } from "@/lib/karaoke";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
 import { clientIp, clientUserAgent, rateLimit } from "@/lib/rate-limit";
-import { contactSchema, eventRatingSchema, fieldErrors } from "@/lib/validation";
+import {
+  contactSchema,
+  eventRatingSchema,
+  fieldErrors,
+  karaokeRequestSchema,
+} from "@/lib/validation";
 
 /**
  * Acciones publicas del sitio. Al ser invocables por POST directo, cada una
@@ -180,4 +186,130 @@ export async function reportCardTransfer(
   return formSuccess(
     "¡Gracias! Vamos a revisar la transferencia y te avisamos cuando la tarjeta esté lista para retirar.",
   );
+}
+
+/**
+ * Pedido de karaoke desde el QR de la mesa.
+ *
+ * Es la unica accion de karaoke abierta a internet, y por eso es la mas
+ * restringida de las tres pantallas:
+ *
+ * - No busca en YouTube. El cliente elige del catalogo del local o escribe su
+ *   cancion con palabras; buscar cuesta cuota de la API y no se le regala a
+ *   cualquiera que abra la URL.
+ * - No entra a la cola. Queda como PEDIDA hasta que sala la acepta, que es lo
+ *   que evita que la TV termine reproduciendo cualquier cosa.
+ * - Tiene tope por mesa, para que una mesa entusiasta no se adueñe de la noche.
+ */
+export async function requestKaraokeSong(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const ip = await clientIp();
+  const limit = rateLimit(`karaoke:${ip}`, 6, 60 * 15);
+
+  if (!limit.ok) {
+    return formError(
+      "Ya mandaste varios pedidos seguidos. Espera unos minutos o pídeselo al garzón.",
+    );
+  }
+
+  const parsed = karaokeRequestSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Revisa tu pedido.", fieldErrors(parsed.error));
+  }
+
+  const { website, singer, tableNumber, trackId, requestText } = parsed.data;
+
+  // Campo trampa: solo lo completan los bots.
+  if (website) {
+    return formSuccess("Te llamamos por el micrófono cuando sea tu turno.");
+  }
+
+  const settings = await prisma.siteSettings.findUnique({
+    where: { id: "singleton" },
+    select: { karaokeOpen: true },
+  });
+
+  if (!settings?.karaokeOpen) {
+    return formError("El karaoke no está abierto en este momento.");
+  }
+
+  if (!trackId && !requestText) {
+    return formError("Elige una canción de la lista o escribe cuál quieres.");
+  }
+
+  const table = tableNumber
+    ? await prisma.posTable.findUnique({
+        where: { number: tableNumber },
+        select: { id: true },
+      })
+    : null;
+
+  if (tableNumber && !table) {
+    return formError(`No encontramos la mesa ${tableNumber}.`);
+  }
+
+  if (table) {
+    const pendientes = await prisma.karaokeEntry.count({
+      where: { tableId: table.id, status: { in: ["PEDIDA", "EN_COLA"] } },
+    });
+
+    if (pendientes >= 3) {
+      return formError(
+        "Tu mesa ya tiene tres canciones esperando. Cuando pase alguna, puedes pedir otra.",
+      );
+    }
+  }
+
+  // La cancion elegida tiene que existir y estar habilitada: el id viaja por
+  // el formulario y no se puede confiar en el.
+  const track = trackId
+    ? await prisma.karaokeTrack.findFirst({
+        where: { id: trackId, blocked: false },
+        select: { id: true },
+      })
+    : null;
+
+  if (trackId && !track) {
+    return formError("Esa canción ya no está disponible. Elige otra.");
+  }
+
+  await prisma.karaokeEntry.create({
+    data: {
+      trackId: track?.id ?? null,
+      requestText: track ? null : requestText || null,
+      singer,
+      tableId: table?.id ?? null,
+      status: "PEDIDA",
+      source: "MESA",
+    },
+  });
+
+  revalidatePath("/staff/karaoke");
+
+  return formSuccess(
+    "Apenas el equipo la revise quedas en la cola, y te llamamos por el micrófono cuando sea tu turno.",
+  );
+}
+
+/**
+ * Buscador del catalogo para la pagina de las mesas.
+ *
+ * Consulta la base del local y nada mas: la API de YouTube no se toca desde
+ * afuera. Sin eso, cualquiera con la URL podria quemar la cuota diaria del
+ * local en un minuto.
+ */
+export async function searchKaraokeCatalog(query: string): Promise<FormState> {
+  const ip = await clientIp();
+  const limit = rateLimit(`karaoke-buscar:${ip}`, 40, 60 * 5);
+
+  if (!limit.ok) {
+    return formError("Demasiadas búsquedas seguidas. Espera un momento.");
+  }
+
+  const tracks = await searchCatalog(String(query ?? "").slice(0, 120), 12);
+
+  return formSuccess("", { tracks });
 }

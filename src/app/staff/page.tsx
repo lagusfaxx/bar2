@@ -93,6 +93,11 @@ export default async function StaffPage() {
               title: "Barra",
               hint: "Tragos, cervezas y bebidas",
             },
+            {
+              href: "/staff/karaoke",
+              title: "Karaoke",
+              hint: "Cola de la noche, pantalla y pedidos de las mesas",
+            },
           ].map((item) => (
             <Link
               key={item.href}
