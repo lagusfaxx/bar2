@@ -98,6 +98,24 @@ export function Account({
   const hayPorEnviar = session.draftCount > 0;
 
   /**
+   * Consumo que todavia no quedo en ningun cobro.
+   *
+   * Se cuenta por lineas, no por plata: una cuenta puede sumar cero —todo de
+   * cortesia, o un beneficio que la cubre entera— y aun asi tener productos
+   * que hay que registrar antes de cerrar. Es la misma regla que aplica el
+   * servidor al cerrar, escrita aca para que los botones no ofrezcan algo que
+   * despues se rechaza.
+   */
+  const haySinCobrar = session.tabs.some((candidate) =>
+    candidate.items.some((item) => !item.paid),
+  );
+
+  /** La mesa se abrio y nunca se le cargo nada. */
+  const sinConsumo = session.tabs.every(
+    (candidate) => candidate.items.length === 0,
+  );
+
+  /**
    * A donde va lo que falta enviar.
    *
    * El boton nombra el destino real —"a la cocina", "a la barra" o a las dos—
@@ -614,15 +632,25 @@ export function Account({
               </section>
             )}
 
-            {/* Cierre: solo cuando ya no queda nada por cobrar */}
-            {!cerrada && session.pendingCents === 0 && session.paidCents > 0 && (
+            {/*
+              Cierre: cuando no queda consumo sin cobrar.
+
+              Antes tambien exigia que se hubiera cobrado algo, y por eso una
+              mesa abierta por error —el clasico toque de mas, o el grupo que
+              se levanta antes de pedir— se quedaba ocupada para siempre: sin
+              productos no habia nada que cobrar, y sin cobro no aparecia este
+              boton. Una mesa sin consumo es justamente la mas facil de cerrar.
+            */}
+            {!cerrada && !haySinCobrar && (
               <button
                 type="button"
                 disabled={pending}
                 onClick={() => setClosing(true)}
                 className="mt-8 h-12 w-full border border-line text-base text-muted hover:border-crimson hover:text-crimson-bright"
               >
-                Cerrar la mesa y dejarla libre
+                {sinConsumo
+                  ? "Cerrar la mesa sin consumo"
+                  : "Cerrar la mesa y dejarla libre"}
               </button>
             )}
           </main>
@@ -680,15 +708,20 @@ export function Account({
                     Enviar {session.draftCount} {destinoPorEnviar}
                   </button>
                 ) : (
+                  /* Se habilita por consumo sin cobrar, no por monto: una
+                     cuenta que quedo en cero por beneficios igual tiene que
+                     pasar por el cobro para poder cerrarse. */
                   <button
                     type="button"
-                    disabled={session.pendingCents === 0}
+                    disabled={!haySinCobrar}
                     onClick={startPayment}
                     className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-crimson text-base font-medium text-bone disabled:opacity-40"
                   >
                     <Wallet className="size-5" aria-hidden />
-                    {session.pendingCents === 0
-                      ? "Todo pagado"
+                    {!haySinCobrar
+                      ? sinConsumo
+                        ? "Nada que cobrar"
+                        : "Todo pagado"
                       : `Cobrar ${formatPrice(session.pendingCents)}`}
                   </button>
                 )}
@@ -778,6 +811,7 @@ export function Account({
         <PayerSheet
           tabLabel={tab.label}
           tabPendingCents={tab.pendingCents}
+          tabSinCobrar={tab.items.some((item) => !item.paid)}
           tablePendingCents={session.pendingCents}
           onPick={(who) => {
             setChoosingPayer(false);
@@ -810,7 +844,11 @@ export function Account({
       {closing && (
         <ConfirmSheet
           title={`¿Cerrar la mesa ${session.table.number}?`}
-          detail="Queda libre para los próximos clientes y ya no se le puede agregar nada. Está todo pagado."
+          detail={
+            sinConsumo
+              ? "No se cargó ningún producto, así que no queda nada por cobrar. La mesa vuelve a quedar libre."
+              : "Queda libre para los próximos clientes y ya no se le puede agregar nada. Está todo pagado."
+          }
           confirmLabel="Sí, cerrar la mesa"
           onConfirm={() => run(() => closeTable(session.id))}
           onClose={() => setClosing(false)}
@@ -830,12 +868,15 @@ export function Account({
 function PayerSheet({
   tabLabel,
   tabPendingCents,
+  tabSinCobrar,
   tablePendingCents,
   onPick,
   onClose,
 }: {
   tabLabel: string;
   tabPendingCents: number;
+  /** Esa pestaña tiene consumo que todavía no entró en ningún cobro. */
+  tabSinCobrar: boolean;
   tablePendingCents: number;
   onPick: (who: "tab" | "table") => void;
   onClose: () => void;
@@ -856,7 +897,7 @@ function PayerSheet({
         <div className="mt-5 flex flex-col gap-2">
           <button
             type="button"
-            disabled={tabPendingCents === 0}
+            disabled={!tabSinCobrar}
             onClick={() => onPick("tab")}
             className="flex h-16 w-full items-center justify-between border border-line px-4 text-left disabled:opacity-40"
           >
