@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Activity,
   Banknote,
   CalendarDays,
   CalendarOff,
@@ -16,8 +17,8 @@ import {
   Star,
   Table2,
   Ticket,
-  UtensilsCrossed,
   Users,
+  UtensilsCrossed,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -81,6 +82,12 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
   {
     title: "El día a día del local",
     items: [
+      {
+        href: "/admin/en-vivo",
+        label: "El servicio en vivo",
+        icon: Activity,
+        hint: "Cómo va la noche: demoras, ventas y mesas, ahora mismo",
+      },
       {
         href: "/admin/mesas",
         label: "Mesas del salón",

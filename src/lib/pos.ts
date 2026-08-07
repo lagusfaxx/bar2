@@ -211,9 +211,7 @@ export type BoardTicket = {
   number: number;
   tableNumber: number;
   tableName: string | null;
-  prep: "NUEVA" | "EN_CURSO" | "LISTA";
   createdAt: string;
-  startedAt: string | null;
   items: Array<{
     id: string;
     quantity: number;
@@ -224,10 +222,15 @@ export type BoardTicket = {
 };
 
 /**
- * Las comandas de una estacion, tal como se ven en su pantalla.
+ * Las comandas pendientes de una estacion, tal como se ven en su pantalla.
  *
- * Solo del servicio en curso: se mira desde seis horas atras para no arrastrar
- * la noche anterior, y las ya entregadas desaparecen solas.
+ * Todas las que devuelve estan pendientes: la pantalla de cocina no tiene
+ * estados ni botones —nadie ahi tiene las manos limpias para tocarla—, asi que
+ * una comanda esta o no esta. Desaparece cuando el garzon marca que se la
+ * llevo, desde su telefono.
+ *
+ * Solo el servicio en curso: se mira desde seis horas atras para no arrastrar
+ * la noche anterior.
  */
 export async function getStationBoard(
   station: Station,
@@ -236,22 +239,16 @@ export async function getStationBoard(
   const desde = new Date();
   desde.setHours(desde.getHours() - hours);
 
-  // Las listas se quedan un rato a la vista, por si hay que corregir un toque,
-  // y despues se van solas. Nadie tiene que limpiar la pantalla a mano.
-  const recienListas = new Date();
-  recienListas.setMinutes(recienListas.getMinutes() - 15);
-
   const tickets = await prisma.orderTicket.findMany({
     where: {
       kind: "COMANDA",
       station,
       createdAt: { gte: desde },
-      OR: [
-        { prep: { in: ["NUEVA", "EN_CURSO"] } },
-        { prep: "LISTA", readyAt: { gte: recienListas } },
-      ],
+      prep: "PENDIENTE",
     },
-    orderBy: { number: "asc" },
+    // La mas vieja primero: es el orden en que hay que sacarlas y el unico que
+    // no obliga a leer los relojes de toda la pantalla para saber por cual ir.
+    orderBy: { createdAt: "asc" },
     include: {
       session: {
         select: { table: { select: { number: true, name: true } } },
@@ -272,9 +269,7 @@ export async function getStationBoard(
       number: ticket.number,
       tableNumber: ticket.session.table.number,
       tableName: ticket.session.table.name,
-      prep: ticket.prep,
       createdAt: ticket.createdAt.toISOString(),
-      startedAt: ticket.startedAt?.toISOString() ?? null,
       items: ticket.items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
@@ -301,6 +296,8 @@ export type TableOverview = {
     diners: number;
     /** Lineas cargadas que todavia no salieron en ninguna comanda. */
     draftItems: number;
+    /** Comandas que siguen en la estacion, esperando que alguien las retire. */
+    pendingTickets: number;
     pendingCents: number;
   } | null;
 };
@@ -327,6 +324,10 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
               quantity: true,
             },
           },
+          tickets: {
+            where: { kind: "COMANDA", prep: "PENDIENTE" },
+            select: { id: true },
+          },
         },
       },
     },
@@ -350,6 +351,7 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
             diners: session.diners.length,
             draftItems: session.items.filter((item) => item.status === "DRAFT")
               .length,
+            pendingTickets: session.tickets.length,
             pendingCents: session.items
               .filter((item) => item.paymentId === null)
               .reduce((total, item) => total + lineTotal(item), 0),
@@ -446,6 +448,8 @@ export type SessionDetail = {
     /** Vacia en las de cobro: no van a ninguna estacion. */
     station: Station | null;
     status: string;
+    /** Sigue en la estacion esperando que alguien la retire. */
+    pendiente: boolean;
     createdAt: string;
     lastError: string | null;
   }>;
@@ -610,6 +614,7 @@ export async function getSessionDetail(
       // El resumen de cobro no tiene estacion: no lo prepara nadie.
       station: ticket.station,
       status: ticket.status,
+      pendiente: ticket.kind === "COMANDA" && ticket.prep === "PENDIENTE",
       createdAt: ticket.createdAt.toISOString(),
       lastError: ticket.lastError,
     })),

@@ -1,20 +1,37 @@
 "use client";
 
-import { Check, RotateCcw, Utensils, Wine } from "lucide-react";
+import { Utensils, Wine } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 
-import { moveTicket } from "@/app/actions/pos";
+import { useWakeLock } from "@/components/staff/use-wake-lock";
 import type { BoardTicket } from "@/lib/pos";
 
 /**
  * Pantalla de cocina o de barra.
  *
- * Pensada para mirarse de lejos y con las manos ocupadas: tres columnas
- * —nuevas, en preparacion, listas—, letra grande y un solo boton por comanda.
- * Se refresca sola, asi que queda encendida toda la noche sin que nadie la
- * toque.
+ * No tiene un solo boton, y es a proposito: quien cocina tiene las manos
+ * mojadas o con grasa y no las va a secar para tocar una pantalla. Antes esto
+ * pedia dos toques por comanda —"empezar" y "listo"— y en la practica no los
+ * daba nadie, asi que el tablero mostraba un estado que no era cierto.
+ *
+ * Ahora es lo que se necesita de verdad: la lista de lo que falta preparar,
+ * la mas vieja arriba, con el tiempo que lleva esperando en letra grande. La
+ * comanda desaparece cuando el garzon marca que se la llevo, desde su
+ * telefono. Que el plato esta listo lo sigue avisando la campana, como
+ * siempre.
  */
+
+/**
+ * Cuando una espera deja de ser normal.
+ *
+ * A los ocho minutos la comanda pasa a ambar y a los quince a rojo, con la
+ * tarjeta entera marcada: la idea es que desde el otro lado de la cocina se
+ * vea cual es la que esta atrasada sin leer un solo numero.
+ */
+const AMBAR_MINUTOS = 8;
+const ROJO_MINUTOS = 15;
+
 export function StationBoard({
   station,
   tickets,
@@ -23,7 +40,6 @@ export function StationBoard({
   tickets: BoardTicket[];
 }) {
   const router = useRouter();
-  const [pending, startTransition] = useTransition();
 
   // La pantalla vive colgada en la pared: se actualiza sola cada 10 segundos.
   useEffect(() => {
@@ -31,18 +47,22 @@ export function StationBoard({
     return () => clearInterval(timer);
   }, [router]);
 
-  const move = (ticketId: string, prep: "NUEVA" | "EN_CURSO" | "LISTA") => {
-    startTransition(async () => {
-      await moveTicket(ticketId, prep);
-      router.refresh();
-    });
-  };
-
-  const nuevas = tickets.filter((ticket) => ticket.prep === "NUEVA");
-  const enCurso = tickets.filter((ticket) => ticket.prep === "EN_CURSO");
-  const listas = tickets.filter((ticket) => ticket.prep === "LISTA");
+  // Y no se apaga: un tablero que hay que despertar tocandolo no sirve de nada
+  // aca, que es justo lo que no se puede hacer.
+  useWakeLock();
 
   const Icon = station === "BARRA" ? Wine : Utensils;
+
+  /* Cuanto ocupa cada comanda, segun cuantas haya que mostrar a la vez. */
+  const columnas =
+    tickets.length <= 2
+      ? "grid-cols-1 lg:grid-cols-2"
+      : tickets.length <= 6
+        ? "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+        : "grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4";
+
+  const escala: Escala =
+    tickets.length <= 2 ? "grande" : tickets.length <= 6 ? "media" : "chica";
 
   return (
     <>
@@ -53,63 +73,43 @@ export function StationBoard({
             {station === "BARRA" ? "Barra" : "Cocina"}
           </h1>
 
-          <p className="text-right text-[0.65rem] uppercase tracking-[0.16em] text-muted">
-            {nuevas.length + enCurso.length} pendiente(s)
+          <p className="flex items-baseline gap-3">
+            <span className="font-display text-3xl text-bone">
+              {tickets.length}
+            </span>
+            <span className="text-[0.65rem] uppercase tracking-[0.16em] text-muted">
+              por preparar
+            </span>
             <Clock />
           </p>
         </div>
+
+        {/* Lo pendiente, sumado por producto.
+            En una barra llena es lo que evita hacer los mismos cuatro pisco
+            sours de a uno: se ven juntos aunque esten en comandas distintas. */}
+        {tickets.length > 1 && <Totals tickets={tickets} />}
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-px overflow-hidden bg-line md:grid-cols-3">
-        <Column
-          title="Nuevas"
-          count={nuevas.length}
-          tone="crimson"
-          empty="Sin comandas nuevas"
-        >
-          {nuevas.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              disabled={pending}
-              action={{ label: "Empezar", onClick: () => move(ticket.id, "EN_CURSO") }}
-            />
-          ))}
-        </Column>
-
-        <Column
-          title="En preparación"
-          count={enCurso.length}
-          tone="gilt"
-          empty="Nada en preparación"
-        >
-          {enCurso.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              disabled={pending}
-              action={{ label: "Listo", onClick: () => move(ticket.id, "LISTA") }}
-              back={() => move(ticket.id, "NUEVA")}
-            />
-          ))}
-        </Column>
-
-        <Column
-          title="Listas"
-          count={listas.length}
-          tone="emerald"
-          empty="Nada listo todavía"
-        >
-          {listas.map((ticket) => (
-            <TicketCard
-              key={ticket.id}
-              ticket={ticket}
-              disabled={pending}
-              done
-              back={() => move(ticket.id, "EN_CURSO")}
-            />
-          ))}
-        </Column>
+      <main className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-ink p-3 pb-safe">
+        {tickets.length === 0 ? (
+          <p className="py-20 text-center font-display text-3xl text-muted-dark">
+            No hay nada pendiente
+          </p>
+        ) : (
+          /*
+           * La cuadricula se aprieta segun cuanto haya.
+           *
+           * Con dos comandas en una pantalla de pared, tres columnas fijas
+           * dejaban dos tarjetas chiquitas arriba a la izquierda y el resto
+           * negro: hay que acercarse a leer justo cuando sobra espacio. La
+           * pantalla usa todo lo que tiene y solo se achica cuando hay mucho.
+           */
+          <div className={`grid gap-3 ${columnas}`}>
+            {tickets.map((ticket) => (
+              <TicketCard key={ticket.id} ticket={ticket} escala={escala} />
+            ))}
+          </div>
+        )}
       </main>
     </>
   );
@@ -136,87 +136,113 @@ function Clock() {
 
   if (!time) return null;
 
-  return <span className="ml-3 font-display text-lg text-bone-dim">{time}</span>;
+  return <span className="font-display text-lg text-bone-dim">{time}</span>;
 }
 
-function Column({
-  title,
-  count,
-  tone,
-  empty,
-  children,
-}: {
-  title: string;
-  count: number;
-  tone: "crimson" | "gilt" | "emerald";
-  empty: string;
-  children: React.ReactNode;
-}) {
-  const tones = {
-    crimson: "text-crimson-bright",
-    gilt: "text-gilt-soft",
-    emerald: "text-emerald-300",
-  } as const;
+/** Todo lo pendiente de la estacion sumado por producto. */
+function Totals({ tickets }: { tickets: BoardTicket[] }) {
+  const totals = new Map<string, number>();
+
+  for (const ticket of tickets) {
+    for (const item of ticket.items) {
+      totals.set(item.name, (totals.get(item.name) ?? 0) + item.quantity);
+    }
+  }
+
+  const ordenados = [...totals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8);
 
   return (
-    <section className="flex min-h-0 flex-col bg-ink">
-      <h2 className="flex shrink-0 items-baseline gap-2 border-b border-line px-4 py-2 text-[0.65rem] uppercase tracking-[0.2em] text-muted">
-        {title}
-        <span className={`font-display text-lg ${tones[tone]}`}>{count}</span>
-      </h2>
-
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain p-3 pb-safe">
-        {count === 0 ? (
-          <p className="py-10 text-center text-sm text-muted-dark">{empty}</p>
-        ) : (
-          children
-        )}
-      </div>
-    </section>
+    <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted">
+      {ordenados.map(([name, quantity]) => (
+        <span key={name}>
+          <span className="font-display text-base text-bone-dim">
+            {quantity}×
+          </span>{" "}
+          {name}
+        </span>
+      ))}
+    </p>
   );
 }
 
+type Escala = "grande" | "media" | "chica";
+
+/** Tamaños de letra por escala: mesa y reloj arriba, productos abajo. */
+const TIPOGRAFIA: Record<
+  Escala,
+  { cabecera: string; producto: string; nota: string }
+> = {
+  grande: { cabecera: "text-5xl", producto: "text-4xl", nota: "text-2xl" },
+  media: { cabecera: "text-4xl", producto: "text-3xl", nota: "text-xl" },
+  chica: { cabecera: "text-3xl", producto: "text-2xl", nota: "text-base" },
+};
+
 function TicketCard({
   ticket,
-  action,
-  back,
-  done,
-  disabled,
+  escala,
 }: {
   ticket: BoardTicket;
-  action?: { label: string; onClick: () => void };
-  back?: () => void;
-  done?: boolean;
-  disabled: boolean;
+  escala: Escala;
 }) {
+  const tipografia = TIPOGRAFIA[escala];
+  const minutes = useMinutesSince(ticket.createdAt);
+
+  const nivel =
+    minutes === null
+      ? "normal"
+      : minutes >= ROJO_MINUTOS
+        ? "rojo"
+        : minutes >= AMBAR_MINUTOS
+          ? "ambar"
+          : "normal";
+
+  const marco = {
+    normal: "border-line bg-ink-soft",
+    ambar: "border-gilt/60 bg-gilt/10",
+    rojo: "border-crimson bg-crimson/15",
+  }[nivel];
+
   return (
-    <article
-      className={[
-        "border bg-ink-soft",
-        done ? "border-emerald-500/40 opacity-70" : "border-line",
-      ].join(" ")}
-    >
-      <div className="flex items-baseline justify-between gap-3 border-b border-line px-3 py-2">
-        <p className="font-display text-2xl text-bone">
+    <article className={`flex flex-col border ${marco}`}>
+      <div className="flex items-baseline justify-between gap-3 border-b border-line/60 px-3 py-2">
+        <p className={`font-display text-bone ${tipografia.cabecera}`}>
           Mesa {ticket.tableNumber}
+          <span className="ml-2 text-sm text-muted">#{ticket.number}</span>
         </p>
-        <p className="text-right text-[0.65rem] uppercase tracking-[0.14em] text-muted">
-          #{ticket.number}
-          <Waiting since={ticket.createdAt} />
+
+        {/* El tiempo es el dato que manda en esta pantalla: va tan grande como
+            el numero de mesa y cambia de color solo. */}
+        <p
+          className={[
+            `font-display tabular-nums ${tipografia.cabecera}`,
+            nivel === "rojo"
+              ? "text-crimson-bright"
+              : nivel === "ambar"
+                ? "text-gilt-soft"
+                : "text-bone-dim",
+          ].join(" ")}
+        >
+          {minutes === null ? "" : `${minutes}′`}
         </p>
       </div>
 
       <ul className="space-y-2 px-3 py-3">
         {ticket.items.map((item) => (
           <li key={item.id}>
-            <p className="font-display text-xl leading-tight text-bone">
+            <p
+              className={`font-display leading-tight text-bone ${tipografia.producto}`}
+            >
               <span className="text-crimson-bright">{item.quantity}×</span>{" "}
               {item.name}
             </p>
 
             {/* La nota va destacada: es lo que se pasa por alto y vuelve el plato. */}
             {item.note && (
-              <p className="mt-1 border-l-2 border-gilt bg-gilt/10 px-2 py-1 text-sm font-medium text-gilt-soft">
+              <p
+                className={`mt-1 border-l-2 border-gilt bg-gilt/10 px-2 py-1 font-medium text-gilt-soft ${tipografia.nota}`}
+              >
                 {item.note}
               </p>
             )}
@@ -229,47 +255,18 @@ function TicketCard({
           </li>
         ))}
       </ul>
-
-      <div className="flex gap-px border-t border-line">
-        {back && (
-          <button
-            type="button"
-            onClick={back}
-            disabled={disabled}
-            aria-label="Volver al paso anterior"
-            className="flex h-14 w-16 shrink-0 items-center justify-center border-r border-line text-muted disabled:opacity-40"
-          >
-            <RotateCcw className="size-5" aria-hidden />
-          </button>
-        )}
-
-        {action ? (
-          <button
-            type="button"
-            onClick={action.onClick}
-            disabled={disabled}
-            className="h-14 flex-1 bg-crimson text-sm font-medium uppercase tracking-[0.16em] text-bone disabled:opacity-50"
-          >
-            {action.label}
-          </button>
-        ) : (
-          <p className="flex h-14 flex-1 items-center justify-center gap-2 text-sm uppercase tracking-[0.16em] text-emerald-300">
-            <Check className="size-4" aria-hidden />
-            Lista
-          </p>
-        )}
-      </div>
     </article>
   );
 }
 
 /**
- * Cuanto lleva esperando la comanda.
+ * Minutos desde que se mando la comanda.
  *
- * Pasa a rojo a los diez minutos: es la señal que hace que alguien reaccione
- * sin tener que ir a preguntar.
+ * Se calcula despues de montar y se refresca cada treinta segundos: leer el
+ * reloj durante el render daria un valor distinto en el servidor y en el
+ * cliente.
  */
-function Waiting({ since }: { since: string }) {
+function useMinutesSince(since: string) {
   const [minutes, setMinutes] = useState<number | null>(null);
 
   useEffect(() => {
@@ -281,16 +278,5 @@ function Waiting({ since }: { since: string }) {
     return () => clearInterval(timer);
   }, [since]);
 
-  if (minutes === null) return null;
-
-  return (
-    <span
-      className={[
-        "ml-2 font-display text-base",
-        minutes >= 10 ? "text-crimson-bright" : "text-bone-dim",
-      ].join(" ")}
-    >
-      {minutes} min
-    </span>
-  );
+  return minutes;
 }

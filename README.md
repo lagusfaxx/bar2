@@ -21,11 +21,12 @@ cambiar un texto, subir un afiche o publicar un show.
 7. [Rutas](#rutas)
 8. [Cómo funciona la BarzuCard](#cómo-funciona-la-barzucard)
 9. [POS de sala](#pos-de-sala)
-10. [Karaoke](#karaoke)
-11. [Despliegue en Coolify](#despliegue-en-coolify)
-12. [Operación del día a día](#operación-del-día-a-día)
-13. [Comandos disponibles](#comandos-disponibles)
-14. [Decisiones técnicas](#decisiones-técnicas)
+10. [El servicio en vivo](#el-servicio-en-vivo)
+11. [Karaoke](#karaoke)
+12. [Despliegue en Coolify](#despliegue-en-coolify)
+13. [Operación del día a día](#operación-del-día-a-día)
+14. [Comandos disponibles](#comandos-disponibles)
+15. [Decisiones técnicas](#decisiones-técnicas)
 
 ---
 
@@ -47,6 +48,10 @@ cambiar un texto, subir un afiche o publicar un show.
 | Legales | `/legales` | Términos, privacidad y condiciones del programa. |
 
 ### Panel administrativo (`/admin`)
+
+**El servicio en vivo (`/admin/en-vivo`).** Cómo va la noche mientras pasa:
+demoras, ventas, ocupación y avisos de lo que hay que ir a resolver. Ver
+[El servicio en vivo](#el-servicio-en-vivo).
 
 - **Cartelera**: alta, edición, borrado, publicar/despublicar, destacar, precio
   o entrada libre, afiche, SEO por evento y cierre de calificaciones.
@@ -83,8 +88,8 @@ Como respaldo se puede buscar la tarjeta por QR o por número y elegir la
 promoción a mano.
 
 **Sala (`/staff/pos`).** El POS: abrir mesas, repartir la cuenta entre los
-comensales, mandar comandas a cocina y barra, y cobrar. Ver
-[POS de sala](#pos-de-sala).
+comensales, mandar comandas a cocina y barra, retirarlas cuando están listas y
+cobrar. Ver [POS de sala](#pos-de-sala).
 
 **Karaoke (`/staff/karaoke`).** La cola de la noche, la pantalla que se
 proyecta y los pedidos que llegan desde el QR de cada mesa. Ver
@@ -267,8 +272,8 @@ mostrarlas y al cargarlas desde el panel.
 **Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`,
 `/barzucard/canje/[codigo]`.
 
-**Panel** (`ADMIN` o `EDITOR`) — `/admin` y sus secciones: `eventos`, `carta`,
-`galeria`, `promociones`, `tarjetas`, `canjes`, `resenas`, `mensajes`,
+**Panel** (`ADMIN` o `EDITOR`) — `/admin` y sus secciones: `en-vivo`, `eventos`,
+`carta`, `galeria`, `promociones`, `tarjetas`, `canjes`, `resenas`, `mensajes`,
 `ajustes`, `usuarios` (solo `ADMIN`).
 
 **Sala** (cualquier rol del panel) — `/staff`, `/staff/verificar/[token]`,
@@ -360,10 +365,15 @@ Vive en `/staff/pos` y entra cualquier usuario del panel.
    tragos, cervezas y jugos a barra. Cada comanda va agrupada por comensal,
    para que la barra arme los tragos separados. Sale por la impresora, por la
    pantalla de la estación, o por las dos.
-5. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
+5. **Retirar.** Cocina o barra tocan la campana cuando está listo. El garzón va
+   a buscarlo y marca **"Ya la retiré"** en la cuenta de la mesa: con eso la
+   comanda sale de la pantalla de la estación, que nadie ahí puede tocar.
+6. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
    a uno **no cierra la mesa**: los demás siguen consumiendo, y quien ya pagó
    puede volver a pedir y se le hace otro cobro.
-6. **Cerrar la mesa** cuando no queda nada pendiente, y queda libre.
+7. **Cerrar la mesa** cuando no queda nada por cobrar, y queda libre. Una mesa
+   abierta por error, sin nada cargado, se cierra igual: no hay que inventarle
+   un consumo.
 
 Al cobrar se puede ingresar el número de una BarzuCard: suma **1 punto por
 cada $1.000** de consumo y recalcula el nivel del socio.
@@ -397,15 +407,37 @@ estación: es lo que se pasa por alto y hace volver el plato.
 
 ### Pantallas de cocina y barra
 
-`/staff/cocina` y `/staff/barra`. Pensadas para dejar una tablet o un monitor
-encendido: se actualizan solas cada diez segundos y no hay que tocarlas.
+`/staff/cocina` y `/staff/barra`. Una tablet o un monitor colgado, encendido
+toda la noche.
 
-Tres columnas —**nuevas**, **en preparación**, **listas**— con un botón por
-comanda para avanzarla, y otro para volver atrás cuando alguien toca la de al
-lado. El tiempo de espera de cada comanda pasa a rojo a los diez minutos.
+**No tienen un solo botón, y es a propósito.** Quien cocina tiene las manos
+mojadas o con grasa y no las va a secar para tocar una pantalla. La versión
+anterior pedía dos toques por comanda —"empezar" y "listo"— que en la práctica
+no daba nadie, así que el tablero mostraba un estado que no era cierto.
 
-Las comandas listas se quedan un rato a la vista y después desaparecen solas:
-nadie tiene que limpiar la pantalla.
+Lo que muestran es lo que sirve de verdad:
+
+- La lista de **lo que falta preparar**, la más vieja arriba y en grande.
+- El **tiempo de espera** de cada comanda, del tamaño del número de mesa: ámbar
+  a los 8 minutos, rojo a los 15, con la tarjeta entera marcada para verlo
+  desde el otro extremo de la cocina.
+- Un **resumen sumado por producto** de todo lo pendiente. En la barra es lo
+  que evita hacer los mismos cuatro pisco sours de a uno.
+- Las **notas** destacadas, que es lo que hace volver un plato.
+
+Se actualizan solas cada diez segundos y piden un *wake lock* al navegador para
+que la pantalla no se apague — despertarla tocándola es justo lo que no se
+puede hacer.
+
+**Que el plato está listo lo sigue avisando la campana**, como siempre. La
+comanda desaparece de la pantalla cuando el garzón marca **"Ya la retiré"**
+desde su teléfono, en la cuenta de la mesa. Mientras no lo haga, la comanda
+envejece en rojo en la pared, que es exactamente el aviso que se quiere.
+
+En la sala, cada mesa con algo esperando muestra **"N comandas por retirar"**,
+para saber a dónde ir cuando suena la campana. Cerrar una mesa cierra también
+sus comandas pendientes: una mesa que se fue no puede seguir ocupando la
+pantalla de cocina.
 
 Funcionan **con o sin impresoras**. Un local puede trabajar solo con pantallas,
 solo con papel, o con las dos cosas a la vez: son estados independientes.
@@ -514,6 +546,41 @@ solo cuando se enciende el equipo.
 
 El cierre del día está en Panel → Sala → Caja: lo vendido, cómo pagaron, cuánto
 se fue en promociones, los más vendidos y las mesas que siguen abiertas.
+
+---
+
+## El servicio en vivo
+
+`/admin/en-vivo`. La pantalla que mira quien administra el local **mientras el
+local está abierto**. Se actualiza sola cada 30 segundos y funciona igual en el
+teléfono.
+
+Arriba de todo va **lo que hay que ir a resolver**, ordenado por urgencia y con
+un enlace al lugar donde se arregla:
+
+| Aviso | Cuándo aparece |
+| --- | --- |
+| Comanda demorada | Lleva 8 minutos sin que nadie la retire (urgente a los 15). |
+| Productos sin mandar | El garzón los cargó hace más de 5 minutos y la estación todavía no los vio. |
+| Mesa sin pedir | Abierta hace más de 20 minutos y sin un solo producto cargado. |
+| Mesa larga | Más de 2 h 30 abierta y con consumo sin cobrar. |
+| Impresión fallida | La impresora rechazó una comanda. |
+
+Debajo, los números de la jornada: **vendido**, **lo que hay sin cobrar en las
+mesas**, **ocupación** y la **demora promedio de la cocina** (medida de verdad:
+desde que se manda la comanda hasta que el garzón la retira, con la peor espera
+al lado). Después, el **ritmo hora por hora**, la **cola de la estación**, **lo
+más vendido**, el **consumo por estación**, las **formas de pago** y **quién
+está cobrando**.
+
+**La jornada empieza a las 06:00**, no a medianoche: un bar que cierra a las
+tres tiene media noche después de las doce, y cortar ahí dejaría la pantalla en
+cero justo cuando el local está más lleno. Las seis son **las del local**
+(`NEXT_PUBLIC_TIME_ZONE`), no las del servidor, que en producción corre en UTC.
+
+> Ojo con la diferencia: **`/admin/caja` cuenta desde la medianoche** porque es
+> el cuadre contable del día. Las dos pantallas responden preguntas distintas y
+> por eso pueden mostrar totales distintos entre medianoche y las seis.
 
 ---
 
