@@ -202,6 +202,13 @@ export const EVENT_CATEGORY_LABELS: Record<string, string> = {
   ESPECIAL: "Especial",
 };
 
+/** Quien entra a un evento; ver el enum EventAccess del esquema. */
+export const EVENT_ACCESS_LABELS: Record<string, string> = {
+  SEGUN_EL_DIA: "Según el día",
+  PUBLICO: "Abierto al público",
+  PRIVADO: "Solo invitados",
+};
+
 export const PROMOTION_TYPE_LABELS: Record<string, string> = {
   PERCENT_OFF: "Descuento %",
   AMOUNT_OFF: "Descuento fijo",

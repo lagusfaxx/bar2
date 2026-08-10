@@ -10,6 +10,7 @@ import { EmptyState, Panel } from "@/components/admin/ui";
 import { Field, FormMessage, SubmitButton } from "@/components/ui/form";
 import { formatDateOnly } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
+import { cn } from "@/lib/utils";
 
 export type ClosedDayRow = {
   id: string;
@@ -21,7 +22,13 @@ export type ClosedDayRow = {
 };
 
 /** Un show publicado que cae en un dia cerrado. */
-export type ClosureConflict = { id: string; title: string; day: string };
+export type ClosureConflict = {
+  id: string;
+  title: string;
+  day: string;
+  /** Marcado como abierto al publico: no hereda el cierre del dia. */
+  open: boolean;
+};
 
 /**
  * Dias en que el local no abre.
@@ -48,7 +55,7 @@ export function ClosuresManager({
     <div className="flex flex-col gap-6">
       <Panel
         title="Cerrar un día"
-        description="Ese día la cartelera dirá que el local no abre al público. Si además publicas un show para esa fecha, el afiche se sigue viendo con la banda encima."
+        description="Ese día la cartelera dirá que el local no abre al público. Si además publicas un show para esa fecha, el afiche se sigue viendo con la banda encima. ¿Ese show sí es para todos? Ábrelo en «¿Quién entra?» dentro del evento y el cierre no lo toca."
       >
         <form action={action} className="flex flex-col gap-5">
           <FormMessage state={state} />
@@ -114,14 +121,18 @@ export function ClosuresManager({
                     )}
                   </p>
 
-                  {/* El show de ese dia se sigue mostrando, marcado como
-                      privado. Se confirma aca para que no quede la duda. */}
+                  {/* El show de ese dia se sigue mostrando: privado si hereda
+                      el cierre, abierto si se marco como publico. Se dice cual
+                      de las dos cosas quedo, con el enlace para cambiarlo. */}
                   {conflicts
                     .filter((conflict) => conflict.day === day.day)
                     .map((conflict) => (
                       <p
                         key={conflict.id}
-                        className="mt-1 flex items-start gap-1.5 text-xs text-gilt-soft"
+                        className={cn(
+                          "mt-1 flex items-start gap-1.5 text-xs",
+                          conflict.open ? "text-emerald-300" : "text-gilt-soft",
+                        )}
                       >
                         <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
                         <span>
@@ -131,8 +142,9 @@ export function ClosuresManager({
                           >
                             {conflict.title}
                           </Link>{" "}
-                          se muestra ese día con la banda «{day.reason}» sobre
-                          el afiche.
+                          {conflict.open
+                            ? "sigue anunciado como abierto al público esa noche."
+                            : `se muestra ese día con la banda «${day.reason}» sobre el afiche. Si en realidad es para todos, ábrelo en «¿Quién entra?».`}
                         </span>
                       </p>
                     ))}

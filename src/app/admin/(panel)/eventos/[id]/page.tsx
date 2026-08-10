@@ -65,6 +65,7 @@ export default async function EditarEventoPage({
           published: event.published,
           featured: event.featured,
           ratingLock: event.ratingLock,
+          access: event.access,
           seoTitle: event.seoTitle,
           seoDescription: event.seoDescription,
           ogImageUrl: event.ogImageUrl,

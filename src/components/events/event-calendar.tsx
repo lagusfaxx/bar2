@@ -111,6 +111,16 @@ export function EventCalendar({
   const selectedEvents = selected ? (byDay.get(selected) ?? []) : [];
   const selectedClosed = selected ? cerrados.get(selected) : undefined;
 
+  /*
+   * Shows de ese dia a los que igual puede entrar cualquiera.
+   *
+   * Un cierre no siempre se lleva la noche entera: puede haber un cumpleaños
+   * arrendado y, ademas, la banda de siempre tocando para el publico. Si es
+   * asi, decir "se entra solo con invitacion" a secas espanta a quien si podia
+   * venir, y por eso el aviso cambia.
+   */
+  const selectedOpen = selectedEvents.filter((event) => !event.privateReason);
+
   const shift = (delta: number) => {
     setSelected(null);
     setCursor((current) => {
@@ -329,8 +339,9 @@ export function EventCalendar({
                     {selectedClosed}
                   </h3>
                   <p className="mt-2 text-sm text-bone-dim">
-                    Esa noche el local está reservado: se entra solo con
-                    invitación.
+                    {selectedOpen.length > 0
+                      ? "Esa noche parte del local está reservada, pero el show de abajo sigue abierto al público."
+                      : "Esa noche el local está reservado: se entra solo con invitación."}
                   </p>
                   <p className="mt-3 text-sm text-muted">
                     ¿Quieres celebrar lo tuyo aquí?{" "}

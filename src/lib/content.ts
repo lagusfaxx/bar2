@@ -4,7 +4,7 @@ import { cache } from "react";
 
 import { dateOnlyKey, dayKey } from "@/lib/format";
 
-import type { EventCategory } from "@/generated/prisma/enums";
+import type { EventAccess, EventCategory } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -88,6 +88,7 @@ const eventCardSelect = {
   priceCents: true,
   ticketUrl: true,
   featured: true,
+  access: true,
 } as const;
 
 export type EventCard = Awaited<ReturnType<typeof getUpcomingEvents>>[number];
@@ -107,31 +108,59 @@ const getClosedDayMap = cache(async () => {
   return new Map(rows.map((row) => [dateOnlyKey(row.date), row.reason]));
 });
 
-/** El motivo del cierre de un dia, o null si el local abre. */
-export async function getPrivateReason(date: Date) {
+/** Lo que se lee cuando un evento es privado y el dia no dice por que. */
+const PRIVATE_FALLBACK = "Evento privado";
+
+/**
+ * El motivo por el que un evento no es para cualquiera, o null si lo es.
+ *
+ * El dia manda por defecto, pero el evento puede desmarcarse: el mismo dia
+ * puede haber un cumpleaños arrendado y, aparte, la banda de siempre tocando
+ * para el publico. El cierre es del cumpleaños; la banda se marca `PUBLICO` y
+ * sigue anunciandose como abierta.
+ */
+export async function getEventPrivateReason(event: {
+  startsAt: Date;
+  access: EventAccess;
+}) {
   const cerrados = await getClosedDayMap();
-  return cerrados.get(dayKey(date)) ?? null;
+  return privateReasonFor(event, cerrados);
+}
+
+function privateReasonFor(
+  event: { startsAt: Date; access: EventAccess },
+  cerrados: Map<string, string>,
+) {
+  if (event.access === "PUBLICO") return null;
+
+  const delDia = cerrados.get(dayKey(event.startsAt)) ?? null;
+
+  if (event.access === "PRIVADO") return delDia ?? PRIVATE_FALLBACK;
+
+  return delDia;
 }
 
 /**
- * Marca los eventos que caen en un dia cerrado al publico.
+ * Marca los eventos que no son para cualquiera.
  *
- * Un show en un dia arrendado no se esconde: se muestra diciendo que es
- * privado. El local gana con eso —el flyer sigue a la vista y quien lo mira se
- * entera de que el sitio se puede arrendar—, y quien pensaba ir se ahorra el
- * viaje. Esconderlo dejaba a esa persona sin ninguna de las dos cosas.
+ * Un show privado no se esconde: se muestra diciendo que lo es. El local gana
+ * con eso —el flyer sigue a la vista y quien lo mira se entera de que el sitio
+ * se puede arrendar—, y quien pensaba ir se ahorra el viaje. Esconderlo dejaba
+ * a esa persona sin ninguna de las dos cosas.
  *
  * Se resuelve aca, en la capa de datos, para que la marca llegue igual a la
  * portada, a la cartelera, al calendario y a la ficha del evento sin que cada
  * pantalla tenga que acordarse de preguntar.
  */
-async function markPrivate<T extends { startsAt: Date }>(events: T[]) {
+async function markPrivate<T extends { startsAt: Date; access: EventAccess }>(
+  events: T[],
+) {
   const cerrados = await getClosedDayMap();
 
   return events.map((event) => ({
     ...event,
-    /** Motivo del cierre ("Evento privado"), o null si el local abre. */
-    privateReason: cerrados.get(dayKey(event.startsAt)) ?? null,
+    /** Motivo ("Evento privado"), o null si cualquiera puede entrar. */
+    privateReason: privateReasonFor(event, cerrados),
   }));
 }
 

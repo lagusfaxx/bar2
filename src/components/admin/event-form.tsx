@@ -16,7 +16,7 @@ import {
   SubmitButton,
   TextareaField,
 } from "@/components/ui/form";
-import { EVENT_CATEGORY_LABELS } from "@/lib/format";
+import { EVENT_ACCESS_LABELS, EVENT_CATEGORY_LABELS } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
 
 export type EventFormValues = {
@@ -39,14 +39,25 @@ export type EventFormValues = {
   published?: boolean;
   featured?: boolean;
   ratingLock?: boolean;
+  access?: string;
   seoTitle?: string | null;
   seoDescription?: string | null;
   ogImageUrl?: string | null;
 };
 
+/** Lo que cambia al elegir cada opcion, explicado donde se elige. */
+const EVENT_ACCESS_HINTS: Record<string, string> = {
+  SEGUN_EL_DIA:
+    "Si ese día está marcado como cerrado, este show sale como privado.",
+  PUBLICO:
+    "Abierto aunque ese día haya un evento privado. Úsalo para la banda que toca la misma noche de un arriendo.",
+  PRIVADO: "Solo invitados, aunque ese día el local abra normalmente.",
+};
+
 export function EventForm({ event }: { event?: EventFormValues }) {
   const [state, action] = useActionState(saveEvent, IDLE);
   const [isFree, setIsFree] = useState(event?.isFree ?? true);
+  const [access, setAccess] = useState(event?.access ?? "SEGUN_EL_DIA");
 
   return (
     <form action={action} className="flex flex-col gap-6">
@@ -245,6 +256,25 @@ export function EventForm({ event }: { event?: EventFormValues }) {
                 defaultChecked={event?.ratingLock ?? false}
                 hint="Impide que el público deje nuevas reseñas."
               />
+
+              {/* Un dia cerrado da por privado todo lo que caiga en el. Aca se
+                  puede decir lo contrario para este show en particular: la
+                  noche del cumpleaños arrendado igual puede tener banda
+                  abierta al publico. */}
+              <SelectField
+                label="¿Quién entra?"
+                name="access"
+                hint={EVENT_ACCESS_HINTS[access]}
+                value={access}
+                onChange={(e) => setAccess(e.target.value)}
+                error={state.errors?.access}
+              >
+                {Object.entries(EVENT_ACCESS_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </SelectField>
             </div>
 
             <div className="mt-6 flex flex-col gap-3 border-t border-line pt-5">
