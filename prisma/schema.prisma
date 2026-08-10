@@ -59,6 +59,27 @@ enum EventCategory {
   ESPECIAL
 }
 
+/**
+ * Quien puede entrar a un evento, cuando el dia no es igual para todos.
+ *
+ * Un dia marcado como cerrado (`ClosedDay`) da por privado todo lo que caiga
+ * en el, y casi siempre eso es lo correcto. Pero pasa que el mismo dia hay un
+ * cumpleaños arrendado y ademas toca la banda de siempre: el cierre es del
+ * cumpleaños, no del show. Sin esto no habia forma de decirlo, y la banda
+ * quedaba anunciada como "solo invitados".
+ *
+ * Tambien sirve al reves: un evento privado suelto —una fiesta de empresa que
+ * igual se quiere publicar— sin tener que cerrar el dia entero.
+ */
+enum EventAccess {
+  /** Lo que diga el dia: privado si esta cerrado, abierto si no. */
+  SEGUN_EL_DIA
+  /** Abierto al publico aunque ese dia el local este arrendado. */
+  PUBLICO
+  /** Solo invitados, este el dia cerrado o no. */
+  PRIVADO
+}
+
 model Event {
   id       String        @id @default(cuid())
   slug     String        @unique
@@ -86,6 +107,9 @@ model Event {
   published  Boolean @default(false)
   featured   Boolean @default(false)
   ratingLock Boolean @default(false) // cierra la calificacion del evento
+
+  // Quien entra: por defecto lo hereda del dia (ver EventAccess).
+  access EventAccess @default(SEGUN_EL_DIA)
 
   // SEO por evento
   seoTitle       String?

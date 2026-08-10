@@ -13,7 +13,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { Badge, Section, SectionHeading } from "@/components/ui/section";
 import {
   getEventBySlug,
-  getPrivateReason,
+  getEventPrivateReason,
   getEventRatingSummary,
   getRelatedEvents,
   getSettings,
@@ -88,8 +88,8 @@ export default async function EventoPage({ params }: Params) {
   const url = absoluteUrl(`/eventos/${event.slug}`);
   const poster = event.posterUrl ?? event.coverUrl;
 
-  /** Motivo del cierre si ese dia el local esta arrendado. */
-  const privado = await getPrivateReason(event.startsAt);
+  /** Motivo si a este show se entra solo con invitacion. */
+  const privado = await getEventPrivateReason(event);
 
   // Datos estructurados para que Google muestre el evento como tal.
   const jsonLd = {
@@ -288,12 +288,15 @@ export default async function EventoPage({ params }: Params) {
             </Reveal>
 
             {/*
-              Ese dia el local esta arrendado.
+              A este show se entra solo con invitacion.
 
               Se explica antes de los botones y con todas las letras, porque es
               lo unico que cambia lo que esta persona iba a hacer. Y se
               aprovecha para lo otro: quien lea esto se entera de que el local
               se arrienda, con el enlace a mano.
+
+              Se habla del evento y no de la noche entera: puede que ese mismo
+              dia haya ademas un show abierto al publico.
             */}
             {privado && !isPast && (
               <Reveal delay={180} className="mt-9">
@@ -302,8 +305,8 @@ export default async function EventoPage({ params }: Params) {
                     {privado}
                   </p>
                   <p className="mt-2 text-sm text-bone-dim">
-                    Esa noche BARZUO está reservado y no abre al público: se
-                    entra solo con invitación.
+                    A este evento se entra solo con invitación: no hay entradas
+                    a la venta ni puerta abierta.
                   </p>
                   <p className="mt-3 text-sm text-muted">
                     ¿Quieres celebrar lo tuyo aquí?{" "}

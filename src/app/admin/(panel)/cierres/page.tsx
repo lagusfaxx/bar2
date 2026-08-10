@@ -21,10 +21,11 @@ export default async function ClosuresPage() {
   /*
    * Shows publicados que caen en un dia cerrado.
    *
-   * Si el local se arrienda para un evento privado, la cartelera de ese dia
-   * deja de mostrarse — pero el evento sigue publicado en el panel, y nadie se
-   * entera. Se avisa aca para que se pueda cambiar de fecha o despublicar, en
-   * vez de descubrirlo cuando llegue gente a la puerta.
+   * Cerrar el dia da por privado todo lo que caiga en el, y eso no siempre es
+   * lo que se quiere: puede haber un cumpleaños arrendado y, la misma noche,
+   * la banda tocando para el publico. Se avisa aca —diciendo como quedo cada
+   * show— para poder corregirlo en el evento, en vez de descubrirlo cuando
+   * llegue gente a la puerta.
    */
   const eventos = await prisma.event.findMany({
     where: {
@@ -32,7 +33,7 @@ export default async function ClosuresPage() {
       startsAt: { gte: desde },
     },
     orderBy: { startsAt: "asc" },
-    select: { id: true, title: true, startsAt: true },
+    select: { id: true, title: true, startsAt: true, access: true },
   });
 
   const cerrados = new Set(days.map((day) => dateOnlyKey(day.date)));
@@ -42,6 +43,8 @@ export default async function ClosuresPage() {
       id: event.id,
       title: event.title,
       day: dayKey(event.startsAt),
+      // Un show marcado PUBLICO no hereda el cierre: sigue abierto.
+      open: event.access === "PUBLICO",
     }));
 
   return (

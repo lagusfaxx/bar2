@@ -119,6 +119,7 @@ export async function saveEvent(
     published: input.published,
     featured: input.featured,
     ratingLock: input.ratingLock,
+    access: input.access,
     seoTitle: input.seoTitle || null,
     seoDescription: input.seoDescription || null,
     ogImageUrl: input.ogImageUrl || null,

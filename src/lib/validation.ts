@@ -77,6 +77,8 @@ export const eventSchema = z
     published: z.coerce.boolean().default(false),
     featured: z.coerce.boolean().default(false),
     ratingLock: z.coerce.boolean().default(false),
+    // Quien entra. Por defecto lo hereda del dia; ver enum EventAccess.
+    access: z.enum(["SEGUN_EL_DIA", "PUBLICO", "PRIVADO"]).default("SEGUN_EL_DIA"),
     seoTitle: trimmed.max(180).optional().or(z.literal("")),
     seoDescription: trimmed.max(400).optional().or(z.literal("")),
     ogImageUrl: optionalUrl,
