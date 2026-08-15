@@ -5,6 +5,7 @@ import {
   EyeOff,
   Pencil,
   Plus,
+  QrCode,
   Star,
   StarOff,
   Trash2,
@@ -40,12 +41,19 @@ export default async function AdminCartaPage() {
     <>
       <AdminHeader
         title="Carta y precios"
-        description="Los platos y tragos que se ven en la web, agrupados por categoría. Si algo se acaba, ocúltalo en vez de borrarlo."
+        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, ocúltalo en vez de borrarlo."
         action={
-          <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
-            <Plus className="size-4" aria-hidden />
-            Nueva categoría
-          </ButtonLink>
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href="/admin/carta/qr" size="sm" variant="outline">
+              <QrCode className="size-4" aria-hidden />
+              QR de las mesas
+            </ButtonLink>
+
+            <ButtonLink href="/admin/carta/categoria/nueva" size="sm">
+              <Plus className="size-4" aria-hidden />
+              Nueva categoría
+            </ButtonLink>
+          </div>
         }
       />
 

@@ -46,6 +46,27 @@ export async function voucherQrDataUrl(token: string) {
 }
 
 /**
+ * QR de la carta con precios, el que va sobre la mesa.
+ *
+ * La carta de la web no lleva precios —la puede abrir cualquiera, incluida la
+ * competencia—, asi que el precio se muestra solo en /carta/mesa y a esa
+ * direccion se llega escaneando. Es la misma para todas las mesas: no dice
+ * quien pide ni desde donde, solo abre la carta, asi que se imprime una vez y
+ * sirve para todo el salon. Negro sobre blanco porque se imprime y se plastifica.
+ */
+export async function menuQrDataUrl() {
+  return QRCode.toDataURL(absoluteUrl("/carta/mesa"), {
+    errorCorrectionLevel: "M",
+    margin: 1,
+    width: 480,
+    color: {
+      dark: "#000000ff",
+      light: "#ffffffff",
+    },
+  });
+}
+
+/**
  * QR del karaoke, uno por mesa.
  *
  * Lleva a /karaoke con el numero de mesa puesto, para que quien lo escanea no
