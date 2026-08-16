@@ -475,6 +475,12 @@ por la misma ranura: cada uno lleva una banda negra con su destino en letra
 doble y una textura propia alrededor (`#` cocina, `*` barra, `$` cobro), que
 se reconocen sin leer y aunque el papel quede boca abajo.
 
+Por la misma razón hay **una pausa de 3 segundos entre dos papeles seguidos de
+la misma impresora** (`PRINT_GAP_MS`): la comanda de barra y la de cocina se
+mandan juntas y salían una encima de otra antes de que nadie alcanzara a
+retirarlas. Entre impresoras distintas no se espera, que ahí no hay nada que
+se encime.
+
 #### Con una sola impresora
 
 Es el caso más común al empezar: una térmica colgada del USB del PC de la
@@ -526,6 +532,7 @@ en medio de él.
 | `PRINTER_DEFAULT` | La impresora que recibe todo lo que no tenga una propia. Con una sola impresora, es la única que hace falta. |
 | `PRINTER_COCINA` / `PRINTER_BARRA` / `PRINTER_CAJA` | Opcionales, para cuando cada destino tenga la suya. |
 | `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
+| `PRINT_GAP_MS` | Pausa entre dos papeles seguidos de la misma impresora. Por defecto 3000. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
 
 Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,
