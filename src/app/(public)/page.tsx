@@ -13,7 +13,6 @@ import {
   getSettings,
   getUpcomingEvents,
 } from "@/lib/content";
-import { formatPrice } from "@/lib/format";
 
 /** Cintillo de fabrica, editable desde Ajustes → Secciones del inicio. */
 const DEFAULT_MARQUEE = [
@@ -306,9 +305,8 @@ export default async function HomePage() {
                         {product.description}
                       </p>
                     )}
-                    <p className="mt-1 font-display text-lg text-crimson-bright">
-                      {formatPrice(product.priceCents)}
-                    </p>
+                    {/* Sin precio, igual que la carta de la web: los precios
+                        solo viven en la carta de la mesa (/carta/mesa). */}
                   </div>
                 </article>
               </Reveal>
