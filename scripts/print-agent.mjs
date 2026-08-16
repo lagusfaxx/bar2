@@ -45,6 +45,16 @@ const CONFIG = {
   },
   /** Ancho del papel en caracteres. 48 = 80mm, 32 = 58mm. */
   width: Number(process.env.PRINT_WIDTH ?? 48),
+  /*
+   * Pausa entre dos papeles seguidos de la MISMA impresora.
+   *
+   * Con una sola termica, la comanda de barra y la de cocina salen una detras
+   * de otra en menos de un segundo: si el garzon no llega a tiempo, la segunda
+   * cae sobre la primera y hay que separarlas a mano en medio del servicio.
+   * Unos segundos alcanzan para retirar la anterior. Entre impresoras
+   * distintas no se espera: ahi no hay nada que se encime.
+   */
+  gapMs: Number(process.env.PRINT_GAP_MS ?? 3000),
 };
 
 if (!CONFIG.token) {
@@ -412,8 +422,13 @@ async function api(path, init) {
   return response.json();
 }
 
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 async function tick() {
   const { tickets } = await api("/api/pos/comandas");
+
+  /** La impresora del ultimo papel que salio, para no encimarle el siguiente. */
+  let anterior = null;
 
   for (const ticket of tickets) {
     const destino = ticket.kind === "COBRO" ? "COBRO" : ticket.station;
@@ -431,8 +446,14 @@ async function tick() {
       continue;
     }
 
+    // Aire para retirar el papel anterior antes de que salga el siguiente por
+    // la misma ranura. Solo entre papeles que de verdad se imprimieron: si el
+    // anterior fallo no hay nada sobre la bandeja que esperar.
+    if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
+
     try {
       await print(target, renderTicket(ticket));
+      anterior = target;
       await api("/api/pos/comandas", {
         method: "POST",
         body: JSON.stringify({ id: ticket.id, ok: true }),
@@ -528,6 +549,8 @@ if (testArg) {
     process.exit(0);
   }
 
+  let anterior = null;
+
   for (const ticket of TEST_TICKETS) {
     const destino = ticket.kind === "COBRO" ? "COBRO" : ticket.station;
     const target = printerFor(ticket);
@@ -538,8 +561,13 @@ if (testArg) {
       continue;
     }
 
+    // Con la misma pausa del servicio: la prueba tiene que salir como saldra
+    // de verdad, incluido el tiempo que hay para retirar cada papel.
+    if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
+
     try {
       await print(target, renderTicket(ticket));
+      anterior = target;
       console.log(`✓ prueba de ${destino} enviada a ${target}`);
     } catch (error) {
       console.error(`✗ ${destino} (${target}): ${error.message}`);
@@ -555,6 +583,9 @@ for (const [destino, target] of Object.entries(CONFIG.printers)) {
   if (!target) continue;
   const via = esRuta(target) ? "USB" : "red";
   console.log(`  ${destino}: ${target} (${via})`);
+}
+if (CONFIG.gapMs > 0) {
+  console.log(`  ${CONFIG.gapMs / 1000}s entre papeles de la misma impresora`);
 }
 
 let corriendo = false;
