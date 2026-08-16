@@ -323,8 +323,18 @@
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/*
+ * Arriba se suma, ademas, la franja ciega de la pantalla tactil.
+ *
+ * La del local no registra el tacto en su primera franja de pixeles: en
+ * pantalla completa, el boton de volver y el resto de la cabecera caen
+ * justamente ahi y no hay forma de tocarlos. `--staff-dead-zone` baja todas
+ * las cabeceras de sala lo necesario. Vale cero salvo que se configure en ese
+ * equipo (ver `DeadZone`), asi que los telefonos de los garzones no se ven
+ * afectados.
+ */
 @utility pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: calc(env(safe-area-inset-top, 0px) + var(--staff-dead-zone, 0px));
 }
 
 @utility no-scrollbar {

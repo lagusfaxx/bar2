@@ -121,7 +121,16 @@ export function ProductPicker({
           : "fixed inset-0 z-50 flex h-[100dvh] flex-col overflow-hidden bg-ink"
       }
     >
-      <header className="shrink-0 border-b border-line px-4 py-3 pt-safe">
+      {/* La franja ciega ya la esquiva la cabecera de la cuenta: como panel,
+          esta va debajo y no tiene que bajar de nuevo. A pantalla completa
+          si, que ahi es lo primero que se ve. */}
+      <header
+        className={
+          enPanel
+            ? "shrink-0 border-b border-line px-4 py-3"
+            : "shrink-0 border-b border-line px-4 py-3 pt-safe"
+        }
+      >
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-muted">Se agrega a la cuenta de</p>

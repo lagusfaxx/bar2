@@ -390,6 +390,27 @@ No hay campo de propina: la deja el cliente en la terminal de cobro.
 - **Sin ruido.** Las pestañas por comensal solo aparecen cuando la cuenta está
   dividida. Una mesa normal —que son casi todas— se ve como una sola lista.
 
+### Pantallas táctiles con una franja ciega
+
+Algunos monitores táctiles no registran el tacto en una franja del borde
+superior. Usados a pantalla completa —que es como se usan en el mostrador— la
+cabecera de sala cae justo ahí y el botón de volver deja de existir para el
+dedo.
+
+En ese equipo, abre la sala una vez con el alto de la franja en píxeles:
+
+```
+https://barzuo.cl/staff/pos?zonamuerta=80
+```
+
+Queda guardado en ese navegador y baja todas las cabeceras de sala (mesas,
+cuenta, cocina, barra, karaoke). Se ajusta reabriendo con otro número y se
+quita con `?zonamuerta=0`.
+
+Es una medida **de ese monitor**, no del sitio, y por eso vive en el equipo y
+no en los ajustes del panel: los teléfonos de los garzones no tienen nada que
+compensar y no se ven afectados.
+
 ### Notas de los pedidos
 
 "Sin lechuga", "bien cocido", "sin hielo". Se ponen desde botones, no

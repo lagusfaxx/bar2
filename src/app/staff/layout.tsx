@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
+import { DeadZone } from "@/components/staff/dead-zone";
+
 export const metadata: Metadata = {
   title: { default: "BarzuCard · Verificación", template: "%s · BARZUO" },
   robots: { index: false, follow: false },
@@ -23,5 +25,11 @@ export default function StaffLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return <div className="flex min-h-[100dvh] flex-col bg-ink">{children}</div>;
+  return (
+    <div className="flex min-h-[100dvh] flex-col bg-ink">
+      {/* Aplica la franja ciega del equipo, si ese equipo tiene una. */}
+      <DeadZone />
+      {children}
+    </div>
+  );
 }
