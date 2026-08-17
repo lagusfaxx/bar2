@@ -62,11 +62,9 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
                   {table.number}
                 </span>
 
-                {/* "Sin mandar" no le dice nada a nadie: lo que hay que
-                    entender es que la cocina todavia no vio esos productos. */}
-                {ocupada && table.session!.draftItems > 0 && (
-                  <span className="rounded-[2px] bg-gilt px-1.5 py-0.5 text-xs font-bold text-ink">
-                    Falta enviar {table.session!.draftItems}
+                {ocupada && (
+                  <span className="font-display text-lg text-bone">
+                    {formatPrice(table.session!.pendingCents)}
                   </span>
                 )}
               </div>
@@ -76,36 +74,42 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
                   <p className="text-sm font-medium text-crimson-bright">
                     Ocupada
                   </p>
-                  <p className="font-display text-lg text-bone">
-                    {formatPrice(table.session!.pendingCents)}
-                  </p>
-                  {/* Comandas que la cocina ya preparo o esta preparando y
-                      que nadie fue a buscar. La pantalla de la estacion no se
-                      puede tocar, asi que esta es la unica forma de que el
-                      garzon vea que hay algo esperandolo. */}
-                  {table.session!.pendingTickets > 0 && (
+
+                  {/*
+                    Un solo aviso por mesa, el que manda.
+
+                    La tarjeta llegó a mostrar cuatro renglones —cuántos faltan
+                    enviar, cuánto se debe, cuántas comandas esperan, cuántos se
+                    sentaron y hace cuánto—, y una sala llena de eso es una
+                    pared de texto que no se lee de un vistazo, que es
+                    exactamente para lo que sirve la vista de sala. Con la mesa
+                    abierta lo urgente es siempre uno solo: si hay algo sin
+                    mandar, mandarlo; si no, ir a buscar lo que ya está listo. El
+                    resto —cuántos son, hace cuánto— está dentro de la cuenta,
+                    a un toque, y ahí sí importa.
+                  */}
+                  {table.session!.draftItems > 0 ? (
+                    <p className="mt-1 text-xs font-medium text-gilt-soft">
+                      Falta enviar {table.session!.draftItems}
+                    </p>
+                  ) : table.session!.pendingTickets > 0 ? (
                     <p className="mt-1 text-xs font-medium text-gilt-soft">
                       {table.session!.pendingTickets === 1
                         ? "1 comanda por retirar"
                         : `${table.session!.pendingTickets} comandas por retirar`}
                     </p>
+                  ) : (
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                      <Users className="size-3.5 shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">
+                        {table.session!.diners > 0
+                          ? `${table.session!.diners} cuentas`
+                          : `${table.session!.guests} personas`}
+                        <span aria-hidden> · </span>
+                        hace <Elapsed since={table.session!.openedAt} />
+                      </span>
+                    </p>
                   )}
-
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
-                    <Users className="size-3.5" aria-hidden />
-                    <span>
-                      {table.session!.diners > 0
-                        ? `Cuenta dividida en ${table.session!.diners}`
-                        : `${table.session!.guests} personas`}
-                    </span>
-                    {/* El separador viaja pegado a lo que sigue: suelto,
-                        cuando la tarjeta parte el renglon, queda un punto
-                        colgando al final de la linea. */}
-                    <span className="whitespace-nowrap">
-                      <span aria-hidden>· </span>
-                      hace <Elapsed since={table.session!.openedAt} />
-                    </span>
-                  </p>
                 </div>
               ) : (
                 <p className="mt-2 text-xs text-muted">
