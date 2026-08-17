@@ -378,7 +378,12 @@ Vive en `/staff/pos` y entra cualquier usuario del panel.
 Al cobrar se puede ingresar el número de una BarzuCard: suma **1 punto por
 cada $1.000** de consumo y recalcula el nivel del socio.
 
-No hay campo de propina: la deja el cliente en la terminal de cobro.
+**La propina va impresa, no cobrada.** El resumen del cobro —el papel que se
+le pasa al cliente para que revise lo consumido— lleva debajo del total la
+propina sugerida del 10% y el total con ella incluida, con la cuenta ya hecha.
+El sistema no la cobra ni la guarda: el cliente decide y la deja en la terminal
+de pago. El porcentaje se cambia con `PRINT_TIP_PERCENT` en el agente, y con 0
+no se imprime.
 
 ### Pensado para un local lleno
 
@@ -533,6 +538,7 @@ en medio de él.
 | `PRINTER_COCINA` / `PRINTER_BARRA` / `PRINTER_CAJA` | Opcionales, para cuando cada destino tenga la suya. |
 | `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
 | `PRINT_GAP_MS` | Pausa entre dos papeles seguidos de la misma impresora. Por defecto 3000. |
+| `PRINT_TIP_PERCENT` | Propina sugerida en el resumen del cobro. Por defecto 10; con 0 no se imprime. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
 
 Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,

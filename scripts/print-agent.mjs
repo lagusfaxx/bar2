@@ -55,6 +55,18 @@ const CONFIG = {
    * distintas no se espera: ahi no hay nada que se encime.
    */
   gapMs: Number(process.env.PRINT_GAP_MS ?? 3000),
+  /*
+   * Propina sugerida que se escribe en el resumen del cobro.
+   *
+   * El papel se le pasa al cliente para que revise lo que consumio, y ese es
+   * el momento en que decide la propina. Escrita en el papel se decide
+   * leyendo; preguntada en voz alta incomoda a las dos partes y termina
+   * dependiendo de que tan comodo se sienta quien atiende esa noche.
+   *
+   * Es solo un numero impreso: no se cobra, no se guarda y no entra en la
+   * caja. Con 0 no se imprime nada.
+   */
+  tipPercent: Number(process.env.PRINT_TIP_PERCENT ?? 10),
 };
 
 if (!CONFIG.token) {
@@ -331,6 +343,34 @@ function renderCobro(ticket) {
   parts.push(fila("TOTAL", money(pago.totalCents), Math.floor(CONFIG.width / 2)));
   parts.push(CMD.doubleOff, CMD.boldOff);
 
+  /*
+   * La propina, debajo del total y nunca sumada a el.
+   *
+   * El total de arriba es lo que se debe; esto es una sugerencia y el papel
+   * tiene que dejar clarisima la diferencia, porque el cliente lo lee de
+   * pasada. Por eso van los dos importes escritos: el que corresponde pagar
+   * sigue a la vista, en letra doble, y la propina aparece abajo con su
+   * cuenta ya hecha para quien quiera dejarla.
+   *
+   * Se redondea al peso antes de sumar, no despues: si no, los tres numeros
+   * impresos no cuadran entre si y es lo primero que alguien nota.
+   */
+  const propina =
+    Number.isFinite(CONFIG.tipPercent) && CONFIG.tipPercent > 0
+      ? Math.round((pago.totalCents * CONFIG.tipPercent) / 100 / 100) * 100
+      : 0;
+
+  if (propina > 0) {
+    parts.push(rule("-"));
+    parts.push(fila(`Propina sugerida (${CONFIG.tipPercent}%)`, money(propina)));
+
+    parts.push(CMD.boldOn);
+    parts.push(fila("Total con propina", money(pago.totalCents + propina)));
+    parts.push(CMD.boldOff);
+
+    parts.push(text("La propina es voluntaria."));
+  }
+
   parts.push(rule("="));
   parts.push(fila("Pago", METODOS[pago.method] ?? pago.method));
   parts.push(fila("Comprobante", pago.code));
@@ -586,6 +626,9 @@ for (const [destino, target] of Object.entries(CONFIG.printers)) {
 }
 if (CONFIG.gapMs > 0) {
   console.log(`  ${CONFIG.gapMs / 1000}s entre papeles de la misma impresora`);
+}
+if (CONFIG.tipPercent > 0) {
+  console.log(`  propina sugerida del ${CONFIG.tipPercent}% en el resumen del cobro`);
 }
 
 let corriendo = false;
