@@ -20,6 +20,9 @@ export const dynamic = "force-dynamic";
 /** Cuantas veces se reintenta una comanda antes de dejarla para revision. */
 const MAX_ATTEMPTS = 5;
 
+/** Cuantas comandas se entregan por vuelta. */
+const PAGE_SIZE = 20;
+
 function authorized(request: Request) {
   const expected = process.env.PRINT_AGENT_TOKEN;
 
@@ -45,7 +48,7 @@ export async function GET(request: Request) {
   const tickets = await prisma.orderTicket.findMany({
     where: { status: "PENDING", attempts: { lt: MAX_ATTEMPTS } },
     orderBy: { number: "asc" },
-    take: 20,
+    take: PAGE_SIZE,
     include: {
       session: {
         select: {
@@ -54,6 +57,10 @@ export async function GET(request: Request) {
           table: { select: { number: true, name: true } },
         },
       },
+      // Quien la mando. Con una sola impresora se juntan en la bandeja los
+      // papeles de varias mesas y de varios garzones: el nombre es como cada
+      // uno reconoce los suyos sin leer el detalle.
+      createdBy: { select: { name: true } },
       items: {
         orderBy: { createdAt: "asc" },
         include: { diner: { select: { label: true } } },
@@ -70,14 +77,54 @@ export async function GET(request: Request) {
     },
   });
 
+  /*
+   * Un envio no se parte entre dos vueltas de la cola.
+   *
+   * Si la barra y la cocina de una misma mesa cayeran una en el ultimo lugar
+   * de esta tanda y la otra en la primera de la siguiente, el agente imprimiria
+   * cada mitad por su lado y la garzona tendria que hacer los dos viajes que
+   * este cambio viene a evitar. Cuando la ultima de la tanda pertenece a un
+   * envio, se deja ese envio entero para la vuelta siguiente —cuatro segundos
+   * despues— en vez de mandarlo cortado.
+   *
+   * Solo puede pasar con la cola llena, o sea con la impresora recuperandose de
+   * una caida. Nunca deja nada sin imprimir: lo que se posterga encabeza la
+   * proxima tanda.
+   */
+  const completos = (() => {
+    if (tickets.length < PAGE_SIZE) return tickets;
+
+    const ultimo = tickets[tickets.length - 1];
+    if (!ultimo?.batchId) return tickets;
+
+    const recortados = tickets.filter(
+      (ticket) => ticket.batchId !== ultimo.batchId,
+    );
+
+    // Salvo que la tanda entera sea ese envio: ahi hay que mandarlo igual, o no
+    // se imprime nunca.
+    return recortados.length > 0 ? recortados : tickets;
+  })();
+
   return Response.json(
     {
-      tickets: tickets.map((ticket) => ({
+      tickets: completos.map((ticket) => ({
         id: ticket.id,
         number: ticket.number,
         kind: ticket.kind,
         station: ticket.station,
         stationLabel: ticket.station ? STATION_LABELS[ticket.station] : null,
+        /*
+         * El envio del que salio.
+         *
+         * El agente junta en un mismo papel las comandas que comparten envio
+         * *y* impresora. La decision es suya y no del servidor a proposito: el
+         * servidor no sabe cuantas impresoras hay en el local, y el dia que
+         * lleguen la de barra y la de cocina cada mitad tiene que volver a
+         * salir por su propia ranura sin tocar nada aca.
+         */
+        batchId: ticket.batchId,
+        waiter: ticket.createdBy?.name ?? null,
         createdAt: ticket.createdAt.toISOString(),
         table: {
           number: ticket.session.table.number,

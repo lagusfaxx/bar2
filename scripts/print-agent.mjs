@@ -11,12 +11,19 @@
  * puerto 9100 y avisa como le fue. Si algo falla, la comanda queda en la cola
  * del servidor y se reintenta: no se pierde un pedido porque falte papel.
  *
- * Uso:
+ * Con una sola impresora, las comandas de un mismo envio salen en una unica
+ * tira con una linea de corte en el medio: un viaje del garzon, un papel que
+ * se parte en dos. Con una impresora por estacion cada una sale por su ranura.
+ * Ver `agrupar`.
+ *
+ * Uso, con una sola impresora (el caso del local):
  *   BARZUO_URL=https://barzuo.com \
  *   PRINT_AGENT_TOKEN=... \
- *   PRINTER_COCINA=192.168.1.50 \
- *   PRINTER_BARRA=192.168.1.51 \
+ *   PRINTER_DEFAULT=/dev/usb/lp0 \
  *   node scripts/print-agent.mjs
+ *
+ * Con una por estacion, se nombran y dejan de usar la de respaldo:
+ *   PRINTER_COCINA=192.168.1.50 PRINTER_BARRA=192.168.1.51 ...
  *
  * No necesita instalar nada: solo Node 18 o superior.
  */
@@ -181,11 +188,46 @@ function encabezado(clave) {
   return parts;
 }
 
-/** Arma el ticket completo tal como sale por la impresora. */
-function renderTicket(ticket) {
-  if (ticket.kind === "COBRO") return renderCobro(ticket);
+/**
+ * La linea por donde se parte un papel compartido.
+ *
+ * No se manda un corte de la impresora: en las termicas baratas "corte
+ * parcial" a veces corta entero, y ahi las dos mitades se separan y caen — que
+ * es exactamente lo que este papel viene a evitar. Una guia impresa con aire
+ * alrededor se rompe con las dos manos, sale siempre igual en cualquier
+ * maquina, y deja el papel entero hasta que alguien decide partirlo.
+ */
+function lineaDeCorte() {
+  const leyenda = " CORTAR AQUI ";
+  const guiones = Math.max(0, CONFIG.width - leyenda.length);
+  const izquierda = "-".repeat(Math.floor(guiones / 2));
+  const derecha = "-".repeat(Math.ceil(guiones / 2));
 
-  const parts = [CMD.init, CMD.codepage, CMD.beep];
+  return [
+    CMD.feed(2),
+    CMD.alignCenter,
+    CMD.boldOn,
+    text(`${izquierda}${leyenda}${derecha}`),
+    CMD.boldOff,
+    CMD.feed(2),
+    CMD.alignLeft,
+  ];
+}
+
+/**
+ * El cuerpo de una comanda, sin abrir ni cerrar el papel.
+ *
+ * Va aparte de `renderTicket` porque con una sola impresora dos comandas del
+ * mismo envio se imprimen una debajo de la otra en un unico papel: cada una
+ * necesita su cuerpo entero —su banda negra, su mesa, sus productos— pero solo
+ * el papel completo lleva el corte del final.
+ *
+ * `parte` y `total` numeran las mitades cuando son varias. Sirve para lo unico
+ * que la garzona no puede verificar de otra forma: que no se dejo la otra
+ * mitad en la bandeja.
+ */
+function cuerpoComanda(ticket, parte = 1, total = 1) {
+  const parts = [];
 
   parts.push(...encabezado(ticket.station));
 
@@ -194,6 +236,12 @@ function renderTicket(ticket) {
   parts.push(CMD.doubleOff, CMD.boldOff);
 
   if (ticket.table.name) parts.push(text(ticket.table.name));
+
+  // Solo cuando el papel viene partido: en una comanda sola seria una linea de
+  // ruido que hay que leer para descartar.
+  if (total > 1) {
+    parts.push(CMD.boldOn, text(`PARTE ${parte} DE ${total}`), CMD.boldOff);
+  }
 
   parts.push(CMD.alignLeft, rule("="));
 
@@ -208,6 +256,11 @@ function renderTicket(ticket) {
   const relleno = Math.max(1, CONFIG.width - etiqueta.length - hora.length);
 
   parts.push(text(`${etiqueta}${" ".repeat(relleno)}${hora}`));
+
+  // Quien la mando. En la bandeja se juntan los papeles de varias mesas y de
+  // varios garzones; el nombre es como cada uno reconoce los suyos.
+  if (ticket.waiter) parts.push(text(`Mando: ${ticket.waiter}`));
+
   parts.push(rule("="));
 
   // Agrupado por comensal: la barra arma los tragos separados y el garzon
@@ -247,6 +300,47 @@ function renderTicket(ticket) {
 
   parts.push(rule("-"));
   parts.push(text(ticket.sessionCode));
+
+  return parts;
+}
+
+/** Arma el ticket completo tal como sale por la impresora. */
+function renderTicket(ticket) {
+  if (ticket.kind === "COBRO") return renderCobro(ticket);
+
+  return Buffer.concat([
+    CMD.init,
+    CMD.codepage,
+    CMD.beep,
+    ...cuerpoComanda(ticket),
+    CMD.feed(3),
+    CMD.cut,
+  ]);
+}
+
+/**
+ * Un envio entero en un solo papel.
+ *
+ * La mesa que pide una picada y dos schops genera dos comandas, y con una sola
+ * impresora salian de a una con segundos de espera entre medio para que no se
+ * encimaran: la garzona se quedaba parada al lado de la ranura esperando la
+ * segunda, o volvia despues y se encontraba con los papeles de otra mesa
+ * mezclados encima del suyo.
+ *
+ * Ahora salen juntas en una tira continua, con la linea de corte entre las dos.
+ * Retira una vez, la parte en dos y reparte. Un solo pitido, un solo corte, un
+ * solo viaje.
+ */
+function renderLote(tickets) {
+  if (tickets.length === 1) return renderTicket(tickets[0]);
+
+  const parts = [CMD.init, CMD.codepage, CMD.beep];
+
+  tickets.forEach((ticket, indice) => {
+    if (indice > 0) parts.push(...lineaDeCorte());
+    parts.push(...cuerpoComanda(ticket, indice + 1, tickets.length));
+  });
+
   parts.push(CMD.feed(3), CMD.cut);
 
   return Buffer.concat(parts);
@@ -424,47 +518,93 @@ async function api(path, init) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-async function tick() {
-  const { tickets } = await api("/api/pos/comandas");
+/** Como se nombra un papel en el registro de la consola. */
+function destinoDe(ticket) {
+  return ticket.kind === "COBRO" ? "COBRO" : ticket.station;
+}
 
-  /** La impresora del ultimo papel que salio, para no encimarle el siguiente. */
-  let anterior = null;
+/** Acuse al servidor: se imprimio, o fallo y por que. */
+function acusar(id, ok, error) {
+  return api("/api/pos/comandas", {
+    method: "POST",
+    body: JSON.stringify({ id, ok, ...(error ? { error } : {}) }),
+  });
+}
+
+/**
+ * Junta los papeles que pueden salir en una sola tira.
+ *
+ * Dos condiciones, las dos necesarias: que sean del mismo envio —el mismo
+ * toque de "enviar" del garzon— y que les toque la misma impresora.
+ *
+ * Lo segundo es lo que deja esto listo para el dia que el local compre la
+ * segunda impresora: con PRINTER_BARRA y PRINTER_COCINA configuradas cada
+ * mitad resuelve una ranura distinta, la condicion no se cumple, y las
+ * comandas vuelven a salir por separado en su propia estacion sin que haya que
+ * cambiar ni desactivar nada.
+ *
+ * El resumen del cobro nunca se junta: no pertenece a un envio, es del cliente.
+ */
+function agrupar(tickets) {
+  const lotes = [];
+  const porEnvio = new Map();
 
   for (const ticket of tickets) {
-    const destino = ticket.kind === "COBRO" ? "COBRO" : ticket.station;
     const target = printerFor(ticket);
+    const clave =
+      ticket.kind === "COMANDA" && ticket.batchId
+        ? `${ticket.batchId}|${target}`
+        : null;
 
-    if (!target) {
-      await api("/api/pos/comandas", {
-        method: "POST",
-        body: JSON.stringify({
-          id: ticket.id,
-          ok: false,
-          error: `Sin impresora configurada para ${destino}`,
-        }),
-      });
+    const abierto = clave ? porEnvio.get(clave) : null;
+
+    if (abierto) {
+      abierto.papeles.push(ticket);
       continue;
     }
 
-    // Aire para retirar el papel anterior antes de que salga el siguiente por
-    // la misma ranura. Solo entre papeles que de verdad se imprimieron: si el
-    // anterior fallo no hay nada sobre la bandeja que esperar.
+    const lote = { target, papeles: [ticket] };
+    lotes.push(lote);
+    if (clave) porEnvio.set(clave, lote);
+  }
+
+  return lotes;
+}
+
+async function tick() {
+  const { tickets } = await api("/api/pos/comandas");
+
+  /** La impresora de la ultima tira que salio, para no encimarle la siguiente. */
+  let anterior = null;
+
+  for (const { target, papeles } of agrupar(tickets)) {
+    const destino = papeles.map(destinoDe).join("+");
+    const numeros = papeles.map((papel) => `#${papel.number}`).join(" ");
+
+    if (!target) {
+      for (const papel of papeles) {
+        await acusar(papel.id, false, `Sin impresora configurada para ${destinoDe(papel)}`);
+      }
+      continue;
+    }
+
+    // Aire para retirar la tira anterior antes de que salga la siguiente por la
+    // misma ranura. Solo entre papeles que de verdad se imprimieron: si el
+    // anterior fallo no hay nada sobre la bandeja que esperar. Dentro de una
+    // tira no hace falta, que es justamente la gracia: es un solo papel.
     if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
 
     try {
-      await print(target, renderTicket(ticket));
+      await print(target, renderLote(papeles));
       anterior = target;
-      await api("/api/pos/comandas", {
-        method: "POST",
-        body: JSON.stringify({ id: ticket.id, ok: true }),
-      });
-      console.log(`✓ #${ticket.number} ${destino} · mesa ${ticket.table.number}`);
+
+      for (const papel of papeles) await acusar(papel.id, true);
+
+      console.log(`✓ ${numeros} ${destino} · mesa ${papeles[0].table.number}`);
     } catch (error) {
-      console.error(`✗ #${ticket.number} ${destino}: ${error.message}`);
-      await api("/api/pos/comandas", {
-        method: "POST",
-        body: JSON.stringify({ id: ticket.id, ok: false, error: error.message }),
-      });
+      console.error(`✗ ${numeros} ${destino}: ${error.message}`);
+
+      for (const papel of papeles) await acusar(papel.id, false, error.message);
     }
   }
 }
@@ -481,14 +621,17 @@ const BASE_PRUEBA = {
   createdAt: new Date().toISOString(),
   table: { number: 1, name: "Prueba de impresion" },
   sessionCode: "M1-TEST",
+  waiter: "Prueba",
 };
 
 /*
- * Los tres papeles que salen en un servicio.
+ * Un servicio completo: un envio de mesa y el cobro.
  *
- * La prueba los imprime los tres seguidos justamente para lo que importa aca:
- * comprobar, con los papeles en la mano, que se distinguen entre si antes de
- * que empiece el servicio y no en medio de el.
+ * Las dos comandas comparten envio a proposito. Con una sola impresora la
+ * prueba tiene que salir como sale de verdad —una tira con las dos mitades y
+ * la linea de corte en el medio— para poder comprobar con el papel en la mano,
+ * antes del servicio, que se parte donde debe y que cada mitad se entiende
+ * sola. Con una impresora por estacion la misma prueba saca dos papeles.
  */
 const TEST_TICKETS = [
   {
@@ -496,6 +639,7 @@ const TEST_TICKETS = [
     number: 1,
     kind: "COMANDA",
     station: "COCINA",
+    batchId: "envio-de-prueba",
     items: [
       { quantity: 2, name: "Empanadas de queso y aceituna", note: null, diner: "Polera azul" },
       { quantity: 1, name: "Chorrillana clasica", note: "sin cebolla", diner: "Polera azul" },
@@ -506,6 +650,7 @@ const TEST_TICKETS = [
     number: 2,
     kind: "COMANDA",
     station: "BARRA",
+    batchId: "envio-de-prueba",
     items: [
       { quantity: 3, name: "Cerveza de barril rubia 500cc", note: null, diner: "Poleron gris" },
       { quantity: 1, name: "Pisco sour clasico", note: "sin azucar", diner: null },
@@ -538,10 +683,14 @@ const TEST_TICKETS = [
 const testArg = process.argv.find((arg) => arg.startsWith("--test"));
 
 if (testArg) {
+  // Se agrupa igual que en el servicio: la prueba tiene que mostrar el mismo
+  // reparto de papeles que va a salir esta noche, no uno ideal.
+  const lotes = agrupar(TEST_TICKETS);
+
   if (testArg === "--test=render") {
-    for (const ticket of TEST_TICKETS) {
+    for (const { papeles } of lotes) {
       // Se quitan los codigos de control para poder leerlo en la consola.
-      const plano = renderTicket(ticket)
+      const plano = renderLote(papeles)
         .toString("latin1")
         .replace(/[\x00-\x09\x0b-\x1f]/g, "");
       console.log(plano);
@@ -551,9 +700,8 @@ if (testArg) {
 
   let anterior = null;
 
-  for (const ticket of TEST_TICKETS) {
-    const destino = ticket.kind === "COBRO" ? "COBRO" : ticket.station;
-    const target = printerFor(ticket);
+  for (const { target, papeles } of lotes) {
+    const destino = papeles.map(destinoDe).join("+");
 
     if (!target) {
       console.error(`✗ ${destino}: sin impresora configurada`);
@@ -566,7 +714,7 @@ if (testArg) {
     if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
 
     try {
-      await print(target, renderTicket(ticket));
+      await print(target, renderLote(papeles));
       anterior = target;
       console.log(`✓ prueba de ${destino} enviada a ${target}`);
     } catch (error) {

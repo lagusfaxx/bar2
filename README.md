@@ -485,22 +485,41 @@ el PC de la pantalla táctil, un PC de caja o una Raspberry Pi con Node 18+.
 
 #### Qué se imprime
 
-Cada envío de una mesa saca **dos comandas separadas**: una con los
+Cada envío de una mesa saca **una comanda por estación**: una con los
 bebestibles para la barra y otra con los alimentos para la cocina. Si la mesa
 pidió solo de una de las dos, sale solo ese papel. Al cobrar —la mesa completa
 o la cuenta de una sola persona— sale además el **resumen del cobro**, con el
 detalle, el total, la forma de pago y el número de comprobante.
 
-Los tres salen diferenciados a propósito, porque con una sola impresora caen
-por la misma ranura: cada uno lleva una banda negra con su destino en letra
-doble y una textura propia alrededor (`#` cocina, `*` barra, `$` cobro), que
-se reconocen sin leer y aunque el papel quede boca abajo.
+Todos salen diferenciados a propósito, porque con una sola impresora caen por
+la misma ranura: cada uno lleva una banda negra con su destino en letra doble
+y una textura propia alrededor (`#` cocina, `*` barra, `$` cobro), que se
+reconocen sin leer y aunque el papel quede boca abajo. Las comandas llevan
+además el nombre de quien las mandó, que es como cada garzón reconoce las
+suyas en una bandeja con papeles de varias mesas.
 
-Por la misma razón hay **una pausa de 3 segundos entre dos papeles seguidos de
-la misma impresora** (`PRINT_GAP_MS`): la comanda de barra y la de cocina se
-mandan juntas y salían una encima de otra antes de que nadie alcanzara a
-retirarlas. Entre impresoras distintas no se espera, que ahí no hay nada que
-se encime.
+#### Un envío, un papel
+
+Con **una sola impresora**, las dos comandas de un mismo envío no salen por
+separado: salen **en una sola tira continua**, una debajo de la otra, con una
+línea de `CORTAR AQUI` en el medio y cada mitad numerada (`PARTE 1 DE 2`). La
+garzona retira una vez, la parte en dos con las manos y reparte.
+
+Antes salían de a una con 3 segundos de pausa entre medio (`PRINT_GAP_MS`)
+para que la segunda no cayera sobre la primera, y en la práctica eso obligaba
+a esperar al lado de la ranura o a volver después y encontrar los papeles de
+otra mesa mezclados encima. La pausa sigue existiendo **entre envíos
+distintos** de la misma impresora, que es donde sí hay algo que se encime.
+
+El corte del medio es una guía impresa y no un corte de la impresora: en las
+térmicas baratas el "corte parcial" a veces corta entero, y ahí las dos
+mitades se separarían y caerían —justo lo que este papel viene a evitar—.
+
+**Esto se apaga solo.** El agrupamiento pide dos condiciones: que las comandas
+sean del mismo envío *y* que les toque la misma impresora. El día que lleguen
+la de barra y la de cocina, cada mitad resuelve una ranura distinta, la
+segunda condición no se cumple y las comandas vuelven a salir por separado en
+su estación. No hay nada que desactivar.
 
 #### Con una sola impresora
 

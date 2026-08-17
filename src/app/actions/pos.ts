@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { revalidatePath } from "next/cache";
 
 import type { Prisma } from "@/generated/prisma/client";
@@ -433,6 +435,17 @@ export async function sendOrder(sessionId: string): Promise<FormState> {
     porEstacion.set(item.station, lista);
   }
 
+  /*
+   * El envio: un toque de "enviar", una ida a buscar el papel.
+   *
+   * Las comandas que se crean aca abajo son de estaciones distintas pero de un
+   * mismo viaje del garzon, y el agente de impresion las junta en un solo papel
+   * cuando comparten impresora — que es el caso del local, con una sola
+   * termica. Sin esto salian de a una con segundos de por medio y la garzona
+   * tenia que quedarse esperando la segunda al lado de la ranura.
+   */
+  const batchId = randomUUID();
+
   const creadas = await prisma.$transaction(async (tx) => {
     let numero = await siguienteNumero(tx);
     const resultado: Array<{ station: Station; number: number }> = [];
@@ -443,6 +456,7 @@ export async function sendOrder(sessionId: string): Promise<FormState> {
           sessionId,
           number: numero,
           station,
+          batchId,
           createdById: user.userId,
         },
         select: { id: true },
@@ -462,11 +476,28 @@ export async function sendOrder(sessionId: string): Promise<FormState> {
 
   refresh(sessionId);
 
-  const detalle = creadas
-    .map((ticket) => `${ticket.station === "BARRA" ? "barra" : "cocina"} #${ticket.number}`)
-    .join(" y ");
+  /*
+   * Lo que hay que ir a hacer, no lo que hizo el sistema.
+   *
+   * Decia "Comanda enviada a barra #7 y cocina #8", que suena a que el pedido
+   * ya llego a destino. No llego: con una sola impresora, lo que acaba de pasar
+   * es que en la caja hay un papel esperando que alguien lo parta y lo reparta.
+   * Mientras eso no ocurra, la barra no se entero de nada.
+   *
+   * Los numeros de comanda se caen del mensaje. No se usan para nada en la
+   * mano —la garzona no le canta "#7" a nadie— y ocupaban el lugar de lo unico
+   * que si tiene que leer: adonde va lo que va a retirar.
+   */
+  const estaciones = creadas.map((ticket) =>
+    ticket.station === "BARRA" ? "la barra" : "la cocina",
+  );
 
-  return formSuccess(`Comanda enviada a ${detalle}.`);
+  const mensaje =
+    estaciones.length > 1
+      ? `Retira el papel en la caja: va partido, una mitad para ${estaciones.join(" y otra para ")}.`
+      : `Retira el papel en la caja y llévalo a ${estaciones[0]}.`;
+
+  return formSuccess(mensaje);
 }
 
 /** Vuelve a encolar una comanda que la impresora no pudo sacar. */

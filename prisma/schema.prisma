@@ -902,6 +902,20 @@ model OrderTicket {
   paymentId String?
   payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
+  /**
+   * El envio del que salio, cuando salio junto con otras.
+   *
+   * Un toque de "enviar" en una mesa con tragos y comida crea dos comandas: una
+   * de barra y una de cocina. Comparten este identificador para que el agente
+   * de impresion sepa que son del mismo viaje del garzon.
+   *
+   * Con una sola impresora eso le permite sacarlas en un unico papel continuo,
+   * separadas por una linea de corte: la garzona retira una vez, lo parte en
+   * dos y reparte. Con una impresora por estacion el agrupamiento no se aplica
+   * —cada mitad tiene su propia ranura— y el campo simplemente no se usa.
+   */
+  batchId String?
+
   /** Impresion: la cola que atiende el agente del local. */
   status    TicketStatus @default(PENDING)
   attempts  Int          @default(0)
@@ -924,6 +938,7 @@ model OrderTicket {
   @@index([kind, station, prep])
   @@index([sessionId])
   @@index([paymentId])
+  @@index([batchId])
   @@map("pos_order_tickets")
 }
 
