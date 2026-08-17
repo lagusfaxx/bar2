@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2, Plus, Users } from "lucide-react";
+import { Loader2, Plus, Printer, Send, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { openTable } from "@/app/actions/pos";
+import { openTable, sendOrder } from "@/app/actions/pos";
 import { Elapsed } from "@/components/staff/pos/elapsed";
+import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
@@ -27,6 +28,16 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
   const router = useRouter();
   const [opening, setOpening] = useState<TableOverview | null>(null);
 
+  /*
+   * La sala se pone al dia sola.
+   *
+   * Es la unica forma de que funcione el garzon que carga el pedido en su
+   * telefono, camina hasta la caja y espera imprimir ahi: si esta pantalla se
+   * quedara con lo que habia cuando alguien la toco por ultima vez, llegaria y
+   * no veria nada de lo que acaba de cargar.
+   */
+  useLiveRefresh(10_000);
+
   if (tables.length === 0) {
     return (
       <p className="border border-line bg-ink-soft p-6 text-sm text-muted">
@@ -37,6 +48,8 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
 
   return (
     <>
+      <PorImprimir tables={tables} />
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
         {tables.map((table) => {
           const ocupada = table.session !== null;
@@ -128,6 +141,97 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
         <OpenTableSheet table={opening} onClose={() => setOpening(null)} />
       )}
     </>
+  );
+}
+
+/**
+ * Lo que esta cargado y todavia no se imprimio.
+ *
+ * Existe para los dos caminos que no pasan por mandar el pedido desde la mesa:
+ * el garzon que anota en su telefono mientras atiende y viene a la caja a
+ * imprimir todo junto, y el que anota en papel, carga aca de una sentada y
+ * recien entonces manda.
+ *
+ * En los dos casos el gesto final es el mismo —tocar Enviar y estirar la mano
+ * a la impresora, que esta al lado— y sin esto habria que buscar la mesa entre
+ * veinte casillas para dar ese toque.
+ *
+ * Solo en la pantalla del local. En el telefono este viaje no existe: el
+ * pedido se manda desde la carta, en la mesa, sin caminar a ningun lado.
+ */
+function PorImprimir({ tables }: { tables: TableOverview[] }) {
+  const [enviando, setEnviando] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const listas = tables.filter((table) => (table.session?.draftItems ?? 0) > 0);
+
+  if (listas.length === 0) return null;
+
+  const enviar = (sessionId: string) => {
+    setEnviando(sessionId);
+
+    startTransition(async () => {
+      const result = await sendOrder(sessionId);
+      setEnviando(null);
+      setError(result.status === "error" ? (result.message ?? null) : null);
+    });
+  };
+
+  return (
+    <section className="mb-6 hidden border border-gilt/40 bg-gilt/5 p-4 lg:block">
+      <h2 className="flex items-center gap-2 text-sm font-medium text-gilt-soft">
+        <Printer className="size-4" aria-hidden />
+        Cargado y sin imprimir
+      </h2>
+      <p className="mt-1 text-xs text-muted">
+        Toca Enviar y retira el papel de la impresora, aquí al lado.
+      </p>
+
+      {error && (
+        <p role="alert" className="mt-2 text-sm text-crimson-bright">
+          {error}
+        </p>
+      )}
+
+      <ul className="mt-3 flex flex-wrap gap-2">
+        {listas.map((table) => {
+          const session = table.session!;
+          const estaciones = session.draftStations;
+
+          const destino =
+            estaciones.length === 1
+              ? estaciones[0] === "BARRA"
+                ? "a la barra"
+                : "a la cocina"
+              : "a cocina y barra";
+
+          return (
+            <li key={table.id}>
+              <button
+                type="button"
+                disabled={pending}
+                onClick={() => enviar(session.id)}
+                className="flex h-14 items-center gap-3 border border-gilt/50 bg-ink-soft px-4 text-left disabled:opacity-50"
+              >
+                {enviando === session.id ? (
+                  <Loader2 className="size-5 shrink-0 animate-spin text-gilt" aria-hidden />
+                ) : (
+                  <Send className="size-5 shrink-0 text-gilt" aria-hidden />
+                )}
+
+                <span>
+                  <span className="block text-sm text-bone">
+                    Mesa {table.number} · Enviar {session.draftItems}
+                  </span>
+                  <span className="block text-xs text-muted">{destino}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

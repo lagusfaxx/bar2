@@ -296,6 +296,8 @@ export type TableOverview = {
     diners: number;
     /** Lineas cargadas que todavia no salieron en ninguna comanda. */
     draftItems: number;
+    /** A donde iria ese pedido si se mandara ahora. Vacio si no hay nada. */
+    draftStations: Station[];
     /** Comandas que siguen en la estacion, esperando que alguien las retire. */
     pendingTickets: number;
     pendingCents: number;
@@ -318,6 +320,7 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
             where: { status: { not: "CANCELLED" } },
             select: {
               status: true,
+              station: true,
               paymentId: true,
               unitPriceCents: true,
               discountCents: true,
@@ -351,6 +354,13 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
             diners: session.diners.length,
             draftItems: session.items.filter((item) => item.status === "DRAFT")
               .length,
+            draftStations: [
+              ...new Set(
+                session.items
+                  .filter((item) => item.status === "DRAFT")
+                  .map((item) => item.station),
+              ),
+            ],
             pendingTickets: session.tickets.length,
             pendingCents: session.items
               .filter((item) => item.paymentId === null)

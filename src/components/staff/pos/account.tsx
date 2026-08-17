@@ -38,6 +38,7 @@ import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
+import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type {
@@ -86,6 +87,19 @@ export function Account({
   const [removingDiner, setRemovingDiner] = useState<AccountTab | null>(null);
   const [closing, setClosing] = useState(false);
   const [choosingPayer, setChoosingPayer] = useState(false);
+
+  /*
+   * La cuenta tambien se pone al dia sola.
+   *
+   * Una misma mesa se mira desde el telefono del garzon y desde la pantalla de
+   * la caja al mismo tiempo, y lo que uno carga el otro tiene que verlo: el que
+   * viene a imprimir necesita encontrar aca lo que cargo caminando, y el que
+   * sigue en la mesa necesita enterarse de que en la caja ya le cobraron.
+   *
+   * Mas espaciado que la sala: esta pantalla se toca todo el rato, y cada toque
+   * ya la actualiza por su cuenta.
+   */
+  useLiveRefresh(15_000);
 
   const tab =
     session.tabs.find((candidate) => candidate.dinerId === activeTab) ??

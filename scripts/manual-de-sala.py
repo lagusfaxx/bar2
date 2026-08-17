@@ -316,6 +316,66 @@ F.append(step(4, "Ir a buscar el papel a la caja",
 
 
 # =============================================================================
+# 2b. Las tres formas de trabajar
+# =============================================================================
+F.append(PageBreak())
+F += section("Tres formas de trabajar, todas válidas",
+             "Los pasos de arriba son la forma corta. Estas otras dos también "
+             "funcionan: elige la que te acomode.")
+
+F.append(Paragraph(
+    "El sistema es uno solo: lo que cargas en tu teléfono aparece en la "
+    "pantalla del local y al revés, en menos de diez segundos. Nadie tiene que "
+    "avisarle a nadie.", BODY))
+F.append(Spacer(1, 4 * mm))
+
+F.append(step("A", "Todo desde el teléfono, en la mesa",
+              "Es la forma normal y la que menos vueltas da: abres, cargas y "
+              "mandas ahí mismo, parado en la mesa. Después pasas por la caja "
+              "a buscar el papel.<br/><br/>"
+              "<b>Sirve cuando:</b> la mesa te dicta el pedido de corrido y "
+              "puedes ir tocando mientras hablan."))
+
+F.append(step("B", "Anoto en el teléfono y mando desde la caja",
+              "Cargas los productos en tu teléfono pero <b>no tocas Enviar</b>: "
+              "sales de la carta con la <b>X</b> de arriba. Puedes hacer esto "
+              "en varias mesas seguidas.<br/><br/>"
+              "Cuando llegas a la caja, en la pantalla del local aparece "
+              "arriba de la sala un recuadro dorado que dice "
+              "<b>Cargado y sin imprimir</b>, con un botón por cada mesa: "
+              "<b>Mesa 8 &#183; Enviar 5</b>. Lo tocas y el papel sale al lado "
+              "tuyo.<br/><br/>"
+              "<b>Sirve cuando:</b> atiendes varias mesas en una pasada y "
+              "quieres imprimir todo junto, sin ir y volver.",
+              nota=("Mientras no toques Enviar, no se prepara.",
+                    "Lo que queda cargado sin mandar es tuyo y nadie lo ve en "
+                    "la cocina. Si terminas el turno con algo sin enviar, "
+                    "queda ahí."),
+              color=GILT))
+
+F.append(step("C", "Anoto en papel y cargo en la caja",
+              "Tomas el pedido en tu libreta como toda la vida. Después vas a "
+              "la pantalla del local, tocas la mesa, y ahí "
+              "<b>la carta está siempre a la vista en la columna derecha</b> "
+              "&#8212; no hay que abrirla ni cerrarla.<br/><br/>"
+              "Vas tocando productos, se van sumando a la cuenta de la "
+              "izquierda, y cuando terminas tocas <b>Enviar</b>.<br/><br/>"
+              "<b>Sirve cuando:</b> la mesa es grande, el pedido es largo o "
+              "prefieres no andar con el teléfono en la mano frente al "
+              "cliente.",
+              nota=("Abre la mesa igual.",
+                    "Aunque anotes en papel, la mesa tiene que estar abierta "
+                    "en el sistema para poder cargarle cosas. Si no la "
+                    "abriste antes, la abres ahí mismo."),
+              color=GREEN))
+
+F.append(aviso("Se pueden mezclar.",
+               "Cargar tres cosas en el teléfono y las otras dos en la caja "
+               "es perfectamente válido: van a la misma cuenta y salen en el "
+               "mismo papel.", GREEN_BG, GREEN))
+
+
+# =============================================================================
 # 3. El papel
 # =============================================================================
 F.append(PageBreak())
