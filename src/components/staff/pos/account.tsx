@@ -38,6 +38,7 @@ import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
+import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type {
@@ -86,6 +87,19 @@ export function Account({
   const [removingDiner, setRemovingDiner] = useState<AccountTab | null>(null);
   const [closing, setClosing] = useState(false);
   const [choosingPayer, setChoosingPayer] = useState(false);
+
+  /*
+   * La cuenta tambien se pone al dia sola.
+   *
+   * Una misma mesa se mira desde el telefono del garzon y desde la pantalla de
+   * la caja al mismo tiempo, y lo que uno carga el otro tiene que verlo: el que
+   * viene a imprimir necesita encontrar aca lo que cargo caminando, y el que
+   * sigue en la mesa necesita enterarse de que en la caja ya le cobraron.
+   *
+   * Mas espaciado que la sala: esta pantalla se toca todo el rato, y cada toque
+   * ya la actualiza por su cuenta.
+   */
+  useLiveRefresh(15_000);
 
   const tab =
     session.tabs.find((candidate) => candidate.dinerId === activeTab) ??
@@ -143,6 +157,12 @@ export function Account({
   /** Comandas que siguen en cocina o barra esperando que alguien las lleve. */
   const pendientes = session.tickets.filter((ticket) => ticket.pendiente);
 
+  /** Papeles que la impresora no logro sacar. Es lo unico del registro de
+      impresion que obliga a hacer algo. */
+  const fallidas = session.tickets.filter(
+    (ticket) => ticket.status === "FAILED",
+  );
+
   /** La mesa esta repartida entre varias personas. */
   const cuentaSeparada = session.diners.length > 0;
 
@@ -158,6 +178,21 @@ export function Account({
    * si tenia saldo y si no la mesa entera— y esa decision, que define quien
    * paga cuanto, quedaba escondida en una condicion.
    */
+  /**
+   * Manda lo cargado a cocina y barra.
+   *
+   * Se llama desde los dos lados —la barra de acciones de la cuenta y el pie
+   * de la carta en el telefono— porque son el mismo gesto hecho desde donde
+   * cada uno esta parado. Cierra la carta: mandar el pedido es el final de
+   * tomarlo, y lo que sigue mirando el garzon es la cuenta.
+   */
+  const enviarPedido = () => {
+    startTransition(async () => {
+      setFeedback(await sendOrder(session.id));
+      setPicker(false);
+    });
+  };
+
   const startPayment = () => {
     if (cuentaSeparada) {
       setChoosingPayer(true);
@@ -230,6 +265,68 @@ export function Account({
               >
                 {feedback.message}
               </p>
+            )}
+
+            {/*
+              Lo que hay que ir a hacer, arriba de todo.
+
+              Antes esto vivia al fondo de la pantalla, despues del consumo y
+              de la tarjeta: el garzon tenia que desplazarse para enterarse de
+              que la cocina lo estaba esperando. Es la unica parte de la cuenta
+              que le pide moverse, asi que va primero y en una sola linea.
+            */}
+            {!cerrada && (pendientes.length > 0 || fallidas.length > 0) && (
+              <ul className="mb-4 flex flex-col gap-2">
+                {pendientes.map((ticket) => (
+                  <li
+                    key={ticket.id}
+                    className="flex items-center justify-between gap-3 border border-gilt/40 bg-gilt/5 px-3 py-2"
+                  >
+                    <span className="min-w-0 text-sm text-bone">
+                      Lista en {ticket.station === "BARRA" ? "la barra" : "la cocina"}{" "}
+                      <span className="text-muted">
+                        · hace <Elapsed since={ticket.createdAt} />
+                      </span>
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => markTicketPickedUp(ticket.id))}
+                      className="flex h-11 shrink-0 items-center gap-2 border border-bone/25 px-4 text-sm text-bone disabled:opacity-50"
+                    >
+                      <PackageCheck className="size-4" aria-hidden />
+                      Ya la retiré
+                    </button>
+                  </li>
+                ))}
+
+                {fallidas.map((ticket) => (
+                  <li
+                    key={ticket.id}
+                    className="flex items-center justify-between gap-3 border border-crimson/40 bg-crimson/10 px-3 py-2"
+                  >
+                    <span className="min-w-0 text-sm text-crimson-bright">
+                      No salió el papel de{" "}
+                      {ticket.kind === "COBRO"
+                        ? "el cobro"
+                        : ticket.station === "BARRA"
+                          ? "la barra"
+                          : "la cocina"}
+                    </span>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => reprintTicket(ticket.id))}
+                      className="flex h-11 shrink-0 items-center gap-2 border border-bone/25 px-4 text-sm text-bone disabled:opacity-50"
+                    >
+                      <RotateCw className="size-4" aria-hidden />
+                      Reintentar
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
 
             {/* Pestanas: solo cuando la cuenta esta dividida. Con una mesa normal
@@ -448,7 +545,7 @@ export function Account({
                             ].join(" ")}
                           >
                             <MessageSquarePlus className="size-4" aria-hidden />
-                            {item.note ? "Cambiar nota" : "Agregar nota"}
+                            Nota
                           </button>
                         </div>
                       )}
@@ -516,169 +613,59 @@ export function Account({
               su descuento cuando pide, no cuando paga—.
             */}
             {!cerrada && (
-              <section className="mt-8">
+              <section className="mt-6">
                 {session.card ? (
-                  <div className="border border-gilt/40 bg-gilt/5 p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-2 text-bone">
-                          <CreditCard className="size-4 shrink-0 text-gilt" aria-hidden />
-                          {session.card.memberName}
-                        </p>
-                        <p className="mt-0.5 font-mono text-xs tracking-[0.12em] text-muted">
-                          •••• {session.card.cardNumber.slice(-4)}
-                        </p>
-                      </div>
+                  /* Con la tarjeta ya presentada, lo unico que se hace de aca
+                     en adelante es aplicar beneficios: el boton es la fila
+                     entera, y el nombre del socio va debajo como respaldo de
+                     que se leyo la tarjeta correcta. */
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setChoosingPromo(true)}
+                      className="flex h-12 w-full items-center justify-center gap-2 border border-gilt/50 bg-gilt/10 text-base text-gilt-soft"
+                    >
+                      <Gift className="size-5" aria-hidden />
+                      Aplicar un beneficio
+                      {disponibles > 0 && (
+                        <span className="rounded-full bg-gilt px-2 py-0.5 text-sm font-medium text-ink">
+                          {disponibles}
+                        </span>
+                      )}
+                    </button>
+
+                    <p className="mt-1.5 flex items-center justify-between gap-3 text-xs text-muted">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <CreditCard className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">
+                          {session.card.memberName} · ••••
+                          {session.card.cardNumber.slice(-4)}
+                        </span>
+                      </span>
 
                       <button
                         type="button"
                         disabled={pending}
                         onClick={() => run(() => detachCard(session.id))}
-                        className="shrink-0 text-sm text-muted underline underline-offset-4 hover:text-crimson-bright"
+                        className="shrink-0 underline underline-offset-4 hover:text-crimson-bright"
                       >
-                        Quitar
+                        No es esta
                       </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => setChoosingPromo(true)}
-                      className="mt-4 flex h-14 w-full items-center justify-center gap-2 bg-gilt text-base font-medium text-ink"
-                    >
-                      <Gift className="size-5" aria-hidden />
-                      Aplicar un beneficio
-                      {disponibles > 0 && (
-                        <span className="rounded-full bg-ink/20 px-2 py-0.5 text-sm">
-                          {disponibles}
-                        </span>
-                      )}
-                    </button>
-                  </div>
+                    </p>
+                  </>
                 ) : (
+                  /* Sin tarjeta el bloque es una sola linea: el programa tiene
+                     que estar a la vista al pedir —el cliente reclama el
+                     descuento cuando pide, no cuando paga— pero no compite en
+                     tamaño con enviar y cobrar. */
                   <button
                     type="button"
                     onClick={() => setScanningCard(true)}
-                    className="flex h-14 w-full items-center justify-center gap-2 border border-dashed border-gilt/50 text-base text-gilt-soft"
+                    className="flex h-12 w-full items-center justify-center gap-2 border border-dashed border-gilt/40 text-sm text-gilt-soft"
                   >
-                    <CreditCard className="size-5" aria-hidden />
+                    <CreditCard className="size-4" aria-hidden />
                     ¿Tiene BarzuCard?
                   </button>
-                )}
-              </section>
-            )}
-
-            {/*
-              Lo que sigue esperando en la estacion.
-
-              Es el otro extremo del tablero de cocina: alli la comanda no se
-              puede tocar —nadie tiene las manos limpias— asi que sale de la
-              pantalla cuando el garzon marca aca que se la llevo. Mientras no
-              lo haga, la comanda envejece en rojo en la pared.
-            */}
-            {pendientes.length > 0 && !cerrada && (
-              <section className="mt-8">
-                <h2 className="text-sm font-medium text-bone-dim">
-                  Esperando en la estación
-                </h2>
-
-                <ul className="mt-2 flex flex-col gap-2">
-                  {pendientes.map((ticket) => (
-                    <li
-                      key={ticket.id}
-                      className="flex items-center justify-between gap-3 border border-gilt/40 bg-ink-soft px-3 py-2"
-                    >
-                      <span className="min-w-0">
-                        <span className="block text-bone">
-                          {ticket.station === "BARRA" ? "Barra" : "Cocina"} · N°
-                          {ticket.number}
-                        </span>
-                        <span className="block text-xs text-muted">
-                          Enviada hace <Elapsed since={ticket.createdAt} />
-                        </span>
-                      </span>
-
-                      <button
-                        type="button"
-                        disabled={pending}
-                        onClick={() => run(() => markTicketPickedUp(ticket.id))}
-                        className="flex h-11 shrink-0 items-center gap-2 border border-bone/25 px-4 text-sm text-bone disabled:opacity-50"
-                      >
-                        <PackageCheck className="size-4" aria-hidden />
-                        Ya la retiré
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            {/*
-              Los papeles que se imprimieron en cocina y barra.
-
-              Se llamaba "Comandas" y los estados eran "Impresa", "En cola" y
-              "Falló", que describen una impresora y no lo que el garzon tiene que
-              decidir: si el pedido llego o si hay que volver a mandarlo.
-            */}
-            {session.tickets.length > 0 && (
-              <section className="mt-8">
-                <h2 className="text-sm font-medium text-bone-dim">
-                  Papeles impresos
-                </h2>
-
-                <ul className="mt-2 flex flex-col gap-1.5">
-                  {session.tickets.map((ticket) => (
-                    <li
-                      key={ticket.id}
-                      className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-3 py-2 text-sm"
-                    >
-                      {/* El resumen del cobro sale por la misma cola pero no
-                          va a ninguna estacion: se nombra por lo que es. */}
-                      <span className="text-bone-dim">
-                        {ticket.kind === "COBRO"
-                          ? "Resumen del cobro"
-                          : ticket.station === "BARRA"
-                            ? "Barra"
-                            : "Cocina"}{" "}
-                        · N°{ticket.number}
-                      </span>
-
-                      <span className="flex items-center gap-3">
-                        <span
-                          className={
-                            ticket.status === "PRINTED"
-                              ? "text-emerald-300"
-                              : ticket.status === "FAILED"
-                                ? "text-crimson-bright"
-                                : "text-gilt-soft"
-                          }
-                        >
-                          {ticket.status === "PRINTED"
-                            ? "Llegó"
-                            : ticket.status === "FAILED"
-                              ? "No llegó"
-                              : "Enviando…"}
-                        </span>
-
-                        {ticket.status !== "PENDING" && (
-                          <button
-                            type="button"
-                            disabled={pending}
-                            onClick={() => run(() => reprintTicket(ticket.id))}
-                            className="flex h-9 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright"
-                          >
-                            <RotateCw className="size-3.5" aria-hidden />
-                            Reimprimir
-                          </button>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-
-                {session.tickets.some((ticket) => ticket.lastError) && (
-                  <p className="mt-2 text-xs text-crimson-bright">
-                    {session.tickets.find((ticket) => ticket.lastError)?.lastError}
-                  </p>
                 )}
               </section>
             )}
@@ -703,6 +690,54 @@ export function Account({
                   ? "Cerrar la mesa sin consumo"
                   : "Cerrar la mesa y dejarla libre"}
               </button>
+            )}
+
+            {/*
+              El registro de impresion, guardado y solo en la caja.
+
+              Antes era una lista abierta con cada papel de la noche y un boton
+              de reimprimir en cada uno. Un garzon nunca necesita saber que la
+              comanda N°14 se imprimio bien: si algo no salio ya se lo dijimos
+              arriba, en rojo y con el boton al lado. Lo que si pasa —y solo en
+              la caja— es que el cliente pide de nuevo el papel del cobro. Para
+              eso queda esto, cerrado, en la pantalla del local.
+            */}
+            {session.tickets.length > 0 && (
+              <details className="mt-8 hidden lg:block">
+                <summary className="cursor-pointer text-sm text-muted">
+                  Volver a imprimir un papel
+                </summary>
+
+                <ul className="mt-2 flex flex-col gap-1.5">
+                  {session.tickets.map((ticket) => (
+                    <li
+                      key={ticket.id}
+                      className="flex items-center justify-between gap-3 border border-line bg-ink-soft px-3 py-2 text-sm"
+                    >
+                      {/* El resumen del cobro sale por la misma cola pero no
+                          va a ninguna estacion: se nombra por lo que es. */}
+                      <span className="text-bone-dim">
+                        {ticket.kind === "COBRO"
+                          ? "Resumen del cobro"
+                          : ticket.station === "BARRA"
+                            ? "Barra"
+                            : "Cocina"}{" "}
+                        · N°{ticket.number}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={pending || ticket.status === "PENDING"}
+                        onClick={() => run(() => reprintTicket(ticket.id))}
+                        className="flex h-9 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-crimson-bright disabled:opacity-40"
+                      >
+                        <RotateCw className="size-3.5" aria-hidden />
+                        Reimprimir
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </main>
 
@@ -748,7 +783,7 @@ export function Account({
                   <button
                     type="button"
                     disabled={pending}
-                    onClick={() => run(() => sendOrder(session.id))}
+                    onClick={enviarPedido}
                     className="flex h-14 flex-[1.6] items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
                   >
                     {pending ? (
@@ -797,7 +832,8 @@ export function Account({
         )}
       </div>
 
-      {/* En el telefono, la misma carta a pantalla completa. */}
+      {/* En el telefono, la misma carta a pantalla completa — y con el envio
+          en el pie, que ahi es donde termina de tomarse el pedido. */}
       {picker && (
         <div className="lg:hidden">
           <ProductPicker
@@ -806,6 +842,10 @@ export function Account({
             dinerLabel={tab.label}
             menu={menu}
             frequent={frequent}
+            draftCount={session.draftCount}
+            destino={destinoPorEnviar}
+            onSend={enviarPedido}
+            sending={pending}
             onClose={() => setPicker(false)}
           />
         </div>

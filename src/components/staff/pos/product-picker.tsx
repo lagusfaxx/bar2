@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, MessageSquarePlus, Search, X } from "lucide-react";
+import { Check, Loader2, MessageSquarePlus, Search, Send, X } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { addItem } from "@/app/actions/pos";
@@ -33,6 +33,10 @@ export function ProductPicker({
   frequent,
   onClose,
   variant = "ventana",
+  draftCount = 0,
+  destino = "a la cocina",
+  onSend,
+  sending = false,
 }: {
   sessionId: string;
   dinerId: string | null;
@@ -41,6 +45,13 @@ export function ProductPicker({
   frequent: PosMenuProduct[];
   onClose: () => void;
   variant?: "ventana" | "panel";
+  /** Lo cargado que cocina y barra todavia no vieron, en toda la mesa. */
+  draftCount?: number;
+  /** Donde cae ese pedido: "a la cocina", "a la barra" o "a cocina y barra". */
+  destino?: string;
+  /** Manda el pedido y devuelve a la cuenta. Solo en el telefono. */
+  onSend?: () => void;
+  sending?: boolean;
 }) {
   const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
@@ -143,7 +154,7 @@ export function ProductPicker({
               type="button"
               onClick={onClose}
               className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
-              aria-label="Cerrar"
+              aria-label="Volver a la cuenta sin enviar"
             >
               <X className="size-5" aria-hidden />
             </button>
@@ -242,13 +253,16 @@ export function ProductPicker({
         )}
 
         {/*
-          Este boton no manda nada a la cocina: cierra la lista y devuelve a la
-          cuenta. Decia "Listo" en rojo grande, del mismo color que el de
-          cobrar, y era facil leerlo como "confirmar el pedido" — que es un
-          paso que viene despues y en otra pantalla. Ahora dice a donde lleva,
-          y cuantos productos se llevan cargados.
+          Tomar el pedido termina aca.
 
-          En panel no existe: la cuenta esta al lado, no hay a donde volver.
+          Este boton mandaba a la cuenta y ahi habia que buscar otro para
+          enviar: dos toques para una sola intencion —"ya esta, mandalo"— con
+          una pantalla intermedia en el medio que no aporta nada, porque el
+          garzon acaba de cargar los productos y los tiene frescos. Ahora envia
+          y vuelve de una. Para salir sin mandar esta la X de la cabecera, que
+          es el gesto de siempre para cerrar sin hacer nada.
+
+          En panel no existe: la cuenta y su boton de enviar estan al lado.
         */}
         {enPanel ? (
           <p className="text-center text-sm text-muted">
@@ -256,20 +270,28 @@ export function ProductPicker({
               ? `${totalAdded} ${totalAdded === 1 ? "producto agregado" : "productos agregados"} a la cuenta`
               : "Toca un producto para agregarlo a la cuenta"}
           </p>
+        ) : draftCount > 0 && onSend ? (
+          <button
+            type="button"
+            disabled={pending || sending}
+            onClick={onSend}
+            className="flex h-14 w-full items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
+          >
+            {pending || sending ? (
+              <Loader2 className="size-5 animate-spin" aria-hidden />
+            ) : (
+              <Send className="size-5" aria-hidden />
+            )}
+            Enviar {draftCount} {destino}
+          </button>
         ) : (
           <button
             type="button"
             onClick={onClose}
-            className="flex h-14 w-full items-center justify-center gap-2 bg-crimson text-base font-medium text-bone"
+            className="flex h-14 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone"
           >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Check className="size-4" aria-hidden />
-            )}
-            {totalAdded > 0
-              ? `Volver a la cuenta (${totalAdded} agregados)`
-              : "Volver a la cuenta"}
+            <Check className="size-4" aria-hidden />
+            Volver a la cuenta
           </button>
         )}
       </footer>

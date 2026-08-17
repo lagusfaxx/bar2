@@ -47,3 +47,6 @@ next-env.d.ts
 # Archivos subidos desde el CMS (se guardan en un volumen, no en el repo)
 /public/uploads
 /storage
+
+# El manual de sala se genera, no se edita a mano
+manual-de-sala.pdf

@@ -1,9 +1,10 @@
 "use client";
 
 import { Check, Gift, Loader2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { payAccount } from "@/app/actions/pos";
+import { closeTable, payAccount } from "@/app/actions/pos";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type { AccountTab } from "@/lib/pos";
@@ -40,9 +41,35 @@ export function PaySheet({
   discountCents: number;
   onClose: () => void;
 }) {
+  const router = useRouter();
   const [state, setState] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
   const [method, setMethod] = useState<string>("EFECTIVO");
+
+  /*
+   * Cobrar la mesa entera no deja nada pendiente, y lo que sigue —siempre— es
+   * liberarla. Ese boton vivia al fondo de la cuenta: habia que cerrar esta
+   * hoja, desplazarse hasta abajo y encontrarlo. Cobrando por comensal no se
+   * ofrece, porque los demas siguen en la mesa.
+   */
+  const cierraLaMesa = tab === null;
+
+  /* En su propio estado: si el cierre falla, la pantalla del cobro —con el
+     numero de comprobante— tiene que seguir en pie. */
+  const [closeError, setCloseError] = useState<string | null>(null);
+
+  const cerrarYVolver = () => {
+    startTransition(async () => {
+      const result = await closeTable(sessionId);
+
+      if (result.status === "error") {
+        setCloseError(result.message ?? "No se pudo cerrar la mesa.");
+        return;
+      }
+
+      router.push("/staff/pos");
+    });
+  };
 
   const receipt =
     state.status === "success" ? String(state.data?.code ?? "") : null;
@@ -94,13 +121,44 @@ export function PaySheet({
               </p>
             )}
 
-            <button
-              type="button"
-              onClick={onClose}
-              className="mt-6 h-14 w-full bg-crimson text-base font-medium text-bone"
-            >
-              Volver a la mesa
-            </button>
+            {closeError && (
+              <p role="alert" className="mt-4 text-sm text-crimson-bright">
+                {closeError}
+              </p>
+            )}
+
+            {cierraLaMesa ? (
+              <>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={cerrarYVolver}
+                  className="mt-6 flex h-14 w-full items-center justify-center gap-2 bg-crimson text-base font-medium text-bone disabled:opacity-60"
+                >
+                  {pending && (
+                    <Loader2 className="size-5 animate-spin" aria-hidden />
+                  )}
+                  Cerrar la mesa y liberarla
+                </button>
+
+                {/* Para cuando la mesa pago pero sigue sentada. */}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="mt-2 h-14 w-full border border-line text-base text-bone-dim"
+                >
+                  Dejarla abierta
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={onClose}
+                className="mt-6 h-14 w-full bg-crimson text-base font-medium text-bone"
+              >
+                Volver a la mesa
+              </button>
+            )}
           </div>
         ) : (
           <>
