@@ -773,10 +773,16 @@ UPLOAD_DIR=/app/storage/uploads
 ADMIN_EMAIL=hola@barzuo.com
 ADMIN_PASSWORD=<una contraseña fuerte>
 SEED_ON_START=true
+
+RESEND_API_KEY=re_...
+EMAIL_FROM=BARZUO <hola@barzuo.com>
+CRON_SECRET=<openssl rand -hex 24>
 ```
 
 Marca como **Build Variable** las tres `NEXT_PUBLIC_*`: Next las inserta en el
-bundle durante el build.
+bundle durante el build. Las de correo **no** son de build — se leen en el
+servidor en cada envío, así que cambiar la clave de Resend no obliga a
+reconstruir la imagen, solo a reiniciar.
 
 ### 4. Dominio
 

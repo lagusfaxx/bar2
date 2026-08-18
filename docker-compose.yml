@@ -47,6 +47,16 @@ services:
       UPLOAD_DIR: /app/storage/uploads
       # Token del agente de impresion del local (POS).
       PRINT_AGENT_TOKEN: ${PRINT_AGENT_TOKEN:-}
+      # Correo saliente (Resend). Sin clave el sistema no manda nada: los
+      # intentos quedan anotados como fallidos y nada mas se rompe.
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      # El dominio del remitente tiene que estar verificado en Resend.
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      # Respaldo de a quien avisar los mensajes de la web. Lo normal es
+      # configurarlo en Ajustes -> Contacto, que se cambia sin desplegar.
+      EMAIL_NOTIFY_TO: ${EMAIL_NOTIFY_TO:-}
+      # Protege /api/cron/cumpleanos, que dispara los saludos del dia.
+      CRON_SECRET: ${CRON_SECRET:-}
       # Purga del caché de Cloudflare al guardar en el panel.
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
