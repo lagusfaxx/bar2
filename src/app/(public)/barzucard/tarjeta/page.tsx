@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { logoutMember } from "@/app/actions/auth";
 import { CardVisual } from "@/components/barzucard/card-visual";
+import { SendCardButton } from "@/components/barzucard/send-card-button";
 import { PaymentPanel } from "@/components/barzucard/payment-panel";
 import { PromotionPicker } from "@/components/barzucard/promotion-picker";
 import { VoucherCountdown } from "@/components/barzucard/voucher-countdown";
@@ -85,6 +86,7 @@ export default async function MiTarjetaPage({
         promotion,
         card: { status: card.status },
         redemptionsForThisPromotion: usageByPromotion.get(promotion.id) ?? 0,
+        birthDate: member.birthDate,
       }).ok,
   );
 
@@ -180,6 +182,8 @@ export default async function MiTarjetaPage({
                 <Printer className="size-4" aria-hidden />
                 Imprimir la tarjeta
               </a>
+
+              <SendCardButton />
 
               <ButtonLink href="/barzucard/promociones" variant="outline">
                 Ver promociones

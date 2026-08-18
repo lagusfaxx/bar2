@@ -39,7 +39,16 @@ export default async function IngresarPage({
             <MemberLoginForm redirectTo={volver} />
           </div>
 
-          <p className="mt-8 text-center text-sm text-muted">
+          <p className="mt-6 text-center text-sm text-muted">
+            <Link
+              href="/barzucard/recuperar"
+              className="underline-offset-4 hover:text-bone hover:underline"
+            >
+              Olvidé mi contraseña
+            </Link>
+          </p>
+
+          <p className="mt-3 text-center text-sm text-muted">
             ¿Todavía no tienes BarzuCard?{" "}
             <Link
               href="/barzucard/registro"

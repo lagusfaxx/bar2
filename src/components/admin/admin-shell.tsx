@@ -141,6 +141,12 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
         icon: Star,
         hint: "Quién usó qué beneficio y cuándo",
       },
+      {
+        href: "/admin/campanas",
+        label: "Campañas de correo",
+        icon: Mail,
+        hint: "Novedades y promociones por email",
+      },
     ],
   },
   {

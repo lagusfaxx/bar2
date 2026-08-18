@@ -31,10 +31,27 @@
 import { writeFile } from "node:fs/promises";
 import { Socket } from "node:net";
 
+/**
+ * Un numero de la configuracion, con su valor por defecto.
+ *
+ * `Number(process.env.X ?? 10)` parece hacer esto y no lo hace: `??` solo
+ * atrapa la variable sin definir. Una variable definida pero vacia —que es
+ * como queda al escribir `PRINT_TIP_PERCENT=` en un archivo de entorno, o al
+ * pasarla desde un panel de despliegue sin llenarla— da `Number("")`, o sea
+ * cero. Y un cero aca apaga la propina en silencio: el papel sale sin ella y
+ * no hay nada en ningun registro que explique por que.
+ */
+function num(valor, porDefecto) {
+  const parsed = Number(valor);
+  return valor === undefined || valor === "" || Number.isNaN(parsed)
+    ? porDefecto
+    : parsed;
+}
+
 const CONFIG = {
   url: (process.env.BARZUO_URL ?? "http://localhost:3000").replace(/\/$/, ""),
   token: process.env.PRINT_AGENT_TOKEN ?? "",
-  intervalMs: Number(process.env.PRINT_POLL_MS ?? 4000),
+  intervalMs: num(process.env.PRINT_POLL_MS, 4000),
   printers: {
     /*
      * La impresora que recibe todo lo que no tenga una propia.
@@ -51,7 +68,7 @@ const CONFIG = {
     CAJA: process.env.PRINTER_CAJA ?? "",
   },
   /** Ancho del papel en caracteres. 48 = 80mm, 32 = 58mm. */
-  width: Number(process.env.PRINT_WIDTH ?? 48),
+  width: num(process.env.PRINT_WIDTH, 48),
   /*
    * Pausa entre dos papeles seguidos de la MISMA impresora.
    *
@@ -61,7 +78,7 @@ const CONFIG = {
    * Unos segundos alcanzan para retirar la anterior. Entre impresoras
    * distintas no se espera: ahi no hay nada que se encime.
    */
-  gapMs: Number(process.env.PRINT_GAP_MS ?? 3000),
+  gapMs: num(process.env.PRINT_GAP_MS, 3000),
   /*
    * Propina sugerida en el papel del cliente, en porcentaje.
    *
@@ -74,7 +91,7 @@ const CONFIG = {
    *
    * En 0 el bloque no se imprime.
    */
-  tipPercent: Number(process.env.PRINT_TIP_PERCENT ?? 10),
+  tipPercent: num(process.env.PRINT_TIP_PERCENT, 10),
 };
 
 if (!CONFIG.token) {
@@ -455,9 +472,29 @@ function renderCobro(ticket) {
     parts.push(text(""));
     parts.push(fila(`Propina sugerida (${CONFIG.tipPercent}%)`, money(propina)));
 
-    parts.push(CMD.boldOn);
-    parts.push(fila("TOTAL CON PROPINA", money(pago.totalCents + propina)));
-    parts.push(CMD.boldOff);
+    /*
+     * La suma final, del mismo tamano que el total.
+     *
+     * Salio primero en letra normal para que el numero grande siguiera siendo
+     * lo que el cliente debe, y en el papel impreso quedo chico al lado del
+     * TOTAL: se leia como una nota al pie justo cuando es lo que el cliente
+     * saca la calculadora para averiguar.
+     *
+     * Que los dos numeros midan lo mismo no los confunde mientras los rotulos
+     * no dejen dudas, y son estos dos los que hacen ese trabajo: TOTAL a secas
+     * es lo que se debe, CON PROPINA es lo otro. El rotulo va corto a
+     * proposito: en letra doble entran la mitad de caracteres, y "TOTAL CON
+     * PROPINA" mas el importe no caben en un renglon de 80mm.
+     */
+    parts.push(CMD.doubleOn, CMD.boldOn);
+    parts.push(
+      fila(
+        "CON PROPINA",
+        money(pago.totalCents + propina),
+        Math.floor(CONFIG.width / 2),
+      ),
+    );
+    parts.push(CMD.doubleOff, CMD.boldOff);
 
     // Decirlo es lo correcto y ademas es lo que corresponde: la propina es
     // voluntaria y el papel no puede dar a entender otra cosa.
@@ -774,6 +811,19 @@ for (const [destino, target] of Object.entries(CONFIG.printers)) {
 if (CONFIG.gapMs > 0) {
   console.log(`  ${CONFIG.gapMs / 1000}s entre papeles de la misma impresora`);
 }
+/*
+ * Lo que va en el papel del cliente, dicho al arrancar.
+ *
+ * Es la forma de comprobar en un segundo que este PC esta corriendo la version
+ * que uno cree. Cuando el papel sale sin la propina, la causa casi siempre es
+ * que el agente del local nunca se actualizo —el cambio vive aca, no en el
+ * servidor— y sin esta linea no hay como notarlo sin leer el codigo.
+ */
+console.log(
+  CONFIG.tipPercent > 0
+    ? `  propina sugerida del ${CONFIG.tipPercent}% en el papel del cobro`
+    : "  sin propina sugerida en el papel del cobro",
+);
 
 let corriendo = false;
 

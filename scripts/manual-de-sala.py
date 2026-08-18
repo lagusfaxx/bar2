@@ -515,8 +515,9 @@ F.append(step(10, "Cobrar",
               "el papel del cliente.",
               nota=("La propina ya va impresa.",
                     "El papel del cliente muestra el <b>TOTAL</b> y, debajo, "
-                    "la <b>propina sugerida del 10%</b> y el <b>total con "
-                    "propina</b> ya sumado, con la frase de que es voluntaria. "
+                    "la <b>propina sugerida del 10%</b> y el <b>CON PROPINA</b> "
+                    "ya sumado, los dos en letra grande, con la frase de que "
+                    "es voluntaria. "
                     "Tú no la cargas en el sistema: el cliente la deja en la "
                     "máquina o en efectivo.")))
 

@@ -69,7 +69,11 @@ export async function requestVoucher(
   const [card, promotion] = await Promise.all([
     prisma.barzuCard.findUnique({
       where: { memberId: session.memberId },
-      select: { id: true, status: true },
+      select: {
+        id: true,
+        status: true,
+        member: { select: { birthDate: true } },
+      },
     }),
     prisma.promotion.findUnique({ where: { id: promotionId } }),
   ]);
@@ -85,6 +89,7 @@ export async function requestVoucher(
     promotion,
     card,
     redemptionsForThisPromotion: used,
+    birthDate: card.member.birthDate,
   });
 
   if (!eligibility.ok) {

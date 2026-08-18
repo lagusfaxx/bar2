@@ -61,22 +61,26 @@ enum EventCategory {
 
 /**
  * Quien puede entrar a un evento, cuando el dia no es igual para todos.
- *
  * Un dia marcado como cerrado (`ClosedDay`) da por privado todo lo que caiga
  * en el, y casi siempre eso es lo correcto. Pero pasa que el mismo dia hay un
  * cumpleaños arrendado y ademas toca la banda de siempre: el cierre es del
  * cumpleaños, no del show. Sin esto no habia forma de decirlo, y la banda
  * quedaba anunciada como "solo invitados".
- *
  * Tambien sirve al reves: un evento privado suelto —una fiesta de empresa que
  * igual se quiere publicar— sin tener que cerrar el dia entero.
  */
 enum EventAccess {
-  /** Lo que diga el dia: privado si esta cerrado, abierto si no. */
+  /**
+   * Lo que diga el dia: privado si esta cerrado, abierto si no.
+   */
   SEGUN_EL_DIA
-  /** Abierto al publico aunque ese dia el local este arrendado. */
+  /**
+   * Abierto al publico aunque ese dia el local este arrendado.
+   */
   PUBLICO
-  /** Solo invitados, este el dia cerrado o no. */
+  /**
+   * Solo invitados, este el dia cerrado o no.
+   */
   PRIVADO
 }
 
@@ -299,6 +303,17 @@ model Member {
 
   card    BarzuCard?
   ratings EventRating[]
+  resets  PasswordReset[]
+  emails  EmailLog[]
+
+  /**
+   * El ano del ultimo saludo de cumpleanos.
+   * Evita el papelon de saludar dos veces: el envio corre todos los dias y sin
+   * esta marca, un socio que cumple el 12 recibiria un correo el 12, el 13 y
+   * todos los dias de la ventana. Guarda el ano y no la fecha porque la
+   * pregunta que hay que responder es "¿ya lo saludamos ESTE ano?".
+   */
+  birthdayGreetedYear Int?
 
   @@map("members")
 }
@@ -349,7 +364,6 @@ enum PromotionType {
 
 /**
  * Sobre que se aplica el beneficio.
- *
  * Es lo que le faltaba al sistema anterior: una promocion era un texto y el
  * canje, un comprobante. Nadie sabia sobre que producto descontar, asi que el
  * descuento terminaba a mano —o no se aplicaba—. Con el alcance, el POS
@@ -395,6 +409,17 @@ model Promotion {
   redeemedCount     Int   @default(0)
   availableWeekdays Int[] @default([]) // 0=domingo .. 6=sabado; vacio = todos
 
+  /**
+   * Promocion de cumpleanos.
+   * Con `birthdayOnly` la promocion deja de estar disponible para todos y solo
+   * la puede canjear quien esta de cumpleanos, dentro de `birthdayWindowDays`
+   * dias alrededor de la fecha. La ventana existe porque nadie sale a celebrar
+   * necesariamente el mismo dia: un cumpleanos de martes se festeja el viernes,
+   * y una promocion que vence a medianoche del martes no la usa nadie.
+   */
+  birthdayOnly       Boolean @default(false)
+  birthdayWindowDays Int     @default(7)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -426,7 +451,6 @@ model Redemption {
 
   /**
    * La cuenta sobre la que se aplico.
-   *
    * Vacio = canje fuera de mesa (la pantalla suelta de /staff/canjear). Con
    * mesa, el descuento entra en la cuenta y se recalcula solo mientras la mesa
    * siga abierta: si el producto de la promo se anula, deja de descontar.
@@ -434,14 +458,20 @@ model Redemption {
   sessionId String?
   session   TableSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
-  /** Comensal al que se le aplico. Vacio = a la cuenta compartida. */
+  /**
+   * Comensal al que se le aplico. Vacio = a la cuenta compartida.
+   */
   dinerId String?
   diner   Diner?  @relation(fields: [dinerId], references: [id], onDelete: SetNull)
 
-  /** Lo que descontó, congelado al cobrar. Mientras no se cobre se recalcula. */
+  /**
+   * Lo que descontó, congelado al cobrar. Mientras no se cobre se recalcula.
+   */
   discountCents Int @default(0)
 
-  /** El garzon la quito antes de cobrar: no cuenta para los topes. */
+  /**
+   * El garzon la quito antes de cobrar: no cuenta para los topes.
+   */
   voidedAt DateTime?
 
   redeemedAt DateTime @default(now())
@@ -559,6 +589,14 @@ model SiteSettings {
   whatsapp    String?
   email       String?
 
+  /**
+   * A quien le llega el aviso de un mensaje del formulario.
+   * Varias direcciones separadas por coma. Vive en los ajustes y no en una
+   * variable de entorno porque cambia mas seguido que el codigo: entra alguien
+   * nuevo a atender las reservas y hay que poder agregarlo sin desplegar.
+   */
+  notifyEmails String?
+
   // Textos generales
   reservationsNote String? @db.Text
   footerNote       String? @db.Text
@@ -578,7 +616,6 @@ model SiteSettings {
 
   /**
    * Karaoke abierto.
-   *
    * No es una preferencia del sitio sino el estado de esta noche: lo prende y
    * lo apaga el encargado desde /staff/karaoke, y de el depende que la pagina
    * del QR de las mesas acepte pedidos o avise que hoy no hay.
@@ -620,11 +657,9 @@ model OpeningHour {
 
 /**
  * Un dia en que el local no abre al publico.
- *
  * Lo tipico es un evento privado: un cumpleaños o una empresa arriendan el
  * local entero y esa noche no hay cartelera ni mesas para nadie mas. Tambien
  * sirve para vacaciones o un feriado.
- *
  * Es aparte de `OpeningHour`, que dice como es una semana normal ("los lunes
  * cerramos"). Esto es la excepcion de una fecha concreta, y por eso se guarda
  * como dia suelto: `@db.Date` a proposito, sin hora, porque lo que se cierra
@@ -634,10 +669,14 @@ model ClosedDay {
   id   String   @id @default(cuid())
   date DateTime @unique @db.Date
 
-  /** Lo que se muestra al publico: "Evento privado", "Vacaciones". */
+  /**
+   * Lo que se muestra al publico: "Evento privado", "Vacaciones".
+   */
   reason String @default("Evento privado")
 
-  /** Detalle opcional para el propio local; no se publica. */
+  /**
+   * Detalle opcional para el propio local; no se publica.
+   */
   note String?
 
   createdById String?
@@ -662,6 +701,152 @@ model ContactMessage {
 
   @@index([read, createdAt])
   @@map("contact_messages")
+}
+
+// ---------------------------------------------------------------------------
+// Correo
+//
+// El local manda correo por cuatro motivos distintos y conviene poder mirarlos
+// por separado: un aviso interno que no llego es un cliente sin responder, y
+// una campana que reboto en la mitad de las casillas es una lista que hay que
+// limpiar.
+// ---------------------------------------------------------------------------
+
+enum EmailKind {
+  CONTACTO // aviso interno: alguien escribio por la web
+  BIENVENIDA // el socio se registro y recibe su tarjeta
+  TARJETA // reenvio de la tarjeta a pedido del socio
+  RECUPERAR // enlace para volver a entrar
+  CUMPLEANOS // el saludo con su beneficio
+  CAMPANA // email marketing
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+/**
+ * Lo que salio por correo, y como le fue.
+ * Sin esto, "no me llego" no se puede responder: no hay forma de distinguir un
+ * correo que nunca se intento de uno que el proveedor rechazo o de uno que
+ * llego y se perdio en la bandeja de no deseados.
+ */
+model EmailLog {
+  id String @id @default(cuid())
+
+  to      String
+  subject String
+  kind    EmailKind
+  status  EmailStatus @default(SENT)
+
+  /**
+   * El identificador que devuelve Resend, para rastrear el envio alla.
+   */
+  providerId String?
+  error      String?
+
+  memberId String?
+  member   Member? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  campaignId String?
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([kind, createdAt])
+  @@index([memberId])
+  @@index([campaignId])
+  @@index([status, createdAt])
+  @@map("email_logs")
+}
+
+/**
+ * Un enlace para volver a entrar.
+ * Se guarda el hash del token y no el token: quien consiga leer la tabla no
+ * puede entrar a ninguna cuenta con lo que hay ahi. El token en claro existe
+ * una sola vez, dentro del correo que recibe el socio.
+ */
+model PasswordReset {
+  id String @id @default(cuid())
+
+  memberId String
+  member   Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([memberId])
+  @@index([expiresAt])
+  @@map("password_resets")
+}
+
+// ---------------------------------------------------------------------------
+// Email marketing
+// ---------------------------------------------------------------------------
+
+enum CampaignStatus {
+  DRAFT // se esta escribiendo
+  SENDING // saliendo por lotes
+  SENT
+  FAILED
+}
+
+enum CampaignAudience {
+  /**
+   * Socios que aceptaron recibir novedades. Es el unico legitimo para promociones.
+   */
+  SUSCRITOS
+  /**
+   * Todos los socios activos. Reservado para avisos de servicio.
+   */
+  TODOS
+  /**
+   * Solo para probar: se manda a las casillas de aviso del local.
+   */
+  PRUEBA
+}
+
+/**
+ * Una campana de correo.
+ * El HTML se guarda tal cual lo dejo el administrador, con sus imagenes y su
+ * formato. Se guarda el contenido y no una plantilla con huecos porque una
+ * campana es una pieza de un momento: si el mes que viene cambia la plantilla,
+ * lo que se mando en marzo tiene que seguir siendo lo que se mando en marzo.
+ */
+model Campaign {
+  id String @id @default(cuid())
+
+  name      String // nombre interno, para encontrarla en la lista
+  subject   String // el asunto que ve el socio
+  preheader String? // la linea de vista previa de la bandeja
+
+  /**
+   * El cuerpo, en HTML, tal como lo escribio el administrador.
+   */
+  html String @db.Text
+
+  status   CampaignStatus   @default(DRAFT)
+  audience CampaignAudience @default(SUSCRITOS)
+
+  /**
+   * Cuantos se alcanzaron a mandar y a cuantos se apuntaba.
+   */
+  sentCount   Int @default(0)
+  failedCount Int @default(0)
+  totalCount  Int @default(0)
+
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  emails EmailLog[]
+
+  @@index([status, createdAt])
+  @@map("campaigns")
 }
 
 // ---------------------------------------------------------------------------
@@ -732,7 +917,6 @@ model TableSession {
 
   /**
    * BarzuCard presentada en la mesa.
-   *
    * Es la llave de todo el programa: sin tarjeta en la mesa no se puede
    * aplicar ninguna promocion. Se pide una vez, al principio, y vale para toda
    * la noche —incluidos los cobros separados por comensal—.
@@ -815,7 +999,9 @@ model OrderItem {
   discountCents Int     @default(0)
   discountLabel String?
 
-  /** Linea nacida de una cortesia de BarzuCard (FREE_ITEM). */
+  /**
+   * Linea nacida de una cortesia de BarzuCard (FREE_ITEM).
+   */
   courtesy Boolean @default(false)
 
   station Station
@@ -840,7 +1026,9 @@ model OrderItem {
   @@map("pos_order_items")
 }
 
-/** Estado de IMPRESION de la comanda (ver `status`). */
+/**
+ * Estado de IMPRESION de la comanda (ver `status`).
+ */
 enum TicketStatus {
   PENDING // en cola, esperando que la impresora la retire
   PRINTED
@@ -849,14 +1037,12 @@ enum TicketStatus {
 
 /**
  * Estado de PREPARACION de la comanda (ver `prep`).
- *
  * Son solo dos, y no por simplificar: en cocina no hay manos limpias para
  * tocar una pantalla. La comanda esta pendiente hasta que alguien se la lleva,
  * y quien la cierra es el garzon que va a buscar el plato —desde su telefono,
  * que si maneja con las manos secas—. Los tres estados anteriores (nueva, en
  * curso, lista) obligaban a la cocina a tocar dos veces cada comanda con las
  * manos mojadas, y en la practica nadie los movia.
- *
  * No tiene nada que ver con si el papel salio (ver `status`): un local puede
  * trabajar solo con pantallas, solo con impresoras, o con las dos.
  */
@@ -867,7 +1053,6 @@ enum PrepStatus {
 
 /**
  * Que papel es.
- *
  * COMANDA es lo que se prepara —sale hacia la barra o hacia la cocina— y se
  * mueve por las pantallas de esas estaciones. COBRO es el resumen de lo que
  * pago un cliente: sale por la impresora de caja y no lo prepara nadie, asi
@@ -904,11 +1089,9 @@ model OrderTicket {
 
   /**
    * El envio del que salio, cuando salio junto con otras.
-   *
    * Un toque de "enviar" en una mesa con tragos y comida crea dos comandas: una
    * de barra y una de cocina. Comparten este identificador para que el agente
    * de impresion sepa que son del mismo viaje del garzon.
-   *
    * Con una sola impresora eso le permite sacarlas en un unico papel continuo,
    * separadas por una linea de corte: la garzona retira una vez, lo parte en
    * dos y reparte. Con una impresora por estacion el agrupamiento no se aplica
@@ -916,13 +1099,17 @@ model OrderTicket {
    */
   batchId String?
 
-  /** Impresion: la cola que atiende el agente del local. */
+  /**
+   * Impresion: la cola que atiende el agente del local.
+   */
   status    TicketStatus @default(PENDING)
   attempts  Int          @default(0)
   lastError String?
   printedAt DateTime?
 
-  /** Preparacion: lo que se ve en la pantalla de la estacion. */
+  /**
+   * Preparacion: lo que se ve en la pantalla de la estacion.
+   */
   prep       PrepStatus @default(PENDIENTE)
   pickedUpAt DateTime?
 
@@ -1066,7 +1253,6 @@ enum KaraokeSource {
 
 /**
  * Un turno en la cola.
- *
  * Puede nacer sin video: quien pide desde la mesa busca en el catalogo del
  * local, y si su cancion no esta todavia, la escribe con palabras
  * (`requestText`). El encargado la busca en YouTube al aceptarla y recien ahi

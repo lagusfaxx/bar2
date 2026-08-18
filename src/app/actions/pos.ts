@@ -606,7 +606,7 @@ export async function attachCard(
     parsedInput.kind === "number"
       ? await prisma.barzuCard.findUnique({
           where: { cardNumber: parsedInput.value },
-          include: { member: { select: { fullName: true } } },
+          include: { member: { select: { fullName: true, birthDate: true } } },
         })
       : parsedInput.kind === "voucher" || parsedInput.kind === "voucherCode"
         ? await prisma.promotionVoucher
@@ -616,13 +616,17 @@ export async function attachCard(
                   ? { token: parsedInput.value }
                   : { code: parsedInput.value },
               include: {
-                card: { include: { member: { select: { fullName: true } } } },
+                card: {
+                  include: {
+                    member: { select: { fullName: true, birthDate: true } },
+                  },
+                },
               },
             })
             .then((voucher) => voucher?.card ?? null)
         : await prisma.barzuCard.findUnique({
             where: { qrToken: parsedInput.value },
-            include: { member: { select: { fullName: true } } },
+            include: { member: { select: { fullName: true, birthDate: true } } },
           });
 
   if (!card) return formError("Esa BarzuCard no existe.");
@@ -753,7 +757,13 @@ export async function applyPromotion(
   const [card, promotion] = await Promise.all([
     prisma.barzuCard.findUnique({
       where: { id: session.cardId },
-      select: { id: true, status: true },
+      // El socio viaja con la tarjeta: las promos de cumpleanos se habilitan
+      // contra su fecha de nacimiento.
+      select: {
+        id: true,
+        status: true,
+        member: { select: { birthDate: true } },
+      },
     }),
     prisma.promotion.findUnique({
       where: { id: promotionId },
@@ -779,6 +789,7 @@ export async function applyPromotion(
     promotion,
     card,
     redemptionsForThisPromotion: usos,
+    birthDate: card.member.birthDate,
   });
 
   if (!eligibility.ok) return formError(eligibility.reason);

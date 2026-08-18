@@ -493,10 +493,12 @@ detalle, el total, la forma de pago y el número de comprobante.
 
 Ese papel se le pasa al cliente para que revise, así que bajo el total lleva
 la **propina sugerida del 10 %** y el **total con propina** ya sumado, más la
-línea de que es voluntaria. El TOTAL a pagar sigue siendo el único número en
-letra doble: una sugerencia impresa del mismo tamaño que el total se lee como
-el total, y eso ya no es sugerir. El porcentaje se cambia con
-`PRINT_TIP_PERCENT`, y en `0` el bloque no se imprime.
+línea de que es voluntaria. Los dos importes van en letra doble —en letra
+normal el de la propina quedaba como una nota al pie, justo lo que el cliente
+saca la calculadora para averiguar— y lo que evita confundirlos son los
+rótulos: **TOTAL** a secas es lo que se debe, **CON PROPINA** es lo otro. El
+porcentaje se cambia con `PRINT_TIP_PERCENT`, y en `0` el bloque no se
+imprime.
 
 Todos salen diferenciados a propósito, porque con una sola impresora caen por
 la misma ranura: cada uno lleva una banda negra con su destino en letra doble
@@ -582,6 +584,26 @@ en medio de él.
 | `PRINT_GAP_MS` | Pausa entre dos papeles seguidos de la misma impresora. Por defecto 3000. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
 | `PRINT_TIP_PERCENT` | Propina sugerida que se imprime en el papel del cliente. Por defecto 10. En `0` no se imprime. |
+
+### Correo
+
+| Variable | Obligatoria | Descripción |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Para enviar | Clave de Resend. Sin ella no sale ningún correo: los intentos quedan anotados como fallidos en `email_logs` y nada más se rompe. |
+| `EMAIL_FROM` | Para enviar | Remitente. El dominio tiene que estar **verificado en Resend** o el envío se rechaza. Admite `hola@barzuo.com` o `BARZUO <hola@barzuo.com>`. |
+| `EMAIL_NOTIFY_TO` | No | Respaldo de a quién avisar los mensajes de la web. Lo normal es configurarlo en **Ajustes → Contacto**, que se cambia sin desplegar. |
+| `CRON_SECRET` | Para los cumpleaños | Protege `/api/cron/cumpleanos`. Mínimo 16 caracteres. Sin ella la ruta queda cerrada. |
+
+El saludo de cumpleaños lo dispara un temporizador externo, una vez al día:
+
+```bash
+0 10 * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://barzuo.com/api/cron/cumpleanos
+```
+
+No se agenda dentro de la aplicación a propósito: un intervalo en el proceso de
+Next.js se duplica con cada instancia y se pierde con cada despliegue, que son
+las dos formas de saludar dos veces o ninguna. Correr de más es inofensivo:
+quien ya fue saludado este año no vuelve a entrar en la lista.
 
 Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,
 `\\localhost\POS80`) o como **dirección de red** si es de red (`192.168.1.50`
@@ -751,10 +773,16 @@ UPLOAD_DIR=/app/storage/uploads
 ADMIN_EMAIL=hola@barzuo.com
 ADMIN_PASSWORD=<una contraseña fuerte>
 SEED_ON_START=true
+
+RESEND_API_KEY=re_...
+EMAIL_FROM=BARZUO <hola@barzuo.com>
+CRON_SECRET=<openssl rand -hex 24>
 ```
 
 Marca como **Build Variable** las tres `NEXT_PUBLIC_*`: Next las inserta en el
-bundle durante el build.
+bundle durante el build. Las de correo **no** son de build — se leen en el
+servidor en cada envío, así que cambiar la clave de Resend no obliga a
+reconstruir la imagen, solo a reiniciar.
 
 ### 4. Dominio
 

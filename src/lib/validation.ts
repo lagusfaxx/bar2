@@ -33,6 +33,26 @@ export const memberRegisterSchema = z.object({
   }),
 });
 
+/** Pedir el enlace para volver a entrar. */
+export const requestResetSchema = z.object({
+  email: emailSchema,
+});
+
+/** Elegir la contrasena nueva desde el enlace del correo. */
+export const passwordResetSchema = z.object({
+  token: trimmed.min(20).max(200),
+  password: passwordSchema,
+});
+
+/** Una campana de correo. */
+export const campaignSchema = z.object({
+  name: trimmed.min(2, "Ponle un nombre para encontrarla").max(120),
+  subject: trimmed.min(2, "El asunto es lo primero que se lee").max(180),
+  preheader: trimmed.max(200).optional().or(z.literal("")),
+  html: trimmed.min(10, "El correo está vacío").max(200_000),
+  audience: z.enum(["SUSCRITOS", "TODOS", "PRUEBA"]).default("SUSCRITOS"),
+});
+
 // --- Eventos -----------------------------------------------------------------
 
 export const eventCategorySchema = z.enum([
@@ -150,6 +170,9 @@ export const promotionSchema = z
     maxPerCard: z.coerce.number().int().min(0).max(999).default(1),
     maxTotal: z.coerce.number().int().min(0).max(1_000_000).default(0),
     availableWeekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
+    /* Solo para el cumpleanos del socio, con una ventana de dias alrededor. */
+    birthdayOnly: z.coerce.boolean().default(false),
+    birthdayWindowDays: z.coerce.number().int().min(0).max(60).default(7),
   })
   /*
    * Una promocion sin objetivo es una promocion que el POS no puede aplicar.
@@ -229,6 +252,9 @@ export const settingsSchema = z.object({
   phone: trimmed.max(40).optional().or(z.literal("")),
   whatsapp: trimmed.max(40).optional().or(z.literal("")),
   email: trimmed.max(180).optional().or(z.literal("")),
+  /* A quien le llega el aviso de un mensaje del formulario. Varias
+     direcciones separadas por coma; el envio filtra lo que no sea una. */
+  notifyEmails: trimmed.max(400).optional().or(z.literal("")),
 
   reservationsNote: trimmed.max(600).optional().or(z.literal("")),
   footerNote: trimmed.max(600).optional().or(z.literal("")),

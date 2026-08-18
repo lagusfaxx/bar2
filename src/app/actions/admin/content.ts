@@ -260,6 +260,8 @@ export async function savePromotion(
     maxPerCard: input.maxPerCard,
     maxTotal: input.maxTotal,
     availableWeekdays: input.availableWeekdays,
+    birthdayOnly: input.birthdayOnly,
+    birthdayWindowDays: input.birthdayWindowDays,
   };
 
   if (promotionId) {
@@ -389,6 +391,7 @@ export async function saveSettings(
       phone: nullable(input.phone),
       whatsapp: nullable(input.whatsapp),
       email: nullable(input.email),
+      notifyEmails: nullable(input.notifyEmails),
 
       reservationsNote: nullable(input.reservationsNote),
       footerNote: nullable(input.footerNote),

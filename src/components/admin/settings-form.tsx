@@ -57,6 +57,7 @@ type Settings = {
   longitude: number;
   phone: string | null;
   whatsapp: string | null;
+  notifyEmails: string | null;
   email: string | null;
   reservationsNote: string | null;
   footerNote: string | null;
@@ -538,6 +539,19 @@ export function SettingsForm({ settings }: { settings: Settings }) {
                 error={state.errors?.email}
               />
             </div>
+
+            {/* Distinto del email de contacto de arriba: ese es el que se
+                publica en el sitio, este es el que recibe los avisos. Suelen
+                ser el mismo, pero no tienen por que serlo — y quien atiende las
+                reservas casi nunca es la casilla que sale en la web. */}
+            <Field
+              label="Avisar mensajes nuevos a"
+              name="notifyEmails"
+              defaultValue={settings.notifyEmails ?? ""}
+              placeholder="hola@barzuo.com, reservas@barzuo.com"
+              hint="Separa varias direcciones con coma. A cada una le llega su propia copia."
+              error={state.errors?.notifyEmails}
+            />
 
             <TextareaField
               label="Nota sobre reservas"

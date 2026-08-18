@@ -486,7 +486,9 @@ export async function getSessionDetail(
         // en cervezas" necesita saber de que categoria es cada linea.
         include: { product: { select: { categoryId: true } } },
       },
-      card: { include: { member: { select: { fullName: true } } } },
+      card: {
+        include: { member: { select: { fullName: true, birthDate: true } } },
+      },
       redemptions: {
         where: { voidedAt: null },
         orderBy: { redeemedAt: "asc" },
@@ -707,7 +709,13 @@ export async function getPromotionOffers(
   const [card, promotions, items] = await Promise.all([
     prisma.barzuCard.findUnique({
       where: { id: session.cardId },
-      select: { id: true, status: true },
+      // El socio viaja con la tarjeta: las promos de cumpleanos se habilitan
+      // contra su fecha de nacimiento.
+      select: {
+        id: true,
+        status: true,
+        member: { select: { birthDate: true } },
+      },
     }),
     prisma.promotion.findMany({
       where: { active: true },
@@ -765,6 +773,7 @@ export async function getPromotionOffers(
       promotion,
       card,
       redemptionsForThisPromotion: usosPorPromo.get(promotion.id) ?? 0,
+      birthDate: card.member.birthDate,
       now,
     });
 
