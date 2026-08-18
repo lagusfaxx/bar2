@@ -585,6 +585,26 @@ en medio de él.
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
 | `PRINT_TIP_PERCENT` | Propina sugerida que se imprime en el papel del cliente. Por defecto 10. En `0` no se imprime. |
 
+### Correo
+
+| Variable | Obligatoria | Descripción |
+| --- | --- | --- |
+| `RESEND_API_KEY` | Para enviar | Clave de Resend. Sin ella no sale ningún correo: los intentos quedan anotados como fallidos en `email_logs` y nada más se rompe. |
+| `EMAIL_FROM` | Para enviar | Remitente. El dominio tiene que estar **verificado en Resend** o el envío se rechaza. Admite `hola@barzuo.com` o `BARZUO <hola@barzuo.com>`. |
+| `EMAIL_NOTIFY_TO` | No | Respaldo de a quién avisar los mensajes de la web. Lo normal es configurarlo en **Ajustes → Contacto**, que se cambia sin desplegar. |
+| `CRON_SECRET` | Para los cumpleaños | Protege `/api/cron/cumpleanos`. Mínimo 16 caracteres. Sin ella la ruta queda cerrada. |
+
+El saludo de cumpleaños lo dispara un temporizador externo, una vez al día:
+
+```bash
+0 10 * * *  curl -fsS -H "Authorization: Bearer $CRON_SECRET" https://barzuo.com/api/cron/cumpleanos
+```
+
+No se agenda dentro de la aplicación a propósito: un intervalo en el proceso de
+Next.js se duplica con cada instancia y se pierde con cada despliegue, que son
+las dos formas de saludar dos veces o ninguna. Correr de más es inofensivo:
+quien ya fue saludado este año no vuelve a entrar en la lista.
+
 Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,
 `\\localhost\POS80`) o como **dirección de red** si es de red (`192.168.1.50`
 o `192.168.1.50:9100`; el puerto por defecto es el 9100). El agente lo deduce:

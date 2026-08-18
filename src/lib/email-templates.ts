@@ -214,7 +214,9 @@ export function birthdayEmail({
   fullName: string;
   promocion: { title: string; description: string; terms: string | null } | null;
 }) {
-  const nombre = escapeHtml(fullName.split(" ")[0] ?? fullName);
+  // Sin escapar: va al asunto, que es texto plano, y al titulo, que lo escapa
+  // `emailLayout`. Escaparlo aca lo dejaria con "&amp;" a la vista en la bandeja.
+  const primerNombre = fullName.split(" ")[0] ?? fullName;
 
   const beneficio = promocion
     ? `
@@ -233,11 +235,11 @@ export function birthdayEmail({
     : `${emailP("Te esperamos para celebrarlo.")}${emailButton(absoluteUrl("/eventos"), "Ver qué hay esta semana")}`;
 
   return {
-    subject: `¡Feliz cumpleaños, ${fullName.split(" ")[0] ?? fullName}!`,
+    subject: `¡Feliz cumpleaños, ${primerNombre}!`,
     html: emailLayout({
       barName,
       logoUrl,
-      titulo: `¡Feliz cumpleaños, ${fullName.split(" ")[0] ?? fullName}!`,
+      titulo: `¡Feliz cumpleaños, ${primerNombre}!`,
       cuerpo: `${emailP(`De parte de todo el equipo de ${escapeHtml(barName)}, que lo pases increíble.`)}${beneficio}`,
       pie: escapeHtml(barName),
     }),

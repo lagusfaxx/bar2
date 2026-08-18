@@ -44,6 +44,15 @@ export const passwordResetSchema = z.object({
   password: passwordSchema,
 });
 
+/** Una campana de correo. */
+export const campaignSchema = z.object({
+  name: trimmed.min(2, "Ponle un nombre para encontrarla").max(120),
+  subject: trimmed.min(2, "El asunto es lo primero que se lee").max(180),
+  preheader: trimmed.max(200).optional().or(z.literal("")),
+  html: trimmed.min(10, "El correo está vacío").max(200_000),
+  audience: z.enum(["SUSCRITOS", "TODOS", "PRUEBA"]).default("SUSCRITOS"),
+});
+
 // --- Eventos -----------------------------------------------------------------
 
 export const eventCategorySchema = z.enum([
