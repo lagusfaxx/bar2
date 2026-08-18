@@ -3,6 +3,9 @@
 import { revalidatePath } from "next/cache";
 
 import { fingerprint, getMemberSession } from "@/lib/auth";
+import { getSettings } from "@/lib/content";
+import { destinatariosDeAviso, sendEmail } from "@/lib/email";
+import { contactNotification } from "@/lib/email-templates";
 import { searchCatalog } from "@/lib/karaoke";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
@@ -56,6 +59,41 @@ export async function submitContactMessage(
       message: data.message,
     },
   });
+
+  /*
+   * El aviso al local.
+   *
+   * Va despues de guardar y sin cortar el flujo a proposito: el mensaje ya esta
+   * a salvo en la base y visible en el panel. Si el correo no sale —clave sin
+   * configurar, Resend caido, dominio sin verificar— se anota el fallo en
+   * `email_logs` y la persona que escribio igual ve que su mensaje se envio,
+   * porque se envio. Lo contrario seria decirle a un cliente que su consulta
+   * fallo por un problema que no es suyo y que ni siquiera es cierto.
+   */
+  const settings = await getSettings();
+  const avisar = destinatariosDeAviso(settings.notifyEmails);
+
+  if (avisar.length > 0) {
+    const { subject, html } = contactNotification({
+      barName: settings.barName,
+      logoUrl: settings.logoUrl,
+      nombre: data.name,
+      email: data.email,
+      telefono: data.phone || null,
+      asunto: data.subject || null,
+      mensaje: data.message,
+    });
+
+    await sendEmail({
+      to: avisar,
+      subject,
+      html,
+      kind: "CONTACTO",
+      // Responder el aviso le escribe a quien consulto, sin copiar direcciones
+      // a mano ni tener que entrar al panel.
+      replyTo: data.email,
+    });
+  }
 
   return formSuccess("¡Gracias por escribirnos! Te respondemos a la brevedad.");
 }

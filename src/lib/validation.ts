@@ -229,6 +229,9 @@ export const settingsSchema = z.object({
   phone: trimmed.max(40).optional().or(z.literal("")),
   whatsapp: trimmed.max(40).optional().or(z.literal("")),
   email: trimmed.max(180).optional().or(z.literal("")),
+  /* A quien le llega el aviso de un mensaje del formulario. Varias
+     direcciones separadas por coma; el envio filtra lo que no sea una. */
+  notifyEmails: trimmed.max(400).optional().or(z.literal("")),
 
   reservationsNote: trimmed.max(600).optional().or(z.literal("")),
   footerNote: trimmed.max(600).optional().or(z.literal("")),

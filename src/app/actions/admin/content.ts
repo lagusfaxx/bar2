@@ -389,6 +389,7 @@ export async function saveSettings(
       phone: nullable(input.phone),
       whatsapp: nullable(input.whatsapp),
       email: nullable(input.email),
+      notifyEmails: nullable(input.notifyEmails),
 
       reservationsNote: nullable(input.reservationsNote),
       footerNote: nullable(input.footerNote),
