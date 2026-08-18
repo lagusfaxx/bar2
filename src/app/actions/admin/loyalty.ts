@@ -217,7 +217,7 @@ export async function lookupCard(
         ? { cardNumber: parsed.value }
         : { qrToken: parsed.value },
     include: {
-      member: { select: { fullName: true, email: true } },
+      member: { select: { fullName: true, email: true, birthDate: true } },
       redemptions: {
         orderBy: { redeemedAt: "desc" },
         take: 5,
@@ -270,6 +270,7 @@ export async function lookupCard(
         promotion,
         card: { status: card.status },
         redemptionsForThisPromotion: used,
+        birthDate: card.member.birthDate,
         now,
       });
 
@@ -339,7 +340,12 @@ export async function redeemVoucher(
     const receipt = await prisma.$transaction(async (tx) => {
       const voucher = await tx.promotionVoucher.findUnique({
         where: { token },
-        include: { promotion: true, card: true },
+        include: {
+          promotion: true,
+          // El socio viaja con la tarjeta: las promos de cumpleanos se
+          // habilitan contra su fecha de nacimiento.
+          card: { include: { member: { select: { birthDate: true } } } },
+        },
       });
 
       if (!voucher) throw new Error("El cupón no existe.");
@@ -369,6 +375,7 @@ export async function redeemVoucher(
         promotion: voucher.promotion,
         card: voucher.card,
         redemptionsForThisPromotion: used,
+        birthDate: voucher.card.member.birthDate,
       });
 
       if (!eligibility.ok) throw new Error(eligibility.reason);
@@ -463,7 +470,11 @@ export async function redeemPromotion(
       const [card, promotion] = await Promise.all([
         tx.barzuCard.findUnique({
           where: { id: cardId },
-          select: { id: true, status: true },
+          select: {
+            id: true,
+            status: true,
+            member: { select: { birthDate: true } },
+          },
         }),
         tx.promotion.findUnique({ where: { id: promotionId } }),
       ]);
@@ -479,6 +490,7 @@ export async function redeemPromotion(
         promotion,
         card,
         redemptionsForThisPromotion: used,
+        birthDate: card.member.birthDate,
       });
 
       if (!eligibility.ok) {

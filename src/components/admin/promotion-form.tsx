@@ -34,6 +34,8 @@ export type PromotionValues = {
   maxPerCard?: number;
   maxTotal?: number;
   availableWeekdays?: number[];
+  birthdayOnly?: boolean;
+  birthdayWindowDays?: number;
 };
 
 /** La carta, para elegir sobre que aplica el beneficio. */
@@ -287,6 +289,35 @@ export function PromotionForm({
                 <p className="mt-2 text-xs text-muted-dark">
                   Si no marcas ninguno, la promoción vale todos los días.
                 </p>
+              </fieldset>
+
+              {/* El cumpleaños no es un día de la semana más: no se puede
+                  expresar con las casillas de arriba porque cambia para cada
+                  socio. Por eso va aparte y con su propia ventana. */}
+              <fieldset>
+                <legend className="mb-3 text-[0.68rem] font-medium tracking-[0.18em] text-bone-dim uppercase">
+                  Cumpleaños
+                </legend>
+
+                <CheckboxField
+                  label="Solo para el cumpleaños del socio"
+                  name="birthdayOnly"
+                  defaultChecked={promotion?.birthdayOnly ?? false}
+                  hint="Se habilita solo si el socio registró su fecha de nacimiento."
+                />
+
+                <div className="mt-4">
+                  <Field
+                    label="Días alrededor de la fecha"
+                    name="birthdayWindowDays"
+                    type="number"
+                    min={0}
+                    max={60}
+                    defaultValue={promotion?.birthdayWindowDays ?? 7}
+                    hint="7 significa una semana antes y una después. Nadie festeja necesariamente el mismo día: un cumpleaños de martes se celebra el viernes."
+                    error={state.errors?.birthdayWindowDays}
+                  />
+                </div>
               </fieldset>
             </div>
           </Panel>

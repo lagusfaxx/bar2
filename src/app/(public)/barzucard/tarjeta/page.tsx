@@ -86,6 +86,7 @@ export default async function MiTarjetaPage({
         promotion,
         card: { status: card.status },
         redemptionsForThisPromotion: usageByPromotion.get(promotion.id) ?? 0,
+        birthDate: member.birthDate,
       }).ok,
   );
 

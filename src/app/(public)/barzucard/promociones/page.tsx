@@ -42,7 +42,13 @@ export default async function PromocionesPage() {
   const card = session
     ? await prisma.barzuCard.findUnique({
         where: { memberId: session.memberId },
-        select: { id: true, status: true },
+        // La fecha de nacimiento viaja con la tarjeta porque las promociones de
+        // cumpleanos se habilitan contra ella.
+        select: {
+          id: true,
+          status: true,
+          member: { select: { birthDate: true } },
+        },
       })
     : null;
 
@@ -69,6 +75,7 @@ export default async function PromocionesPage() {
       promotion,
       card,
       redemptionsForThisPromotion: usageByPromotion.get(promotionId) ?? 0,
+      birthDate: card.member.birthDate,
     }).ok;
   };
 

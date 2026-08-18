@@ -161,9 +161,22 @@ export type EligibilityInput = {
     | "maxTotal"
     | "redeemedCount"
     | "availableWeekdays"
+    | "birthdayOnly"
+    | "birthdayWindowDays"
   >;
   card: { status: string };
   redemptionsForThisPromotion: number;
+  /*
+   * Fecha de nacimiento del socio.
+   *
+   * Obligatoria aunque casi ninguna promocion la use. Si fuera opcional, los
+   * nueve lugares que ya llamaban a esta funcion seguirian compilando sin
+   * pasarla y toda promocion de cumpleanos quedaria muda: nunca canjeable, sin
+   * error, sin aviso, y con el motivo escondido en un valor por defecto. Que el
+   * compilador obligue a decir `null` es la unica forma de que agregar un
+   * llamador nuevo no reviva ese silencio.
+   */
+  birthDate: Date | null;
   now?: Date;
 };
 
@@ -184,6 +197,7 @@ export function checkEligibility({
   promotion,
   card,
   redemptionsForThisPromotion,
+  birthDate,
   now = new Date(),
 }: EligibilityInput): Eligibility {
   if (card.status !== "ACTIVE") {
@@ -209,6 +223,25 @@ export function checkEligibility({
     }
   }
 
+  /*
+   * Promocion de cumpleanos.
+   *
+   * Se comprueba contra el dia y el mes, nunca contra el ano: la gracia es que
+   * se repita todos los anos. Y con una ventana de dias alrededor, porque nadie
+   * sale a celebrar necesariamente el mismo dia — un cumpleanos de martes se
+   * festeja el viernes, y un beneficio que vence a medianoche del martes no lo
+   * usa nadie.
+   */
+  if (promotion.birthdayOnly) {
+    if (!birthDate) {
+      return { ok: false, reason: "El socio no registro su fecha de nacimiento" };
+    }
+
+    if (!withinBirthdayWindow(birthDate, now, promotion.birthdayWindowDays)) {
+      return { ok: false, reason: "Solo para el cumpleanos del socio" };
+    }
+  }
+
   if (promotion.maxTotal > 0 && promotion.redeemedCount >= promotion.maxTotal) {
     return { ok: false, reason: "Se agotaron los cupos" };
   }
@@ -227,6 +260,77 @@ export function checkEligibility({
   }
 
   return { ok: true };
+}
+
+/**
+ * ¿Esta el socio de cumpleanos, con la ventana puesta?
+ *
+ * Se compara por dia de calendario y no por milisegundos. Restar fechas
+ * directamente parece equivalente y no lo es: el ancla del cumpleanos cae a
+ * medianoche y el momento actual cae a cualquier hora, asi que una ventana de
+ * cero dias —"solo el dia exacto"— no coincidia nunca, y un cumpleanos del 29
+ * de febrero en un ano no bisiesto tampoco.
+ *
+ * El "hoy" se toma en la hora del local y no en UTC. En Chile son tres o
+ * cuatro horas de diferencia: sin esto, entre medianoche y las cuatro de la
+ * manana —que en un bar es horario de trabajo— el sistema ya estaria en el dia
+ * siguiente y el cumpleanos del socio que tiene delante habria terminado.
+ *
+ * El dia y el mes salen de la fecha guardada tal cual, sin corregir por zona:
+ * es una fecha de calendario, no un instante. El 29 de febrero cae en el 1 de
+ * marzo los anos que no son bisiestos, que es lo que hace `Date` solo y
+ * tambien lo que hace el registro civil.
+ */
+export function withinBirthdayWindow(
+  birthDate: Date,
+  now: Date,
+  windowDays: number,
+) {
+  const hoy = venueCalendarDay(now);
+  const margen = Math.max(0, windowDays);
+
+  const dia = birthDate.getUTCDate();
+  const mes = birthDate.getUTCMonth();
+
+  /*
+   * Se prueba contra tres anos, no contra uno.
+   *
+   * Es lo que hace que la ventana sobreviva a Ano Nuevo: un cumpleanos del 2
+   * de enero tiene que seguir vigente el 30 de diciembre, y uno del 29 de
+   * diciembre el 3 de enero. Mirando solo el ano en curso, la ventana se corta
+   * al cambiar de ano.
+   */
+  const ano = new Date(hoy).getUTCFullYear();
+
+  return [ano - 1, ano, ano + 1].some((candidato) => {
+    const cumple = Date.UTC(candidato, mes, dia);
+    const dias = Math.round((hoy - cumple) / 86_400_000);
+
+    return Math.abs(dias) <= margen;
+  });
+}
+
+/**
+ * El dia de calendario del local, como marca de tiempo a medianoche UTC.
+ *
+ * Sirve de ancla comparable: dos fechas convertidas asi se restan y dan dias
+ * enteros, sin que la hora del dia meta ruido.
+ */
+function venueCalendarDay(date: Date) {
+  const timeZone = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
+
+  // en-CA da "2026-06-12", que es el unico formato que se parte sin ambiguedad.
+  const [ano, mes, dia] = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  })
+    .format(date)
+    .split("-")
+    .map(Number);
+
+  return Date.UTC(ano, mes - 1, dia);
 }
 
 /** Dia de la semana (0=domingo) en la zona horaria del local, no en UTC. */

@@ -161,6 +161,9 @@ export const promotionSchema = z
     maxPerCard: z.coerce.number().int().min(0).max(999).default(1),
     maxTotal: z.coerce.number().int().min(0).max(1_000_000).default(0),
     availableWeekdays: z.array(z.coerce.number().int().min(0).max(6)).default([]),
+    /* Solo para el cumpleanos del socio, con una ventana de dias alrededor. */
+    birthdayOnly: z.coerce.boolean().default(false),
+    birthdayWindowDays: z.coerce.number().int().min(0).max(60).default(7),
   })
   /*
    * Una promocion sin objetivo es una promocion que el POS no puede aplicar.

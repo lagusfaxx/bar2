@@ -36,7 +36,7 @@ export default async function VerificarTokenPage({
     prisma.barzuCard.findUnique({
       where: { qrToken: token },
       include: {
-        member: { select: { fullName: true, email: true } },
+        member: { select: { fullName: true, email: true, birthDate: true } },
         redemptions: {
           orderBy: { redeemedAt: "desc" },
           take: 5,
@@ -88,6 +88,7 @@ export default async function VerificarTokenPage({
           promotion,
           card: { status: card.status },
           redemptionsForThisPromotion: used,
+          birthDate: card.member.birthDate,
           now,
         });
 

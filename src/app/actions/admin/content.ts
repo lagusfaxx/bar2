@@ -260,6 +260,8 @@ export async function savePromotion(
     maxPerCard: input.maxPerCard,
     maxTotal: input.maxTotal,
     availableWeekdays: input.availableWeekdays,
+    birthdayOnly: input.birthdayOnly,
+    birthdayWindowDays: input.birthdayWindowDays,
   };
 
   if (promotionId) {

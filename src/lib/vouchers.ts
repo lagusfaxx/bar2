@@ -56,7 +56,9 @@ export async function lookupVoucher(where: Where): Promise<VoucherLookup | null>
         },
       },
       redemption: { select: { receiptCode: true } },
-      card: { include: { member: { select: { fullName: true } } } },
+      card: {
+        include: { member: { select: { fullName: true, birthDate: true } } },
+      },
     },
   });
 
@@ -83,6 +85,7 @@ export async function lookupVoucher(where: Where): Promise<VoucherLookup | null>
     promotion: voucher.promotion,
     card: voucher.card,
     redemptionsForThisPromotion: used,
+    birthDate: voucher.card.member.birthDate,
     now,
   });
 
