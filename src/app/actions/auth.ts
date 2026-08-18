@@ -16,7 +16,7 @@ import { sendEmail } from "@/lib/email";
 import { cardEmail } from "@/lib/email-templates";
 import { formError, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
-import { cardQrDataUrl } from "@/lib/qr";
+import { absoluteUrl } from "@/lib/utils";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import {
   fieldErrors,
@@ -188,7 +188,7 @@ export async function registerMember(
         loyaltyTitle: settings.loyaltyTitle,
         fullName: member.fullName,
         cardNumber: member.card.cardNumber,
-        qrDataUrl: await cardQrDataUrl(member.card.qrToken),
+        qrUrl: absoluteUrl(`/barzucard/qr/${member.card.qrToken}.png`),
         bienvenida: true,
       });
 

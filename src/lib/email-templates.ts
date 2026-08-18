@@ -99,10 +99,15 @@ export function contactNotification({
  * Sirve para el alta y para el reenvio a pedido, con el mismo cuerpo y distinto
  * encabezado: es la misma tarjeta y no hay razon para que se vean distinto.
  *
- * El QR va como imagen adjunta en linea (data URL). Varios clientes de correo
- * bloquean las imagenes remotas hasta que uno aprieta "mostrar imagenes", y un
- * QR que no se ve es una tarjeta que no sirve. Igual se incluye el numero en
- * texto, que es el respaldo cuando el QR no se puede leer.
+ * El QR va como imagen remota y no incrustada. Es al reves de lo que uno
+ * supone: una imagen `data:` dentro de un correo la descartan Gmail y Outlook
+ * enteras, sin ofrecer siquiera el boton de "mostrar imagenes", mientras que
+ * una remota si se muestra —Gmail la pasa por su proxy y la cachea—. Un QR
+ * que no se ve es una tarjeta que no sirve, asi que cuelga de una direccion:
+ * `/barzucard/qr/<token>.png`.
+ *
+ * El numero va ademas en texto, que es el respaldo para el cliente de correo
+ * que igual bloquee las imagenes.
  */
 export function cardEmail({
   barName,
@@ -110,13 +115,14 @@ export function cardEmail({
   loyaltyTitle,
   fullName,
   cardNumber,
-  qrDataUrl,
+  qrUrl,
   bienvenida,
 }: Marca & {
   loyaltyTitle: string;
   fullName: string;
   cardNumber: string;
-  qrDataUrl: string;
+  /** Direccion publica del PNG. Incrustarlo como `data:` no se ve en Gmail. */
+  qrUrl: string;
   /** Alta reciente, en vez de reenvio a pedido. */
   bienvenida: boolean;
 }) {
@@ -136,14 +142,14 @@ export function cardEmail({
           <div style="margin:0 0 4px;font:400 11px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:#c9a227;">${escapeHtml(loyaltyTitle)}</div>
           <div style="margin:0 0 18px;font:700 19px/1.3 Georgia,'Times New Roman',serif;color:#f4efe7;">${escapeHtml(fullName)}</div>
 
-          <img src="${qrDataUrl}" alt="Código QR de tu tarjeta" width="200" height="200" style="display:block;margin:0 auto;width:200px;height:200px;background:#ffffff;padding:10px;border-radius:4px;">
+          <img src="${qrUrl}" alt="Código QR de tu tarjeta" width="200" height="200" style="display:block;margin:0 auto;width:200px;height:200px;background:#ffffff;padding:10px;border-radius:4px;">
 
           <div style="margin:18px 0 0;font:400 15px/1 'Courier New',Courier,monospace;letter-spacing:.18em;color:#cdc5bb;">${escapeHtml(formateado)}</div>
         </td>
       </tr>
     </table>
 
-    ${emailP('<span style="color:#6b655e;font-size:14px;">Si el código no se ve, revisa que tu correo esté mostrando las imágenes. También sirve dictar el número de la tarjeta.</span>')}
+    ${emailP('<span style="color:#6b655e;font-size:14px;">Si el código no se ve, toca «Mostrar imágenes» arriba. También sirve dictar el número de la tarjeta en el local.</span>')}
 
     ${emailButton(absoluteUrl("/barzucard/tarjeta"), "Ver mi tarjeta y beneficios")}
   `;
