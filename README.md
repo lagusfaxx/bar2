@@ -491,6 +491,13 @@ pidió solo de una de las dos, sale solo ese papel. Al cobrar —la mesa complet
 o la cuenta de una sola persona— sale además el **resumen del cobro**, con el
 detalle, el total, la forma de pago y el número de comprobante.
 
+Ese papel se le pasa al cliente para que revise, así que bajo el total lleva
+la **propina sugerida del 10 %** y el **total con propina** ya sumado, más la
+línea de que es voluntaria. El TOTAL a pagar sigue siendo el único número en
+letra doble: una sugerencia impresa del mismo tamaño que el total se lee como
+el total, y eso ya no es sugerir. El porcentaje se cambia con
+`PRINT_TIP_PERCENT`, y en `0` el bloque no se imprime.
+
 Todos salen diferenciados a propósito, porque con una sola impresora caen por
 la misma ranura: cada uno lleva una banda negra con su destino en letra doble
 y una textura propia alrededor (`#` cocina, `*` barra, `$` cobro), que se
@@ -574,6 +581,7 @@ en medio de él.
 | `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
 | `PRINT_GAP_MS` | Pausa entre dos papeles seguidos de la misma impresora. Por defecto 3000. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
+| `PRINT_TIP_PERCENT` | Propina sugerida que se imprime en el papel del cliente. Por defecto 10. En `0` no se imprime. |
 
 Cada impresora se indica como **ruta** si está por USB (`/dev/usb/lp0`,
 `\\localhost\POS80`) o como **dirección de red** si es de red (`192.168.1.50`

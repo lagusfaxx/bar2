@@ -513,8 +513,12 @@ F.append(step(10, "Cobrar",
               "Elige cómo paga (efectivo, débito, crédito o transferencia) y "
               "toca <b>Cobrar</b>. Sale el número de comprobante y se imprime "
               "el papel del cliente.",
-              nota=("La propina no se pone acá.",
-                    "La deja el cliente en la máquina, como siempre.")))
+              nota=("La propina ya va impresa.",
+                    "El papel del cliente muestra el <b>TOTAL</b> y, debajo, "
+                    "la <b>propina sugerida del 10%</b> y el <b>total con "
+                    "propina</b> ya sumado, con la frase de que es voluntaria. "
+                    "Tú no la cargas en el sistema: el cliente la deja en la "
+                    "máquina o en efectivo.")))
 
 F.append(step(11, "Cerrar la mesa",
               "Justo después de cobrar la mesa completa, ahí mismo te aparecen "

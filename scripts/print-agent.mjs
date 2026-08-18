@@ -62,6 +62,19 @@ const CONFIG = {
    * distintas no se espera: ahi no hay nada que se encime.
    */
   gapMs: Number(process.env.PRINT_GAP_MS ?? 3000),
+  /*
+   * Propina sugerida en el papel del cliente, en porcentaje.
+   *
+   * El papel del cobro se le pasa al cliente para que revise el total, asi que
+   * ademas del total va la suma con la propina ya hecha: es la cuenta que
+   * igual iba a hacer de cabeza o preguntando. En Chile el 10% es lo
+   * acostumbrado y es voluntario — el papel lo dice con todas las letras y el
+   * TOTAL a pagar sigue siendo el numero grande, para que nadie confunda una
+   * sugerencia con lo que debe.
+   *
+   * En 0 el bloque no se imprime.
+   */
+  tipPercent: Number(process.env.PRINT_TIP_PERCENT ?? 10),
 };
 
 if (!CONFIG.token) {
@@ -424,6 +437,32 @@ function renderCobro(ticket) {
   parts.push(CMD.doubleOn, CMD.boldOn);
   parts.push(fila("TOTAL", money(pago.totalCents), Math.floor(CONFIG.width / 2)));
   parts.push(CMD.doubleOff, CMD.boldOff);
+
+  /*
+   * La propina, ya sumada.
+   *
+   * Va debajo del total y en letra normal, no en doble: el numero grande tiene
+   * que seguir siendo lo que el cliente debe. Una sugerencia impresa del mismo
+   * tamano que el total se lee como el total, y eso ya no es sugerir.
+   *
+   * Se imprime la propina sola y la suma final, porque son las dos cosas que
+   * el cliente quiere ver: cuanto es el diez por ciento y cuanto le queda
+   * pagando si lo deja.
+   */
+  if (CONFIG.tipPercent > 0) {
+    const propina = Math.round((pago.totalCents * CONFIG.tipPercent) / 100);
+
+    parts.push(text(""));
+    parts.push(fila(`Propina sugerida (${CONFIG.tipPercent}%)`, money(propina)));
+
+    parts.push(CMD.boldOn);
+    parts.push(fila("TOTAL CON PROPINA", money(pago.totalCents + propina)));
+    parts.push(CMD.boldOff);
+
+    // Decirlo es lo correcto y ademas es lo que corresponde: la propina es
+    // voluntaria y el papel no puede dar a entender otra cosa.
+    parts.push(text("La propina es voluntaria"));
+  }
 
   parts.push(rule("="));
   parts.push(fila("Pago", METODOS[pago.method] ?? pago.method));
