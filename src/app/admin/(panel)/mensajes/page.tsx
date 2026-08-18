@@ -6,6 +6,7 @@ import {
   setMessageRead,
 } from "@/app/actions/admin/content";
 import { ActionButton } from "@/components/admin/action-button";
+import { MessageReply } from "@/components/admin/message-reply";
 import { AdminHeader, EmptyState, Panel } from "@/components/admin/ui";
 import { Badge } from "@/components/ui/section";
 import { formatDateTime } from "@/lib/format";
@@ -23,8 +24,28 @@ export default async function AdminMensajesPage({
 
   const messages = await prisma.contactMessage.findMany({
     where: { archived: showArchived },
-    orderBy: [{ read: "asc" }, { createdAt: "desc" }],
+    /*
+     * Primero lo que falta contestar.
+     *
+     * Antes ordenaba por leido, y eso escondia el caso que importa: un mensaje
+     * leido y sin responder queda mas abajo que uno recien llegado, aunque sea
+     * el que lleva tres dias esperando. Sin responder va arriba de todo.
+     */
+    orderBy: [
+      // `nulls: "first"` no es adorno: en Postgres los nulos ordenan al final
+      // con ASC, asi que sin esto los mensajes sin responder —que son
+      // justamente los que hay que ver— quedarian ultimos.
+      { answeredAt: { sort: "asc", nulls: "first" } },
+      { read: "asc" },
+      { createdAt: "desc" },
+    ],
     take: 200,
+    include: {
+      replies: {
+        orderBy: { createdAt: "asc" },
+        include: { sentBy: { select: { name: true } } },
+      },
+    },
   });
 
   return (
@@ -74,6 +95,7 @@ export default async function AdminMensajesPage({
                   <div className="flex flex-wrap items-center gap-3">
                     <p className="text-sm text-bone">{message.name}</p>
                     {!message.read && <Badge tone="crimson">Sin leer</Badge>}
+                    {message.answeredAt && <Badge tone="muted">Respondido</Badge>}
                     {message.subject && (
                       <Badge tone="muted">{message.subject}</Badge>
                     )}
@@ -103,6 +125,19 @@ export default async function AdminMensajesPage({
                   <p className="mt-3 text-xs text-muted-dark">
                     {formatDateTime(message.createdAt)}
                   </p>
+
+                  <MessageReply
+                    messageId={message.id}
+                    clienteEmail={message.email}
+                    replies={message.replies.map((reply) => ({
+                      id: reply.id,
+                      body: reply.body,
+                      autor: reply.sentBy?.name ?? null,
+                      fecha: formatDateTime(reply.createdAt),
+                      fallida: reply.status === "FAILED",
+                      error: reply.error,
+                    }))}
+                  />
                 </div>
 
                 <div className="flex shrink-0 items-center gap-1.5">

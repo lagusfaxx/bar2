@@ -1,7 +1,13 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { requireAdmin, requireCmsUser, hashPassword } from "@/lib/auth";
 import { revalidateContent } from "@/lib/cache";
+import { getSettings } from "@/lib/content";
+import { destinatariosDeAviso, sendEmail } from "@/lib/email";
+import { contactReplyEmail } from "@/lib/email-templates";
+import { formatDateTime } from "@/lib/format";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
 import {
@@ -13,6 +19,7 @@ import {
 } from "@/lib/uploads";
 import { uniqueSlug } from "@/lib/utils";
 import {
+  contactReplySchema,
   fieldErrors,
   galleryImageSchema,
   openingHourSchema,
@@ -516,6 +523,110 @@ export async function deleteRating(id: string) {
 export async function setMessageRead(id: string, read: boolean) {
   await requireCmsUser();
   await prisma.contactMessage.update({ where: { id }, data: { read } });
+}
+
+/**
+ * Responde un mensaje del formulario y le manda el correo al cliente.
+ *
+ * El texto se guarda ademas de enviarse. Sin eso, lo unico que queda de la
+ * conversacion es un correo en la casilla de quien escribio: nadie mas del
+ * equipo sabe que ya se respondio ni que se le prometio, y asi es como se
+ * termina contestando dos veces cosas distintas al mismo cliente.
+ *
+ * El mensaje queda marcado como respondido y como leido: responder algo sin
+ * haberlo leido no existe.
+ */
+export async function replyToMessage(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await requireCmsUser();
+
+  const parsed = contactReplySchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Revisa la respuesta.", fieldErrors(parsed.error));
+  }
+
+  const { messageId, body } = parsed.data;
+
+  const message = await prisma.contactMessage.findUnique({
+    where: { id: messageId },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      message: true,
+      createdAt: true,
+    },
+  });
+
+  if (!message) return formError("Ese mensaje ya no existe.");
+
+  const settings = await getSettings();
+
+  const { subject, html } = contactReplyEmail({
+    barName: settings.barName,
+    logoUrl: settings.logoUrl,
+    nombre: message.name,
+    respuesta: body,
+    mensajeOriginal: message.message,
+    fechaOriginal: formatDateTime(message.createdAt),
+    // Firma con el nombre de quien responde: una consulta contestada por una
+    // persona con nombre se lee distinto que una contestada por "el sistema".
+    firma: session.name,
+  });
+
+  /*
+   * A donde contesta el cliente.
+   *
+   * Al correo publico del local, no al remitente tecnico. Una respuesta abre
+   * conversacion —"perfecto, ¿y para catorce personas?"— y esa vuelta tiene que
+   * caer en una casilla que alguien lee. Si no hay correo publico configurado,
+   * sirve la primera casilla de aviso.
+   */
+  const responderA =
+    settings.email || destinatariosDeAviso(settings.notifyEmails)[0];
+
+  const resultado = await sendEmail({
+    to: message.email,
+    subject,
+    html,
+    kind: "CONTACTO",
+    ...(responderA ? { replyTo: responderA } : {}),
+  });
+
+  /*
+   * La respuesta se guarda aunque el correo falle.
+   *
+   * Guardar solo los envios exitosos dejaria a quien respondio sin rastro de lo
+   * que escribio: tendria que redactarlo de nuevo de memoria. Queda anotada con
+   * su motivo de fallo, a la vista, para poder reintentarla.
+   */
+  await prisma.contactReply.create({
+    data: {
+      messageId: message.id,
+      body,
+      sentById: session.userId,
+      status: resultado.ok ? "SENT" : "FAILED",
+      error: resultado.ok ? null : resultado.error,
+    },
+  });
+
+  if (resultado.ok) {
+    await prisma.contactMessage.update({
+      where: { id: message.id },
+      data: { answeredAt: new Date(), read: true },
+    });
+  }
+
+  revalidatePath("/admin/mensajes");
+
+  return resultado.ok
+    ? formSuccess(`Respuesta enviada a ${message.email}.`)
+    : formError(
+        `Se guardó tu respuesta pero el correo no salió: ${resultado.error}`,
+      );
 }
 
 export async function archiveMessage(id: string) {

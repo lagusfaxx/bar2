@@ -40,6 +40,7 @@ model User {
   closedDays     ClosedDay[]    @relation("ClosedDayCreatedBy")
   payments       Payment[]      @relation("PaymentCashier")
   karaokeEntries KaraokeEntry[] @relation("KaraokeQueuedBy")
+  contactReplies ContactReply[] @relation("ContactReplyAuthor")
 
   @@index([role])
   @@map("users")
@@ -699,8 +700,53 @@ model ContactMessage {
   archived  Boolean  @default(false)
   createdAt DateTime @default(now())
 
+  /**
+   * Cuando se le respondio por ultima vez.
+   * Se guarda aparte de las respuestas para poder ordenar y filtrar la bandeja
+   * sin traerlas todas: lo que hay que ver de un vistazo es cuales quedan sin
+   * contestar, que es distinto de cuales quedan sin leer. Un mensaje leido y no
+   * respondido es justamente el que se pierde.
+   */
+  answeredAt DateTime?
+
+  replies ContactReply[]
+
   @@index([read, createdAt])
+  @@index([answeredAt])
   @@map("contact_messages")
+}
+
+/**
+ * Una respuesta a un mensaje del formulario.
+ * Se guarda el texto ademas de mandarlo. Sin esto, lo unico que queda de la
+ * conversacion es un correo en la casilla de quien lo escribio, y el resto del
+ * equipo no tiene forma de saber que ya se respondio ni que se prometio — que
+ * es como se termina contestando dos veces cosas distintas al mismo cliente.
+ */
+model ContactReply {
+  id String @id @default(cuid())
+
+  messageId String
+  message   ContactMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  body String @db.Text
+
+  /**
+   * Quien respondio. Queda en null si despues se elimina su usuario.
+   */
+  sentById String?
+  sentBy   User?   @relation("ContactReplyAuthor", fields: [sentById], references: [id], onDelete: SetNull)
+
+  /**
+   * Si el correo salio de verdad. Una respuesta que no llego no es una respuesta.
+   */
+  status EmailStatus @default(SENT)
+  error  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([messageId, createdAt])
+  @@map("contact_replies")
 }
 
 // ---------------------------------------------------------------------------

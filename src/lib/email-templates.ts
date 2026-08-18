@@ -74,9 +74,9 @@ export function contactNotification({
       <div style="color:#232025;">${escapeMultiline(mensaje)}</div>
     </div>
 
-    ${emailP('<span style="color:#6b655e;font-size:14px;">Responde este correo y le llega directo a quien escribió.</span>')}
+    ${emailP('<span style="color:#6b655e;font-size:14px;">Responde este correo y le llega directo a quien escribió. O contéstale desde el panel, que además deja la respuesta guardada para el resto del equipo.</span>')}
 
-    ${emailButton(absoluteUrl("/admin/mensajes"), "Ver en el panel")}
+    ${emailButton(absoluteUrl("/admin/mensajes"), "Responder desde el panel")}
   `;
 
   return {
@@ -164,6 +164,70 @@ export function cardEmail({
       titulo: bienvenida ? `¡Bienvenido, ${fullName.split(" ")[0] ?? fullName}!` : "Tu tarjeta",
       cuerpo,
       pie: `${escapeHtml(barName)} · Guarda este correo para tener tu tarjeta siempre a mano.`,
+    }),
+  };
+}
+
+/**
+ * La respuesta del local a quien escribio por la web.
+ *
+ * Lleva citado abajo el mensaje original. Puede pasar una semana entre la
+ * consulta y la respuesta, y para entonces quien pregunto ya no se acuerda de
+ * como lo pregunto: sin la cita, la respuesta llega sin contexto y obliga a ir
+ * a buscar el correo propio.
+ *
+ * El `replyTo` apunta a la casilla de contacto del local, no al remitente
+ * tecnico: si el cliente contesta —y contesta seguido, porque una respuesta
+ * abre conversacion— tiene que caer en una casilla que alguien lee.
+ */
+export function contactReplyEmail({
+  barName,
+  logoUrl,
+  nombre,
+  respuesta,
+  mensajeOriginal,
+  fechaOriginal,
+  firma,
+}: Marca & {
+  nombre: string;
+  respuesta: string;
+  mensajeOriginal: string;
+  fechaOriginal: string;
+  /** Quien contesta, para que la respuesta la firme una persona y no un sistema. */
+  firma: string | null;
+}) {
+  const cuerpo = `
+    ${emailP(`Hola ${escapeHtml(nombre.split(" ")[0] ?? nombre)},`)}
+
+    <div style="color:#232025;">${escapeMultiline(respuesta)}</div>
+
+    ${
+      firma
+        ? emailP(
+            `<span style="color:#6b655e;">${escapeHtml(firma)}<br>${escapeHtml(barName)}</span>`,
+          )
+        : ""
+    }
+
+    <div style="margin:32px 0 0;padding:16px 18px;background:#f6f3ee;border-left:3px solid #d8d2c9;">
+      <div style="margin:0 0 8px;font-size:12px;color:#6b655e;">
+        Tu mensaje del ${escapeHtml(fechaOriginal)}
+      </div>
+      <div style="color:#6b655e;font-size:14px;">${escapeMultiline(mensajeOriginal)}</div>
+    </div>
+  `;
+
+  return {
+    // "Re:" delante: es la convencion que hace que el cliente de correo lo
+    // agrupe con lo que el mismo escribio, y que se lea como una respuesta y no
+    // como un correo suelto del local.
+    subject: `Re: tu mensaje a ${barName}`,
+    html: emailLayout({
+      barName,
+      logoUrl,
+      titulo: `Te respondemos`,
+      cuerpo,
+      pie: `${escapeHtml(barName)} · Puedes responder este correo si necesitas algo más.`,
     }),
   };
 }
