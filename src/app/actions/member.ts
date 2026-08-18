@@ -14,7 +14,6 @@ import {
   hashToken,
 } from "@/lib/password-reset";
 import { prisma } from "@/lib/prisma";
-import { cardQrDataUrl } from "@/lib/qr";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { absoluteUrl } from "@/lib/utils";
 import { fieldErrors, passwordResetSchema, requestResetSchema } from "@/lib/validation";
@@ -194,7 +193,7 @@ export async function sendMyCard(): Promise<FormState> {
     loyaltyTitle: settings.loyaltyTitle,
     fullName: member.fullName,
     cardNumber: member.card.cardNumber,
-    qrDataUrl: await cardQrDataUrl(member.card.qrToken),
+    qrUrl: absoluteUrl(`/barzucard/qr/${member.card.qrToken}.png`),
     bienvenida: false,
   });
 
