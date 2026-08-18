@@ -11,8 +11,12 @@ import {
   verifyPassword,
 } from "@/lib/auth";
 import { generateCardNumber, generateQrToken } from "@/lib/barzucard";
+import { getSettings } from "@/lib/content";
+import { sendEmail } from "@/lib/email";
+import { cardEmail } from "@/lib/email-templates";
 import { formError, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
+import { cardQrDataUrl } from "@/lib/qr";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import {
   fieldErrors,
@@ -155,8 +159,50 @@ export async function registerMember(
         },
       },
     },
-    select: { id: true, email: true, fullName: true },
+    select: {
+      id: true,
+      email: true,
+      fullName: true,
+      card: { select: { cardNumber: true, qrToken: true } },
+    },
   });
+
+  /*
+   * La tarjeta, al correo, apenas se emite.
+   *
+   * Es lo que hace que la BarzuCard sobreviva a cerrar la pestaña. Sin esto la
+   * tarjeta existia solo mientras durara la sesion: el socio se registraba en
+   * el local, veia su QR una vez y a la semana siguiente no sabia como volver
+   * a encontrarlo.
+   *
+   * Va dentro de un try porque lo que sigue es un redirect, y una excepcion de
+   * correo aca dejaria al socio recien creado mirando una pantalla de error
+   * sobre una cuenta que en realidad si se creo.
+   */
+  try {
+    if (member.card) {
+      const settings = await getSettings();
+      const { subject, html } = cardEmail({
+        barName: settings.barName,
+        logoUrl: settings.logoUrl,
+        loyaltyTitle: settings.loyaltyTitle,
+        fullName: member.fullName,
+        cardNumber: member.card.cardNumber,
+        qrDataUrl: await cardQrDataUrl(member.card.qrToken),
+        bienvenida: true,
+      });
+
+      await sendEmail({
+        to: member.email,
+        subject,
+        html,
+        kind: "BIENVENIDA",
+        memberId: member.id,
+      });
+    }
+  } catch {
+    // El alta ya esta hecha: el correo se reintenta desde "Recibir por correo".
+  }
 
   await createMemberSession({
     memberId: member.id,

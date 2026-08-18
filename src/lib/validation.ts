@@ -33,6 +33,17 @@ export const memberRegisterSchema = z.object({
   }),
 });
 
+/** Pedir el enlace para volver a entrar. */
+export const requestResetSchema = z.object({
+  email: emailSchema,
+});
+
+/** Elegir la contrasena nueva desde el enlace del correo. */
+export const passwordResetSchema = z.object({
+  token: trimmed.min(20).max(200),
+  password: passwordSchema,
+});
+
 // --- Eventos -----------------------------------------------------------------
 
 export const eventCategorySchema = z.enum([
