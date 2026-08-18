@@ -71,7 +71,15 @@ demoras, ventas, ocupación y avisos de lo que hay que ir a resolver. Ver
   una banda de «Evento privado» cruzada encima: quien lo mira entiende que no
   se entra comprando entrada, y de paso se entera de que el local se arrienda.
 - **Reseñas**: moderación de las calificaciones antes de publicarlas.
-- **Mensajes**: bandeja del formulario de contacto.
+- **Mensajes**: bandeja del formulario de contacto, con **respuesta por
+  correo desde el propio panel**. La respuesta le llega al cliente con su
+  mensaje original citado abajo —entre la consulta y la respuesta puede
+  pasar una semana, y para entonces ya no se acuerda de cómo preguntó— y
+  queda guardada en el hilo: sin eso, lo único que sobrevive de la
+  conversación es un correo en la casilla del cliente y el resto del equipo
+  no sabe qué se prometió. Los mensajes sin responder van primero en la
+  bandeja, que es distinto de los sin leer: el que se pierde es el que
+  alguien leyó y nadie contestó.
 - **Ajustes**: identidad, portada (imagen horizontal, imagen vertical para el
   teléfono y video de fondo), textos de cada bloque
   del inicio, nosotros, contacto, SEO, redes, horarios y precio, datos de

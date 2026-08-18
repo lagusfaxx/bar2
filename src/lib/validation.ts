@@ -44,6 +44,14 @@ export const passwordResetSchema = z.object({
   password: passwordSchema,
 });
 
+/** Respuesta del panel a un mensaje del formulario. */
+export const contactReplySchema = z.object({
+  messageId: trimmed.min(1),
+  body: trimmed
+    .min(4, "Escribe la respuesta")
+    .max(5000, "La respuesta es demasiado larga"),
+});
+
 /** Una campana de correo. */
 export const campaignSchema = z.object({
   name: trimmed.min(2, "Ponle un nombre para encontrarla").max(120),
