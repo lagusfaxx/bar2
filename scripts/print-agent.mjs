@@ -472,9 +472,29 @@ function renderCobro(ticket) {
     parts.push(text(""));
     parts.push(fila(`Propina sugerida (${CONFIG.tipPercent}%)`, money(propina)));
 
-    parts.push(CMD.boldOn);
-    parts.push(fila("TOTAL CON PROPINA", money(pago.totalCents + propina)));
-    parts.push(CMD.boldOff);
+    /*
+     * La suma final, del mismo tamano que el total.
+     *
+     * Salio primero en letra normal para que el numero grande siguiera siendo
+     * lo que el cliente debe, y en el papel impreso quedo chico al lado del
+     * TOTAL: se leia como una nota al pie justo cuando es lo que el cliente
+     * saca la calculadora para averiguar.
+     *
+     * Que los dos numeros midan lo mismo no los confunde mientras los rotulos
+     * no dejen dudas, y son estos dos los que hacen ese trabajo: TOTAL a secas
+     * es lo que se debe, CON PROPINA es lo otro. El rotulo va corto a
+     * proposito: en letra doble entran la mitad de caracteres, y "TOTAL CON
+     * PROPINA" mas el importe no caben en un renglon de 80mm.
+     */
+    parts.push(CMD.doubleOn, CMD.boldOn);
+    parts.push(
+      fila(
+        "CON PROPINA",
+        money(pago.totalCents + propina),
+        Math.floor(CONFIG.width / 2),
+      ),
+    );
+    parts.push(CMD.doubleOff, CMD.boldOff);
 
     // Decirlo es lo correcto y ademas es lo que corresponde: la propina es
     // voluntaria y el papel no puede dar a entender otra cosa.

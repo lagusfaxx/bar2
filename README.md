@@ -493,10 +493,12 @@ detalle, el total, la forma de pago y el número de comprobante.
 
 Ese papel se le pasa al cliente para que revise, así que bajo el total lleva
 la **propina sugerida del 10 %** y el **total con propina** ya sumado, más la
-línea de que es voluntaria. El TOTAL a pagar sigue siendo el único número en
-letra doble: una sugerencia impresa del mismo tamaño que el total se lee como
-el total, y eso ya no es sugerir. El porcentaje se cambia con
-`PRINT_TIP_PERCENT`, y en `0` el bloque no se imprime.
+línea de que es voluntaria. Los dos importes van en letra doble —en letra
+normal el de la propina quedaba como una nota al pie, justo lo que el cliente
+saca la calculadora para averiguar— y lo que evita confundirlos son los
+rótulos: **TOTAL** a secas es lo que se debe, **CON PROPINA** es lo otro. El
+porcentaje se cambia con `PRINT_TIP_PERCENT`, y en `0` el bloque no se
+imprime.
 
 Todos salen diferenciados a propósito, porque con una sola impresora caen por
 la misma ranura: cada uno lleva una banda negra con su destino en letra doble
