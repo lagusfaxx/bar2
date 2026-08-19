@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { requireCmsUser } from "@/lib/auth";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
-import { fieldErrors, posTableSchema } from "@/lib/validation";
+import { fieldErrors, posTableSchema, posZoneSchema } from "@/lib/validation";
 
 import { recordAudit } from "./audit";
 
@@ -28,7 +28,7 @@ export async function saveTable(
     return formError("Revisa los datos de la mesa.", fieldErrors(parsed.error));
   }
 
-  const { id, number, name, zone, seats, active } = parsed.data;
+  const { id, number, name, zoneId, seats, active } = parsed.data;
 
   const repetida = await prisma.posTable.findUnique({
     where: { number },
@@ -41,10 +41,16 @@ export async function saveTable(
     });
   }
 
+  // Una zona que se borro entremedio no puede dejar la mesa sin guardar: se
+  // guarda igual, suelta, y quien administra la vuelve a asignar.
+  const zona = zoneId
+    ? await prisma.posZone.findUnique({ where: { id: zoneId }, select: { id: true } })
+    : null;
+
   const data = {
     number,
     name: name || null,
-    zone: zone || null,
+    zoneId: zona?.id ?? null,
     seats,
     active,
   };
@@ -162,4 +168,122 @@ export async function deleteTable(id: string): Promise<FormState> {
 
   refresh();
   return formSuccess(`Mesa ${table.number} eliminada.`);
+}
+
+// --- Zonas del salon ---------------------------------------------------------
+
+/**
+ * Alta y edicion de zonas.
+ *
+ * Una zona es una parte del salon —"Salón", "Terraza", "Barra"— y sirve para
+ * dos cosas distintas: que el mapa de sala se lea por secciones en vez de ser
+ * treinta casillas iguales, y que un garzon pueda mirar solo la suya.
+ */
+export async function saveZone(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const session = await requireCmsUser();
+
+  const parsed = posZoneSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Revisa los datos de la zona.", fieldErrors(parsed.error));
+  }
+
+  const { id, name, color, active } = parsed.data;
+
+  const repetida = await prisma.posZone.findUnique({
+    where: { name },
+    select: { id: true },
+  });
+
+  if (repetida && repetida.id !== id) {
+    return formError(`Ya existe la zona "${name}".`, { name: "Nombre repetido" });
+  }
+
+  const data = { name, color: color || null, active };
+
+  if (id) {
+    await prisma.posZone.update({ where: { id }, data });
+  } else {
+    const last = await prisma.posZone.findFirst({
+      orderBy: { position: "desc" },
+      select: { position: true },
+    });
+
+    await prisma.posZone.create({
+      data: { ...data, position: (last?.position ?? -1) + 1 },
+    });
+  }
+
+  await recordAudit(
+    session.userId,
+    id ? "update" : "create",
+    "PosZone",
+    id ?? undefined,
+    `Zona ${name}`,
+  );
+
+  refresh();
+  return formSuccess(`Zona "${name}" guardada.`);
+}
+
+/**
+ * Borra una zona.
+ *
+ * Las mesas que estaban en ella no se tocan: quedan sueltas, arriba de todo en
+ * el mapa, hasta que se les asigne otra. Perder una zona no puede significar
+ * perder mesas del salon.
+ */
+export async function deleteZone(id: string): Promise<FormState> {
+  const session = await requireCmsUser();
+
+  const zone = await prisma.posZone.findUnique({
+    where: { id },
+    select: { name: true, _count: { select: { tables: true } } },
+  });
+
+  if (!zone) return formError("Esa zona ya no está.");
+
+  await prisma.posZone.delete({ where: { id } });
+
+  await recordAudit(session.userId, "delete", "PosZone", id, `Zona ${zone.name}`);
+
+  refresh();
+  return formSuccess(
+    zone._count.tables > 0
+      ? `Zona "${zone.name}" eliminada. Sus ${zone._count.tables} mesa(s) quedaron sin zona.`
+      : `Zona "${zone.name}" eliminada.`,
+  );
+}
+
+/** Sube o baja una zona en el mapa de sala. */
+export async function moveZone(id: string, direction: "up" | "down"): Promise<FormState> {
+  await requireCmsUser();
+
+  const zones = await prisma.posZone.findMany({
+    orderBy: [{ position: "asc" }, { name: "asc" }],
+    select: { id: true, position: true },
+  });
+
+  const index = zones.findIndex((zone) => zone.id === id);
+  if (index === -1) return formError("Esa zona ya no está.");
+
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (target < 0 || target >= zones.length) return formSuccess("Ya estaba ahí.");
+
+  // Se reescriben todas las posiciones: las heredadas del texto libre pueden
+  // venir repetidas, y ahi intercambiar dos numeros iguales no mueve nada.
+  const ordenadas = [...zones];
+  [ordenadas[index], ordenadas[target]] = [ordenadas[target], ordenadas[index]];
+
+  await prisma.$transaction(
+    ordenadas.map((zone, position) =>
+      prisma.posZone.update({ where: { id: zone.id }, data: { position } }),
+    ),
+  );
+
+  refresh();
+  return formSuccess("Zonas reordenadas.");
 }

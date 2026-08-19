@@ -386,9 +386,31 @@ export const posTableSchema = z.object({
   id: trimmed.max(40).optional().or(z.literal("")),
   number: z.coerce.number().int().min(1, "Numero de mesa").max(999),
   name: trimmed.max(60).optional().or(z.literal("")),
-  zone: trimmed.max(40).optional().or(z.literal("")),
+  // Vacio = mesa suelta, sin zona. El mapa de sala la agrupa aparte.
+  zoneId: trimmed.max(40).optional().or(z.literal("")),
   seats: z.coerce.number().int().min(1).max(40).default(4),
   active: z.coerce.boolean().default(true),
+});
+
+export const posZoneSchema = z.object({
+  id: trimmed.max(40).optional().or(z.literal("")),
+  name: trimmed.min(2, "Nombre de la zona").max(40),
+  color: trimmed.max(20).optional().or(z.literal("")),
+  active: z.coerce.boolean().default(true),
+});
+
+/** Reasignar la mesa. Sin `userId`, queda sin garzon a cargo. */
+export const posSessionWaiterSchema = z.object({
+  sessionId: trimmed.min(1),
+  userId: trimmed.max(40).optional().or(z.literal("")),
+});
+
+/** La etiqueta de la mesa. Vacia = se saca. */
+export const posSessionTagSchema = z.object({
+  sessionId: trimmed.min(1),
+  // Corta a proposito: tiene que leerse dentro de la casilla de la mesa.
+  tag: trimmed.max(24, "Máximo 24 caracteres").optional().or(z.literal("")),
+  color: trimmed.max(20).optional().or(z.literal("")),
 });
 
 // --- Karaoke -----------------------------------------------------------------

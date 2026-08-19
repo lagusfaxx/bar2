@@ -229,7 +229,12 @@ export async function getKaraokeTables() {
   return prisma.posTable.findMany({
     where: { active: true },
     orderBy: [{ position: "asc" }, { number: "asc" }],
-    select: { id: true, number: true, name: true, zone: true },
+    select: {
+      id: true,
+      number: true,
+      name: true,
+      zone: { select: { name: true } },
+    },
   });
 }
 

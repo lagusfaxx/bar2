@@ -282,11 +282,17 @@ export async function getStationBoard(
 
 // --- Mesas -------------------------------------------------------------------
 
+export type ZoneSummary = {
+  id: string;
+  name: string;
+  color: string | null;
+};
+
 export type TableOverview = {
   id: string;
   number: number;
   name: string | null;
-  zone: string | null;
+  zone: ZoneSummary | null;
   seats: number;
   session: {
     id: string;
@@ -294,6 +300,12 @@ export type TableOverview = {
     openedAt: string;
     guests: number;
     diners: number;
+    /** Quien esta atendiendo la mesa ahora. */
+    waiter: { id: string; name: string } | null;
+    /** Etiqueta de la mesa, tal como se escribio: "Cumpleaños", "Reservada". */
+    tag: string | null;
+    /** Clave de color de esa etiqueta (ver TAG_COLORS). */
+    tagColor: string | null;
     /** Lineas cargadas que todavia no salieron en ninguna comanda. */
     draftItems: number;
     /** A donde iria ese pedido si se mandara ahora. Vacio si no hay nada. */
@@ -304,17 +316,46 @@ export type TableOverview = {
   } | null;
 };
 
+/**
+ * Los garzones entre los que se reparte la sala.
+ *
+ * Es la lista que se abre para decir quien atiende una mesa. Van todos los
+ * usuarios activos del panel y no solo los de rol STAFF: en un bar chico el
+ * dueño tambien atiende mesas, y si no aparece en la lista la mesa queda a
+ * nombre de nadie.
+ */
+export async function getStaffMembers(): Promise<
+  Array<{ id: string; name: string }>
+> {
+  return prisma.user.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true },
+  });
+}
+
+/** Las zonas del salon, en el orden en que se ven en el mapa. */
+export async function getZones(): Promise<ZoneSummary[]> {
+  return prisma.posZone.findMany({
+    where: { active: true },
+    orderBy: [{ position: "asc" }, { name: "asc" }],
+    select: { id: true, name: true, color: true },
+  });
+}
+
 /** Estado de todas las mesas activas: lo primero que ve el garzon al entrar. */
 export async function getTablesOverview(): Promise<TableOverview[]> {
   const tables = await prisma.posTable.findMany({
     where: { active: true },
     orderBy: [{ position: "asc" }, { number: "asc" }],
     include: {
+      zone: { select: { id: true, name: true, color: true } },
       sessions: {
         where: { status: "OPEN" },
         orderBy: { openedAt: "desc" },
         take: 1,
         include: {
+          attendedBy: { select: { id: true, name: true } },
           diners: { select: { id: true } },
           items: {
             where: { status: { not: "CANCELLED" } },
@@ -352,6 +393,11 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
             openedAt: session.openedAt.toISOString(),
             guests: session.guests,
             diners: session.diners.length,
+            waiter: session.attendedBy
+              ? { id: session.attendedBy.id, name: session.attendedBy.name }
+              : null,
+            tag: session.tag,
+            tagColor: session.tagColor,
             draftItems: session.items.filter((item) => item.status === "DRAFT")
               .length,
             draftStations: [
@@ -435,7 +481,16 @@ export type SessionDetail = {
   guests: number;
   note: string | null;
   openedAt: string;
-  table: { id: string; number: number; name: string | null };
+  table: {
+    id: string;
+    number: number;
+    name: string | null;
+    zone: ZoneSummary | null;
+  };
+  /** Quien atiende la mesa ahora; arranca siendo quien la abrio. */
+  waiter: { id: string; name: string } | null;
+  tag: string | null;
+  tagColor: string | null;
   /** Sin tarjeta no hay beneficios: es la condicion de todo el programa. */
   card: SessionCard | null;
   diners: Array<{ id: string; label: string; color: string | null }>;
@@ -478,7 +533,15 @@ export async function getSessionDetail(
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
     include: {
-      table: { select: { id: true, number: true, name: true } },
+      table: {
+        select: {
+          id: true,
+          number: true,
+          name: true,
+          zone: { select: { id: true, name: true, color: true } },
+        },
+      },
+      attendedBy: { select: { id: true, name: true } },
       diners: { orderBy: { position: "asc" } },
       items: {
         orderBy: { createdAt: "asc" },
@@ -594,6 +657,11 @@ export async function getSessionDetail(
     note: session.note,
     openedAt: session.openedAt.toISOString(),
     table: session.table,
+    waiter: session.attendedBy
+      ? { id: session.attendedBy.id, name: session.attendedBy.name }
+      : null,
+    tag: session.tag,
+    tagColor: session.tagColor,
     card: session.card
       ? {
           id: session.card.id,
