@@ -551,13 +551,50 @@ PRINTER_DEFAULT=/dev/usb/lp0 \
 npm run print:agent
 ```
 
-En **Windows** no hay una ruta de dispositivo que sirva: comparte la impresora
-(clic derecho → *Propiedades de impresora* → *Compartir*, con un nombre sin
-espacios) y apunta al recurso compartido:
+#### En el PC del local (Windows)
 
-```bash
-PRINTER_DEFAULT=\\localhost\POS80
+Usa **`scripts/print-agent.bat`**: se edita una vez con el Bloc de notas
+—dirección, token e impresora— y desde ahí se arranca con doble clic. Si el
+agente se cae (se cortó internet, se reinició el router) se levanta solo a los
+cinco segundos.
+
+Antes hay que **compartir la impresora**: clic derecho → *Propiedades de
+impresora* → *Compartir*, con un nombre **sin espacios**. En Windows no existe
+una ruta de dispositivo que sirva, así que el agente apunta al recurso
+compartido (`\\localhost\POS80`).
+
+Para sacar los papeles de prueba, arrástralo con el argumento `prueba` o desde
+la consola:
+
+```powershell
+.\scripts\print-agent.bat prueba
 ```
+
+**Si prefieres PowerShell a mano**, ojo con la sintaxis: `VAR=valor comando` es
+de bash y en PowerShell **no funciona** —no da error, simplemente arranca sin
+las variables y el agente se queja de que falta el token—. Ahí se escribe así:
+
+```powershell
+$env:BARZUO_URL = "https://barzuo.com"
+$env:PRINT_AGENT_TOKEN = "el-mismo-token-del-servidor"
+$env:PRINTER_DEFAULT = "\\localhost\POS80"
+npm run print:agent
+```
+
+Las variables puestas así viven solo en esa ventana: al cerrarla se pierden.
+Por eso conviene el `.bat`.
+
+#### Que arranque solo con el PC
+
+El agente tiene que estar corriendo toda la noche, y un PC que se reinicia sin
+que nadie lo note deja al local sin comandas. Para que se levante solo:
+
+1. `Win + R` → `shell:startup` → Enter. Se abre la carpeta de Inicio.
+2. Copia ahí un **acceso directo** a `print-agent.bat` (clic derecho sobre el
+   archivo → *Mostrar más opciones* → *Enviar a* → *Escritorio*, y mueve el
+   acceso directo a esa carpeta).
+
+Desde el próximo arranque queda solo.
 
 #### Cuando lleguen las demás
 
