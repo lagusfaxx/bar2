@@ -6,7 +6,11 @@ import { fingerprint, getMemberSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
 import { destinatariosDeAviso, sendEmail } from "@/lib/email";
 import { contactNotification } from "@/lib/email-templates";
-import { searchCatalog } from "@/lib/karaoke";
+import {
+  findSongsForGuest,
+  nextQueuePosition,
+  queueLength,
+} from "@/lib/karaoke";
 import { revalidateContent } from "@/lib/cache";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import { prisma } from "@/lib/prisma";
@@ -226,32 +230,56 @@ export async function reportCardTransfer(
   );
 }
 
+/** Cuantas canciones esperando le toca a cada mesa. */
+const MAX_POR_MESA = 3;
+
+/** Tope de la cola: mas que esto es prometer un turno que no va a llegar. */
+const MAX_EN_COLA = 30;
+
+/** Las tres pantallas que miran la cola. */
+function refreshKaraoke() {
+  revalidatePath("/karaoke");
+  revalidatePath("/staff/karaoke");
+  revalidatePath("/staff/karaoke/pantalla");
+}
+
 /**
- * Pedido de karaoke desde el QR de la mesa.
+ * A quien se le cuentan los limites del karaoke.
  *
- * Es la unica accion de karaoke abierta a internet, y por eso es la mas
- * restringida de las tres pantallas:
- *
- * - No busca en YouTube. El cliente elige del catalogo del local o escribe su
- *   cancion con palabras; buscar cuesta cuota de la API y no se le regala a
- *   cualquiera que abra la URL.
- * - No entra a la cola. Queda como PEDIDA hasta que sala la acepta, que es lo
- *   que evita que la TV termine reproduciendo cualquier cosa.
- * - Tiene tope por mesa, para que una mesa entusiasta no se adueñe de la noche.
+ * No a la conexion: en un bar todo el mundo esta en el mismo wifi, o sea en
+ * una sola IP, y limitar por ahi seria cerrarle el karaoke al local entero
+ * cuando la sexta persona de la noche manda su cancion. La unidad natural es
+ * la mesa, que ademas es la que aparece en el QR. La IP queda igual como
+ * techo lejano, contra el que escribe un script en vez de cantar.
  */
-export async function requestKaraokeSong(
+function quienPide(tableNumber: number | undefined, ip: string) {
+  return tableNumber ? `mesa:${tableNumber}` : `ip:${ip}`;
+}
+
+/**
+ * Una mesa manda su cancion a la cola.
+ *
+ * Es la unica accion de karaoke abierta a internet y la que hace que la noche
+ * corra sola: lo que se elige aca entra directo a la cola, y la pantalla lo
+ * reproduce cuando le toca sin que nadie de sala intervenga.
+ *
+ * Que entre sola no significa que entre cualquier cosa. La mesa elige por
+ * `trackId` una cancion que ya esta en el catalogo del local —el buscador la
+ * guarda ahi antes de mostrarla—, asi que el navegador nunca manda un video ni
+ * un titulo: eso lo pone el servidor. Sala sigue pudiendo sacar un turno o
+ * podar una version del catalogo, pero mirando, no atendiendo.
+ *
+ * Los topes son lo que reemplaza al criterio de una persona:
+ *
+ * - Tres canciones por mesa esperando, para que una mesa entusiasta no se
+ *   adueñe de la noche.
+ * - Una cola maxima, para no prometerle a nadie un turno que no va a llegar.
+ * - Un limite por conexion, contra el que insiste desde el sillon de su casa.
+ */
+export async function queueKaraokeSong(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
-  const ip = await clientIp();
-  const limit = rateLimit(`karaoke:${ip}`, 6, 60 * 15);
-
-  if (!limit.ok) {
-    return formError(
-      "Ya mandaste varios pedidos seguidos. Espera unos minutos o pídeselo al garzón.",
-    );
-  }
-
   const parsed = karaokeRequestSchema.safeParse(Object.fromEntries(formData));
 
   if (!parsed.success) {
@@ -259,6 +287,16 @@ export async function requestKaraokeSong(
   }
 
   const { website, singer, tableNumber, trackId, requestText } = parsed.data;
+
+  const ip = await clientIp();
+  const propio = rateLimit(`karaoke:${quienPide(tableNumber, ip)}`, 6, 60 * 15);
+  const techo = rateLimit(`karaoke-ip:${ip}`, 60, 60 * 15);
+
+  if (!propio.ok || !techo.ok) {
+    return formError(
+      "Ya mandaste varias canciones seguidas. Espera unos minutos o pídeselo al garzón.",
+    );
+  }
 
   // Campo trampa: solo lo completan los bots.
   if (website) {
@@ -294,11 +332,17 @@ export async function requestKaraokeSong(
       where: { tableId: table.id, status: { in: ["PEDIDA", "EN_COLA"] } },
     });
 
-    if (pendientes >= 3) {
+    if (pendientes >= MAX_POR_MESA) {
       return formError(
-        "Tu mesa ya tiene tres canciones esperando. Cuando pase alguna, puedes pedir otra.",
+        "Tu mesa ya tiene tres canciones esperando. Cuando pase alguna, puedes mandar otra.",
       );
     }
+  }
+
+  if ((await queueLength()) >= MAX_EN_COLA) {
+    return formError(
+      "La cola está llena por ahora. Prueba de nuevo en un rato: se va moviendo rápido.",
+    );
   }
 
   // La cancion elegida tiene que existir y estar habilitada: el id viaja por
@@ -314,40 +358,115 @@ export async function requestKaraokeSong(
     return formError("Esa canción ya no está disponible. Elige otra.");
   }
 
-  await prisma.karaokeEntry.create({
-    data: {
-      trackId: track?.id ?? null,
-      requestText: track ? null : requestText || null,
-      singer,
-      tableId: table?.id ?? null,
-      status: "PEDIDA",
-      source: "MESA",
-    },
+  /*
+   * Con video, a la cola. Sin video —la mesa la escribio a mano porque no la
+   * encontro— queda como pedida y sala le busca el video: es la unica puerta
+   * que todavia pasa por una persona, y justamente por eso el buscador hace
+   * todo lo posible por no llegar hasta aca.
+   */
+  const turno = await prisma.$transaction(async (tx) => {
+    if (!track) {
+      await tx.karaokeEntry.create({
+        data: {
+          requestText: requestText || null,
+          singer,
+          tableId: table?.id ?? null,
+          status: "PEDIDA",
+          source: "MESA",
+        },
+      });
+
+      return null;
+    }
+
+    await tx.karaokeTrack.update({
+      where: { id: track.id },
+      data: { timesQueued: { increment: 1 }, lastQueuedAt: new Date() },
+    });
+
+    await tx.karaokeEntry.create({
+      data: {
+        trackId: track.id,
+        singer,
+        tableId: table?.id ?? null,
+        status: "EN_COLA",
+        source: "MESA",
+        position: await nextQueuePosition(tx),
+      },
+    });
+
+    const [enCola, cantando] = await Promise.all([
+      tx.karaokeEntry.count({ where: { status: "EN_COLA" } }),
+      tx.karaokeEntry.count({ where: { status: "CANTANDO" } }),
+    ]);
+
+    return { enCola, cantando: cantando > 0 };
   });
 
-  revalidatePath("/staff/karaoke");
+  refreshKaraoke();
 
-  return formSuccess(
-    "Apenas el equipo la revise quedas en la cola, y te llamamos por el micrófono cuando sea tu turno.",
-  );
+  if (turno === null) {
+    return formSuccess(
+      "No encontramos el video, así que se la dejamos anotada al equipo. Te llamamos por el micrófono.",
+      { estado: "pedida" },
+    );
+  }
+
+  return formSuccess(delante(turno), {
+    estado: "en-cola",
+    posicion: turno.enCola,
+  });
 }
 
 /**
- * Buscador del catalogo para la pagina de las mesas.
+ * Lo unico que quiere saber quien acaba de mandar su cancion: cuanto falta.
  *
- * Consulta la base del local y nada mas: la API de YouTube no se toca desde
- * afuera. Sin eso, cualquiera con la URL podria quemar la cuota diaria del
- * local en un minuto.
+ * La cuenta se hace ya estando adentro de la cola, y aparte se mira si hay
+ * alguien con el microfono: quedar solo en la cola con la pantalla vacia
+ * significa que arranca en segundos, y con alguien cantando, que es el que
+ * sigue.
  */
-export async function searchKaraokeCatalog(query: string): Promise<FormState> {
-  const ip = await clientIp();
-  const limit = rateLimit(`karaoke-buscar:${ip}`, 40, 60 * 5);
+function delante({ enCola, cantando }: { enCola: number; cantando: boolean }) {
+  if (enCola <= 1) {
+    return cantando
+      ? "Eres el próximo. Mira la pantalla."
+      : "¡Vas ahora! Mira la pantalla.";
+  }
 
-  if (!limit.ok) {
+  const antes = enCola - 1;
+
+  return `Quedaste ${enCola}º en la cola: ${antes} antes que tú${
+    cantando ? ", más quien está cantando" : ""
+  }.`;
+}
+
+/**
+ * Buscador de las mesas.
+ *
+ * Primero el catalogo del local, gratis e instantaneo; si de ahi sale poco, se
+ * le pregunta a YouTube una vez y lo que vuelve queda guardado para siempre.
+ * El limite por conexion de aca es el que evita que alguien con la URL y un
+ * script se lleve el presupuesto de busquedas de toda la noche.
+ */
+export async function searchKaraokeSongs(
+  query: string,
+  /** La mesa del QR: es a ella, y no al wifi del local, a quien se le cuenta. */
+  tableNumber?: number,
+): Promise<FormState> {
+  const ip = await clientIp();
+  const quien = quienPide(tableNumber, ip);
+
+  const propio = rateLimit(`karaoke-buscar:${quien}`, 40, 60 * 5);
+  const techo = rateLimit(`karaoke-buscar-ip:${ip}`, 400, 60 * 5);
+
+  if (!propio.ok || !techo.ok) {
     return formError("Demasiadas búsquedas seguidas. Espera un momento.");
   }
 
-  const tracks = await searchCatalog(String(query ?? "").slice(0, 120), 12);
+  const { tracks, notice } = await findSongsForGuest(
+    String(query ?? "").slice(0, 120),
+    () => rateLimit(`karaoke-youtube:${quien}`, 8, 60 * 15).ok,
+  );
 
-  return formSuccess("", { tracks });
+  return formSuccess(notice ?? "", { tracks });
 }

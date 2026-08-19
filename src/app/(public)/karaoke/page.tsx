@@ -29,10 +29,11 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * La pagina del QR de la mesa.
  *
- * Muestra la cola en vivo —saber cuantos van adelante es la mitad de lo que
- * viene a preguntar la gente— y el formulario para pedir. Cuando el karaoke
- * esta cerrado no oculta nada: lo dice, para que nadie se quede esperando un
- * turno que no existe.
+ * Es el karaoke completo del lado del cliente: busca, elige y su cancion entra
+ * a la cola sin que nadie de sala la apruebe. Al lado va la cola en vivo,
+ * porque saber cuantos van adelante es la mitad de lo que viene a preguntar la
+ * gente. Cuando el karaoke esta cerrado no oculta nada: lo dice, para que
+ * nadie se quede esperando un turno que no existe.
  */
 export default async function KaraokePublicPage({
   searchParams,
@@ -54,7 +55,7 @@ export default async function KaraokePublicPage({
         title="Pide tu canción"
         lead={
           board.open
-            ? "Elige de la lista del local o escribe la tuya. Te llamamos por el micrófono cuando llegue tu turno."
+            ? "Búscala, elígela y queda en la cola al instante. Te llamamos por el micrófono cuando salga en la pantalla."
             : "Esta noche no hay karaoke."
         }
       />
@@ -74,7 +75,7 @@ export default async function KaraokePublicPage({
                   El karaoke está cerrado
                 </p>
                 <p className="mt-2 text-sm text-muted">
-                  Cuando arranque, este mismo código te va a dejar pedir tu
+                  Cuando arranque, este mismo código te va a dejar mandar tu
                   canción. Mientras tanto, pregúntale al equipo por la
                   cartelera de la semana.
                 </p>
@@ -114,7 +115,7 @@ export default async function KaraokePublicPage({
 
               {board.queue.length === 0 ? (
                 <p className="mt-2 text-sm text-muted">
-                  Nadie en la cola. Si pides ahora, cantas enseguida.
+                  Nadie en la cola. Si mandas ahora, cantas enseguida.
                 </p>
               ) : (
                 <ol className="mt-3 flex flex-col gap-2">

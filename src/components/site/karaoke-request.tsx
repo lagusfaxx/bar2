@@ -1,29 +1,35 @@
 "use client";
 
-import { Check, Loader2, Mic, Search } from "lucide-react";
+import { Check, Loader2, Mic, Music4, Search } from "lucide-react";
+import Image from "next/image";
 import { useActionState, useEffect, useState, useTransition } from "react";
 
-import { requestKaraokeSong, searchKaraokeCatalog } from "@/app/actions/public";
+import { queueKaraokeSong, searchKaraokeSongs } from "@/app/actions/public";
 import { Button } from "@/components/ui/button";
 import { HoneypotField, SubmitButton } from "@/components/ui/form";
+import { formatDuration } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
 
 /**
- * Pedir una cancion desde la mesa.
+ * Mandar una cancion desde la mesa.
  *
- * Quien llega aca escaneo el QR de su mesa con una mano y el trago en la otra,
- * asi que el formulario pide lo minimo: como llamarlo por el microfono y que
- * quiere cantar. La mesa ya viene en el QR.
+ * Es el karaoke entero para quien no trabaja aca: escribe, elige y su cancion
+ * queda en la cola. Nadie la revisa, nadie la aprueba y no hay a quien
+ * llamar — por eso la pantalla tiene que decir sola en que quedo el pedido,
+ * que es lo que hace el mensaje con el numero de turno.
  *
- * La lista que se busca es la del local, no YouTube: es instantanea, no gasta
- * la cuota de la API y evita que desde la calle se pueda vaciar. Si la cancion
- * no esta, se escribe con palabras y el encargado le busca el video.
+ * El buscador mira primero el catalogo del local y, si de ahi sale poco, le
+ * pregunta a YouTube una vez y guarda lo que encuentra. Eso pasa en el
+ * servidor: aca solo se muestran canciones que ya son del local, y se eligen
+ * por id.
  */
 
 type Track = {
   id: string;
   title: string;
   channel: string | null;
+  durationSeconds: number | null;
+  thumbnailUrl: string | null;
   timesQueued: number;
 };
 
@@ -36,13 +42,14 @@ export function KaraokeRequestForm({
   /** Lo mas cantado del local: el punto de partida cuando no saben que pedir. */
   popular: Track[];
 }) {
-  const [state, action] = useActionState(requestKaraokeSong, IDLE);
+  const [state, action] = useActionState(queueKaraokeSong, IDLE);
 
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Track[]>([]);
+  const [notice, setNotice] = useState("");
   const [searching, startSearch] = useTransition();
 
-  /** Cancion del catalogo elegida. Null = la van a escribir a mano. */
+  /** Cancion elegida. Null = todavia no eligio ninguna. */
   const [track, setTrack] = useState<Track | null>(null);
   const [mesa, setMesa] = useState(tableNumber ? String(tableNumber) : "");
 
@@ -53,23 +60,40 @@ export function KaraokeRequestForm({
   useEffect(() => {
     if (query.trim().length < 2) return;
 
-    // Media espera antes de consultar: se escribe con el pulgar y una consulta
-    // por tecla no le sirve a nadie.
+    /*
+     * Espera larga a proposito: se escribe con el pulgar, y esta búsqueda
+     * puede terminar costándole al local una consulta a YouTube. Una consulta
+     * por tecla no le sirve a nadie.
+     */
     const timer = setTimeout(() => {
       startSearch(async () => {
-        const result = await searchKaraokeCatalog(query);
+        const mesaNum = Number.parseInt(mesa, 10);
+        const result = await searchKaraokeSongs(
+          query,
+          Number.isNaN(mesaNum) ? undefined : mesaNum,
+        );
         setResults((result.data?.tracks as Track[]) ?? []);
+        setNotice(result.message ?? "");
       });
-    }, 400);
+    }, 600);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [query, mesa]);
 
   if (state.status === "success") {
+    const enCola = state.data?.estado === "en-cola";
+
     return (
       <div className="card-bz flex flex-col items-center gap-4 p-8 text-center">
-        <Check className="size-10 text-emerald-300" aria-hidden />
-        <p className="font-display text-2xl text-bone">¡Anotado!</p>
+        {enCola ? (
+          <Mic className="size-10 text-crimson-bright" aria-hidden />
+        ) : (
+          <Check className="size-10 text-emerald-300" aria-hidden />
+        )}
+
+        <p className="font-display text-2xl text-bone">
+          {enCola ? "¡Estás en la cola!" : "¡Anotado!"}
+        </p>
         <p className="text-sm text-muted">{state.message}</p>
 
         <Button
@@ -77,7 +101,7 @@ export function KaraokeRequestForm({
           onClick={() => window.location.reload()}
           className="mt-2"
         >
-          Pedir otra canción
+          Mandar otra canción
         </Button>
       </div>
     );
@@ -134,7 +158,7 @@ export function KaraokeRequestForm({
         )}
       </label>
 
-      {/* La canción: se elige de la lista del local o se escribe. */}
+      {/* La canción: se busca y se elige una. */}
       <div className="flex flex-col gap-3">
         <span className="text-[0.68rem] font-medium uppercase tracking-[0.18em] text-bone-dim">
           ¿Qué vas a cantar?
@@ -151,6 +175,7 @@ export function KaraokeRequestForm({
             onChange={(event) => {
               setQuery(event.target.value);
               setTrack(null);
+              setNotice("");
             }}
             placeholder="Artista o canción…"
             className="h-12 w-full border border-line bg-ink-soft pl-11 pr-4 text-bone placeholder:text-muted-dark focus:border-crimson focus:outline-none"
@@ -163,14 +188,28 @@ export function KaraokeRequestForm({
           )}
         </div>
 
-        {/* La elegida viaja al servidor por id; lo escrito, como texto. Una de
-            las dos, nunca las dos: el servidor exige exactamente eso. */}
+        {!corta && (
+          <p className="text-xs text-muted-dark">
+            Elige la versión que quieras: la que dice <em>karaoke</em> o{" "}
+            <em>instrumental</em> suele ser la que trae la letra en pantalla.
+          </p>
+        )}
+
+        {/* La elegida viaja por id; si no eligió ninguna, lo escrito va como
+            texto y el equipo le busca el video. El servidor exige una de las
+            dos. */}
         <input type="hidden" name="trackId" value={track?.id ?? ""} />
         <input
           type="hidden"
           name="requestText"
           value={track ? "" : query.trim()}
         />
+
+        {corta && popular.length > 0 && (
+          <p className="text-xs text-muted-dark">
+            Lo más cantado en el local esta temporada:
+          </p>
+        )}
 
         {opciones.length > 0 ? (
           <ul className="flex flex-col gap-2">
@@ -184,25 +223,49 @@ export function KaraokeRequestForm({
                     onClick={() => setTrack(chosen ? null : option)}
                     aria-pressed={chosen}
                     className={[
-                      "flex w-full items-center justify-between gap-3 border px-4 py-3 text-left transition-colors",
+                      "flex w-full items-center gap-3 border p-2 text-left transition-colors",
                       chosen
                         ? "border-crimson bg-crimson/12"
                         : "border-line bg-ink-soft hover:border-bone/30",
                     ].join(" ")}
                   >
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm text-bone">
+                    {option.thumbnailUrl ? (
+                      <Image
+                        src={option.thumbnailUrl}
+                        alt=""
+                        width={96}
+                        height={54}
+                        unoptimized
+                        className="h-[54px] w-24 shrink-0 object-cover"
+                      />
+                    ) : (
+                      <span className="flex h-[54px] w-24 shrink-0 items-center justify-center border border-line text-muted">
+                        <Music4 className="size-5" aria-hidden />
+                      </span>
+                    )}
+
+                    <span className="min-w-0 flex-1">
+                      <span className="line-clamp-2 text-sm text-bone">
                         {option.title}
                       </span>
-                      {option.channel && (
-                        <span className="block truncate text-xs text-muted">
-                          {option.channel}
-                        </span>
-                      )}
+                      <span className="mt-0.5 block truncate text-xs text-muted">
+                        {[
+                          option.channel,
+                          formatDuration(option.durationSeconds),
+                          option.timesQueued > 0
+                            ? `${option.timesQueued} ${option.timesQueued === 1 ? "vez" : "veces"} aquí`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
                     </span>
 
                     {chosen && (
-                      <Check className="size-4 shrink-0 text-crimson-bright" aria-hidden />
+                      <Check
+                        className="size-4 shrink-0 text-crimson-bright"
+                        aria-hidden
+                      />
                     )}
                   </button>
                 </li>
@@ -210,9 +273,18 @@ export function KaraokeRequestForm({
             })}
           </ul>
         ) : (
-          <p className="border border-line bg-ink-soft px-4 py-3 text-sm text-muted">
-            Esa canción todavía no está en la lista del local. Déjala escrita
-            arriba y la buscamos nosotros.
+          !corta &&
+          !searching && (
+            <p className="border border-line bg-ink-soft px-4 py-3 text-sm text-muted">
+              No encontramos esa canción. Déjala escrita arriba y la buscamos
+              nosotros, o prueba con otras palabras.
+            </p>
+          )
+        )}
+
+        {notice && (
+          <p className="border border-gilt/40 bg-gilt/10 px-4 py-3 text-sm text-gilt-soft">
+            {notice}
           </p>
         )}
       </div>
@@ -223,26 +295,38 @@ export function KaraokeRequestForm({
         </p>
       )}
 
-      <SubmitRequest disabled={!track && query.trim().length < 2} />
+      <SubmitRequest
+        elegida={Boolean(track)}
+        disabled={!track && query.trim().length < 2}
+      />
     </form>
   );
 }
 
 /**
- * El boton dice lo que va a pasar: el pedido no entra solo a la cola, lo
- * revisa alguien de sala. Prometer menos evita el reclamo de "pedi hace media
- * hora y no me llamaron".
+ * El boton dice lo que va a pasar de verdad.
+ *
+ * Con una cancion elegida entra sola a la cola, y prometerlo es lo que evita
+ * que la mesa venga a preguntar. Sin elegir ninguna, lo escrito queda para que
+ * el equipo le busque el video, y eso no se puede prometer igual de rapido.
  */
-function SubmitRequest({ disabled }: { disabled: boolean }) {
+function SubmitRequest({
+  elegida,
+  disabled,
+}: {
+  elegida: boolean;
+  disabled: boolean;
+}) {
   return (
     <div className="flex flex-col gap-2">
-      <SubmitButton size="lg" disabled={disabled} pendingLabel="Anotando…">
+      <SubmitButton size="lg" disabled={disabled} pendingLabel="Mandando…">
         <Mic className="size-4" aria-hidden />
-        Pedir mi canción
+        {elegida ? "Mandar a la cola" : "Dejarla anotada"}
       </SubmitButton>
       <p className="text-center text-xs text-muted-dark">
-        Queda esperando a que el equipo la revise. Te llamamos por el micrófono
-        cuando sea tu turno.
+        {elegida
+          ? "Entra sola a la cola y sale en la pantalla cuando te toque."
+          : "Sin elegir una versión, el equipo tiene que buscarte el video."}
       </p>
     </div>
   );

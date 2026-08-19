@@ -39,13 +39,18 @@ import type { KaraokeBoard as Board, KaraokeEntryView } from "@/lib/karaoke";
 /**
  * Tablero del karaoke.
  *
- * Lo maneja una sola persona con el telefono en la mano mientras camina entre
- * las mesas, asi que todo esta pensado para el pulgar: una columna, botones
- * altos y ninguna accion escondida detras de un menu.
+ * La noche corre sola: las mesas eligen su cancion y entra a la cola, y la
+ * pantalla va pasando de una a la siguiente. Esta pantalla no es el motor,
+ * es el volante — sirve para adelantar al del cumpleaños, sacar lo que no
+ * corresponde y cargarle la cancion a quien no tiene telefono.
+ *
+ * Se mira con el telefono en la mano mientras se camina entre las mesas, asi
+ * que todo esta pensado para el pulgar: una columna, botones altos y ninguna
+ * accion escondida detras de un menu.
  *
  * El orden de la pantalla es el orden de la noche: quien canta ahora arriba de
- * todo, despues lo que las mesas estan pidiendo —que es lo que hay que
- * responder rapido para que nadie quede esperando— y recien despues la cola.
+ * todo, despues lo unico que si necesita a una persona —las canciones que
+ * llegaron sin video— y recien despues la cola.
  */
 
 /** Una cancion elegida en el buscador, lista para encolar. */
@@ -133,7 +138,7 @@ export function KaraokeBoard({
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-3 border-t border-line px-4 py-2.5 lg:max-w-none">
           <p className="text-xs text-muted">
             {board.open
-              ? "Abierto: las mesas pueden pedir desde su QR."
+              ? "Abierto: las mesas eligen desde su QR y entran solas a la cola."
               : "Cerrado: las mesas ven que hoy no hay karaoke."}
           </p>
 
@@ -233,7 +238,7 @@ export function KaraokeBoard({
         {board.requests.length > 0 && (
           <section className="mt-8">
             <h2 className="flex items-center gap-2 font-display text-lg text-bone">
-              Pidieron desde las mesas
+              Sin video: hay que buscárselo
               <span className="rounded-[2px] bg-gilt px-1.5 py-0.5 text-xs font-bold text-ink">
                 {board.requests.length}
               </span>
@@ -257,7 +262,7 @@ export function KaraokeBoard({
 
                   {!entry.track && (
                     <p className="mt-1 text-xs text-gilt-soft">
-                      Lo escribieron a mano: hay que buscarle el video.
+                      No la encontraron en el buscador y la escribieron a mano.
                     </p>
                   )}
 
@@ -306,7 +311,8 @@ export function KaraokeBoard({
 
           {board.queue.length === 0 ? (
             <p className="mt-3 border border-line bg-ink-soft p-5 text-center text-sm text-muted">
-              No hay nadie esperando. Carga la primera canción abajo.
+              No hay nadie esperando. Las mesas pueden mandar la suya desde su
+              QR, o cárgala tú abajo.
             </p>
           ) : (
             <ol className="mt-3 flex flex-col gap-2">
