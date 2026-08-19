@@ -30,6 +30,8 @@ import {
   posOpenTableSchema,
   posPaymentSchema,
   posPromotionSchema,
+  posSessionTagSchema,
+  posSessionWaiterSchema,
 } from "@/lib/validation";
 
 /**
@@ -86,12 +88,126 @@ export async function openTable(
       guests,
       note: note || null,
       openedById: user.userId,
+      // Quien la abre es quien la atiende, hasta que alguien diga lo
+      // contrario. Preguntarlo al abrir seria un paso de mas para contestar
+      // lo que ya se sabe: el telefono que abre la mesa es el del garzon que
+      // esta parado en ella.
+      attendedById: user.userId,
     },
     select: { id: true },
   });
 
   refresh(session.id);
   return formSuccess(`Mesa ${table.number} abierta.`, { sessionId: session.id });
+}
+
+/**
+ * Quien atiende la mesa.
+ *
+ * Cambia varias veces en una noche —entra un turno, el que abrio la mesa esta
+ * en la caja, alguien cubre un descanso— y hasta ahora la sala solo sabia
+ * quien la habia abierto. Cualquiera del personal puede reasignarla: en un
+ * bar lleno, pedirle permiso a un jefe para decir que la 7 ahora la lleva
+ * Anais no lo hace nadie.
+ *
+ * Con `userId` vacio la mesa queda sin garzon a cargo, que es lo que
+ * corresponde cuando el que la atendia se fue y todavia no la tomo nadie.
+ */
+export async function setSessionWaiter(
+  sessionId: string,
+  userId: string | null,
+): Promise<FormState> {
+  await requireStaff();
+
+  const parsed = posSessionWaiterSchema.safeParse({
+    sessionId,
+    userId: userId ?? "",
+  });
+
+  if (!parsed.success) return formError("No se pudo asignar la mesa.");
+
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { status: true, table: { select: { number: true } } },
+  });
+
+  if (!session) return formError("La mesa no existe.");
+  if (session.status === "CLOSED") return formError("La mesa ya está cerrada.");
+
+  const waiterId = parsed.data.userId || null;
+
+  if (waiterId) {
+    const waiter = await prisma.user.findUnique({
+      where: { id: waiterId },
+      select: { name: true, active: true },
+    });
+
+    if (!waiter || !waiter.active) {
+      return formError("Esa persona ya no atiende mesas.");
+    }
+
+    await prisma.tableSession.update({
+      where: { id: sessionId },
+      data: { attendedById: waiterId },
+    });
+
+    refresh(sessionId);
+    return formSuccess(`Mesa ${session.table.number}: atiende ${waiter.name}.`);
+  }
+
+  await prisma.tableSession.update({
+    where: { id: sessionId },
+    data: { attendedById: null },
+  });
+
+  refresh(sessionId);
+  return formSuccess(`Mesa ${session.table.number} sin garzón asignado.`);
+}
+
+/**
+ * La etiqueta de la mesa.
+ *
+ * Una palabra que cambia como se atiende esa mesa y que hoy solo vive en la
+ * cabeza del que la abrio: que es un cumpleaños, que esta reservada, que se
+ * van a las diez. Escrita en la casilla la ve toda la sala.
+ *
+ * Con la etiqueta vacia se saca.
+ */
+export async function setSessionTag(
+  sessionId: string,
+  tag: string,
+  color: string,
+): Promise<FormState> {
+  await requireStaff();
+
+  const parsed = posSessionTagSchema.safeParse({ sessionId, tag, color });
+
+  if (!parsed.success) {
+    return formError("La etiqueta es de hasta 24 caracteres.");
+  }
+
+  const session = await prisma.tableSession.findUnique({
+    where: { id: sessionId },
+    select: { status: true },
+  });
+
+  if (!session) return formError("La mesa no existe.");
+  if (session.status === "CLOSED") return formError("La mesa ya está cerrada.");
+
+  const etiqueta = parsed.data.tag || null;
+
+  await prisma.tableSession.update({
+    where: { id: sessionId },
+    data: {
+      tag: etiqueta,
+      // Sin etiqueta no hay color que guardar: dejarlo seria pintar algo que
+      // ya no esta.
+      tagColor: etiqueta ? parsed.data.color || null : null,
+    },
+  });
+
+  refresh(sessionId);
+  return formSuccess(etiqueta ? `Mesa marcada: ${etiqueta}.` : "Etiqueta quitada.");
 }
 
 export async function closeTable(sessionId: string): Promise<FormState> {

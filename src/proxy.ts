@@ -72,6 +72,13 @@ function edgeCacheControl() {
  */
 const SERVER_ACTION_ID = /^[0-9a-f]{42}$/;
 
+/** Piezas de la app instalable de sala que el navegador pide sin sesion. */
+const PWA_PUBLICA = new Set([
+  "/staff/pos/manifest.webmanifest",
+  "/staff/pos/sw.js",
+  "/staff/pos/icono.png",
+]);
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -102,6 +109,18 @@ export function proxy(request: NextRequest) {
     }
     return NextResponse.next();
   }
+
+  /*
+   * Lo que necesita el navegador para instalar la sala.
+   *
+   * El manifiesto y el icono no los pide la pantalla: los pide el navegador
+   * por su cuenta y, en el caso del manifiesto, sin mandar cookies. Con la
+   * comprobacion de sesion delante, esas peticiones terminaban en el login y
+   * la instalacion no se ofrecia nunca —sin ningun error a la vista—. No
+   * exponen nada: el nombre del bar y la letra del logo ya estan en la
+   * portada, y el worker es el mismo archivo para todos.
+   */
+  if (PWA_PUBLICA.has(pathname)) return NextResponse.next();
 
   // Panel administrativo y app de personal de sala
   const isPanel = pathname.startsWith("/admin") || pathname.startsWith("/staff");

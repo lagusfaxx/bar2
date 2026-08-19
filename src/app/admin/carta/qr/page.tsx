@@ -38,7 +38,12 @@ export default async function MenuQrPage() {
     prisma.posTable.findMany({
       where: { active: true },
       orderBy: [{ position: "asc" }, { number: "asc" }],
-      select: { id: true, number: true, name: true, zone: true },
+      select: {
+        id: true,
+        number: true,
+        name: true,
+        zone: { select: { name: true } },
+      },
     }),
     getSettings(),
     menuQrDataUrl(),
@@ -51,7 +56,7 @@ export default async function MenuQrPage() {
       ? tables.map((table) => ({
           key: table.id,
           label: `Mesa ${table.number}`,
-          hint: table.name ?? table.zone,
+          hint: table.name ?? table.zone?.name ?? null,
         }))
       : Array.from({ length: DEFAULT_COPIES }, (_, index) => ({
           key: `sin-mesa-${index}`,

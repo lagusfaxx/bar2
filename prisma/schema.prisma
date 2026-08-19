@@ -34,13 +34,14 @@ model User {
   redemptions Redemption[] @relation("RedemptionStaff")
   auditLogs   AuditLog[]
 
-  openedSessions TableSession[] @relation("SessionOpenedBy")
-  orderItems     OrderItem[]    @relation("OrderItemCreatedBy")
-  tickets        OrderTicket[]  @relation("TicketCreatedBy")
-  closedDays     ClosedDay[]    @relation("ClosedDayCreatedBy")
-  payments       Payment[]      @relation("PaymentCashier")
-  karaokeEntries KaraokeEntry[] @relation("KaraokeQueuedBy")
-  contactReplies ContactReply[] @relation("ContactReplyAuthor")
+  openedSessions   TableSession[] @relation("SessionOpenedBy")
+  attendedSessions TableSession[] @relation("SessionWaiter")
+  orderItems       OrderItem[]    @relation("OrderItemCreatedBy")
+  tickets          OrderTicket[]  @relation("TicketCreatedBy")
+  closedDays       ClosedDay[]    @relation("ClosedDayCreatedBy")
+  payments         Payment[]      @relation("PaymentCashier")
+  karaokeEntries   KaraokeEntry[] @relation("KaraokeQueuedBy")
+  contactReplies   ContactReply[] @relation("ContactReplyAuthor")
 
   @@index([role])
   @@map("users")
@@ -916,12 +917,44 @@ enum Station {
   COCINA // comida
 }
 
+/**
+ * Una zona del salon: "Salon", "Terraza", "Barra".
+ * Antes la zona era texto suelto en cada mesa, y eso alcanzaba para escribirla
+ * pero no para usarla: "Terraza" y "terraza" eran dos zonas distintas, no
+ * habia forma de ordenarlas y renombrar una obligaba a editar mesa por mesa.
+ * Como entidad propia, el mapa de sala se puede partir en secciones y cada
+ * garzon mira la suya.
+ */
+model PosZone {
+  id    String  @id @default(cuid())
+  name  String  @unique
+  /**
+   * Color con el que se pinta la seccion en el mapa. Es una de las claves de
+   * `ZONE_COLORS` (lib/pos-style.ts), no un valor CSS: la paleta la define el
+   * diseño, no quien carga las zonas.
+   */
+  color String?
+
+  active   Boolean @default(true)
+  position Int     @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tables PosTable[]
+
+  @@index([active, position])
+  @@map("pos_zones")
+}
+
 model PosTable {
   id     String  @id @default(cuid())
   number Int     @unique // el numero con el que se la nombra en el local
   name   String? // "Terraza 2", cuando el numero no alcanza
-  zone   String? // salon, terraza, barra
   seats  Int     @default(4)
+
+  zoneId String?
+  zone   PosZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
   active   Boolean @default(true)
   position Int     @default(0)
@@ -933,6 +966,7 @@ model PosTable {
   karaoke  KaraokeEntry[]
 
   @@index([active, position])
+  @@index([zoneId])
   @@map("pos_tables")
 }
 
@@ -962,6 +996,29 @@ model TableSession {
   openedBy   User?   @relation("SessionOpenedBy", fields: [openedById], references: [id], onDelete: SetNull)
 
   /**
+   * Quien atiende la mesa ahora.
+   * Arranca siendo quien la abrio, pero no son lo mismo: la mesa cambia de
+   * manos cuando entra el turno de la noche, cuando el que la abrio esta en la
+   * caja, o cuando alguien cubre un descanso. Lo que hay que poder contestar
+   * desde la sala es "quien esta atendiendo la 7", no "quien la abrio a las
+   * nueve".
+   */
+  attendedById String?
+  attendedBy   User?   @relation("SessionWaiter", fields: [attendedById], references: [id], onDelete: SetNull)
+
+  /**
+   * Etiqueta de la mesa: "Cumpleaños", "Reservada", "Sale a las 22".
+   * Es lo que hoy se grita de una punta a la otra del salon. Escrita en la
+   * casilla de la mesa la ve cualquiera que mire la sala, incluido el que
+   * recien entra al turno.
+   */
+  tag      String?
+  /**
+   * Clave de color de la etiqueta (ver `TAG_COLORS` en lib/pos-style.ts).
+   */
+  tagColor String?
+
+  /**
    * BarzuCard presentada en la mesa.
    * Es la llave de todo el programa: sin tarjeta en la mesa no se puede
    * aplicar ninguna promocion. Se pide una vez, al principio, y vale para toda
@@ -982,6 +1039,7 @@ model TableSession {
   @@index([status, openedAt])
   @@index([tableId, status])
   @@index([cardId])
+  @@index([attendedById, status])
   @@map("pos_table_sessions")
 }
 
@@ -1342,7 +1400,6 @@ model KaraokeEntry {
 
 /**
  * Una busqueda que ya se le pago a YouTube.
- *
  * Con las mesas buscando solas, la cuota de la API es el recurso escaso: son
  * cien busquedas al dia para todo el local. Cada vez que se paga una, los
  * videos quedan guardados como `KaraokeTrack` y la frase normalizada queda

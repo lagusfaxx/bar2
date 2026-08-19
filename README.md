@@ -97,7 +97,8 @@ promoción a mano.
 
 **Sala (`/staff/pos`).** El POS: abrir mesas, repartir la cuenta entre los
 comensales, mandar comandas a cocina y barra, retirarlas cuando están listas y
-cobrar. Ver [POS de sala](#pos-de-sala).
+cobrar. Se **instala en el teléfono** como una app aparte. Ver
+[POS de sala](#pos-de-sala).
 
 **Karaoke (`/staff/karaoke`).** La cola de la noche y la pantalla que se
 proyecta. Las mesas se anotan solas desde el QR: esta pantalla es para
@@ -215,6 +216,8 @@ src/
     (public)/            Web pública
     admin/               Panel: /admin/login y grupo (panel) protegido
     staff/               App de sala: BarzuCard y POS
+    staff/pos/           POS + las piezas de la app instalable (manifiesto,
+                         service worker e icono)
     api/health/          Health check
     api/pos/comandas/    Cola de comandas para el agente de impresión
     uploads/[...path]/   Sirve las imágenes del volumen
@@ -231,6 +234,7 @@ src/
     cache.ts             Invalidación tras guardar en el CMS
     uploads.ts           Procesado y guardado de imágenes
     pos.ts               Precios vigentes, cuentas y estado de las mesas
+    pos-style.ts         Paleta de zonas y etiquetas (la usan panel y sala)
     validation.ts        Esquemas Zod
     format.ts            Fechas, precios y etiquetas en español
   proxy.ts               Protección de rutas (antes "middleware")
@@ -256,8 +260,9 @@ src/
 | `SiteSettings` | Fila única con todo el contenido editable del sitio. |
 | `SocialLink` / `OpeningHour` | Redes y horarios. |
 | `ContactMessage` | Mensajes del formulario. |
-| `PosTable` | Mesas del salón. |
-| `TableSession` | Un turno de mesa: desde que se sientan hasta que se van. |
+| `PosZone` | Zonas del salón ("Salón", "Terraza"): agrupan las mesas en el mapa de sala. |
+| `PosTable` | Mesas del salón, cada una en su zona. |
+| `TableSession` | Un turno de mesa: desde que se sientan hasta que se van, con quién la atiende y su etiqueta. |
 | `Diner` | Un comensal, identificado por cómo se ve ("polera azul"). |
 | `OrderItem` | Una línea de la cuenta, con copia del nombre y el precio del momento. |
 | `OrderTicket` | Una comanda: su estado de impresión y el de preparación en la pantalla de la estación. |
@@ -290,7 +295,9 @@ mostrarlas y al cargarlas desde el panel.
 `/staff/karaoke/qr`.
 
 **Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
-impresión, autenticado con `PRINT_AGENT_TOKEN`).
+impresión, autenticado con `PRINT_AGENT_TOKEN`), y las tres piezas de la app
+instalable de sala, que el navegador pide por su cuenta y sin sesión:
+`/staff/pos/manifest.webmanifest`, `/staff/pos/sw.js`, `/staff/pos/icono.png`.
 
 ---
 
@@ -374,8 +381,10 @@ Vive en `/staff/pos` y entra cualquier usuario del panel.
    para que la barra arme los tragos separados. Sale por la impresora, por la
    pantalla de la estación, o por las dos.
 5. **Retirar.** Cocina o barra tocan la campana cuando está listo. El garzón va
-   a buscarlo y marca **"Ya la retiré"** en la cuenta de la mesa: con eso la
-   comanda sale de la pantalla de la estación, que nadie ahí puede tocar.
+   a buscarlo y no marca nada: la comanda sale de la pantalla de la estación
+   cuando se entrega ahí, con un toque en **"Entregada"** al pie de la comanda.
+   En la cuenta de la mesa queda el aviso de que hay algo esperando y desde
+   hace cuánto, sin ningún botón que apretar.
 6. **Cobrar.** La mesa entera de una vez, o cada comensal por separado. Cobrar
    a uno **no cierra la mesa**: los demás siguen consumiendo, y quien ya pagó
    puede volver a pedir y se le hace otro cobro.
@@ -397,6 +406,63 @@ No hay campo de propina: la deja el cliente en la terminal de cobro.
   productos.
 - **Sin ruido.** Las pestañas por comensal solo aparecen cuando la cuenta está
   dividida. Una mesa normal —que son casi todas— se ve como una sola lista.
+
+### El mapa de sala: zonas, quién atiende y etiquetas
+
+La primera pantalla del POS es el salón entero, y muestra tres cosas que antes
+se resolvían gritando de una punta a la otra.
+
+**Zonas.** El salón se divide en secciones —"Salón", "Terraza", "Barra"— que se
+crean en Panel → Sala → Mesas. Cada mesa pertenece a una y el mapa se agrupa
+por zona, con un botón por zona arriba para mirar solo una: el que atiende la
+terraza no tiene por qué buscar sus seis mesas entre las treinta del salón. Una
+mesa sin zona no desaparece: se ve al final, bajo "Otras mesas". Con una sola
+zona (o ninguna) no aparece ni el filtro ni los títulos, y la sala se ve como
+siempre.
+
+Antes la zona era texto libre en cada mesa, así que "Terraza" y "terraza" eran
+dos zonas distintas y renombrar una obligaba a editar mesa por mesa. Al
+actualizar, lo que estuviera escrito se convierte en zonas de verdad sin perder
+qué mesa era de cuál.
+
+**Quién atiende.** Cada mesa ocupada muestra el nombre del garzón a cargo.
+Arranca siendo quien la abrió —el teléfono que abre la mesa es el del que está
+parado en ella, no hay nada que preguntar— y se cambia desde la cuenta, tocando
+la línea que dice quién atiende. Cualquiera del equipo puede reasignarla: con
+el local lleno, pedir permiso para decir que la 7 ahora la lleva Anaís no lo
+hace nadie. También puede quedar **sin garzón**, que es lo honesto cuando el
+que la atendía se fue del turno y todavía no la tomó nadie.
+
+**Etiquetas.** Una palabra que cambia cómo se atiende esa mesa —"Cumpleaños",
+"Reservada", "VIP", "Apurados"— y que hasta ahora vivía solo en la cabeza del
+que abrió la mesa. Se pone en un toque desde la misma hoja, con color propio, y
+se lee en la casilla de la mesa desde el otro lado del salón. Las de todas las
+noches están como botones; para lo que no está en la lista queda el campo
+libre, de hasta 24 caracteres, que es lo que entra en la casilla.
+
+### Instalar la sala en el teléfono
+
+`/staff/pos` se instala como una app: queda con su icono en la pantalla de
+inicio, abre a pantalla completa —sin la barra de direcciones comiéndose un
+renglón— y arranca directo en el mapa de mesas.
+
+**Se instala solo la sala.** El manifiesto vive en `/staff/pos` y su alcance es
+esa dirección, no el sitio entero: quien entra a ver la carta o la cartelera no
+recibe ninguna oferta de instalar nada. Abrir la cuenta de una mesa sigue
+dentro de la app; cualquier otra dirección del sitio se abre en el navegador.
+
+- **En Android:** al entrar a la sala aparece un aviso con el botón *Instalar*.
+  Se puede cerrar y no vuelve a aparecer en ese teléfono.
+- **En iPhone:** Safari no ofrece el botón; se agrega desde *Compartir* →
+  *Agregar a inicio*. El icono y el nombre ya vienen puestos.
+
+**Sin conexión** —y en un bar el wifi se cae, sobre todo en la terraza— la app
+muestra una pantalla propia que lo dice y ofrece reintentar, en vez del
+dinosaurio del navegador dentro de una app sin barra de direcciones. Lo que se
+guarda en el teléfono es solo lo que no cambia (los archivos con hash en el
+nombre y los iconos): **nunca el estado de la sala ni las cuentas**, porque
+servir una copia vieja de eso sería peor que no mostrar nada. Los pedidos y los
+cobros no pasan por el caché: llegan al servidor o fallan a la vista.
 
 ### Pantallas táctiles con una franja ciega
 
@@ -439,10 +505,13 @@ estación: es lo que se pasa por alto y hace volver el plato.
 `/staff/cocina` y `/staff/barra`. Una tablet o un monitor colgado, encendido
 toda la noche.
 
-**No tienen un solo botón, y es a propósito.** Quien cocina tiene las manos
+**Tienen un solo botón, y es a propósito.** Quien cocina tiene las manos
 mojadas o con grasa y no las va a secar para tocar una pantalla. La versión
 anterior pedía dos toques por comanda —"empezar" y "listo"— que en la práctica
-no daba nadie, así que el tablero mostraba un estado que no era cierto.
+no daba nadie, así que el tablero mostraba un estado que no era cierto. El
+único que quedó es **"Entregada"**, al pie de cada comanda: se toca en el
+momento de pasar el plato, que es cuando la comanda deja de estar pendiente de
+verdad.
 
 Lo que muestran es lo que sirve de verdad:
 
@@ -459,9 +528,11 @@ que la pantalla no se apague — despertarla tocándola es justo lo que no se
 puede hacer.
 
 **Que el plato está listo lo sigue avisando la campana**, como siempre. La
-comanda desaparece de la pantalla cuando el garzón marca **"Ya la retiré"**
-desde su teléfono, en la cuenta de la mesa. Mientras no lo haga, la comanda
-envejece en rojo en la pared, que es exactamente el aviso que se quiere.
+comanda desaparece de la pantalla al entregarla, con el botón **"Entregada"**.
+Antes esto se marcaba desde el teléfono del garzón —un toque de más por cada
+plato, ya caminando con la bandeja, para declarar algo que acababa de hacer—.
+Mientras nadie la entregue, la comanda envejece en rojo en la pared, que es
+exactamente el aviso que se quiere.
 
 En la sala, cada mesa con algo esperando muestra **"N comandas por retirar"**,
 para saber a dónde ir cuando suena la campana. Cerrar una mesa cierra también

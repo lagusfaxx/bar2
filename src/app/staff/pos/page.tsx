@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { logoutPanel } from "@/app/actions/auth";
 import { Logo } from "@/components/brand/logo";
+import { InstallSala } from "@/components/staff/pos/install";
 import { TableGrid } from "@/components/staff/pos/table-grid";
 import { getPanelSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
@@ -93,6 +94,10 @@ export default async function PosPage() {
         </p>
 
         <div className="mt-6">
+          {/* Solo aparece cuando el telefono ofrece instalar y todavia no
+              esta instalada. Ver InstallSala. */}
+          <InstallSala />
+
           <TableGrid tables={tables} />
         </div>
       </main>
