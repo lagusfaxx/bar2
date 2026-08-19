@@ -96,7 +96,7 @@ export default async function StaffPage() {
             {
               href: "/staff/karaoke",
               title: "Karaoke",
-              hint: "Cola de la noche, pantalla y pedidos de las mesas",
+              hint: "Cola de la noche y pantalla. Las mesas se anotan solas",
             },
           ].map((item) => (
             <Link

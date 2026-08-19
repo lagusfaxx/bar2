@@ -2,10 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 
-import type { Prisma } from "@/generated/prisma/client";
 import { requireStaff } from "@/lib/auth";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
-import { searchCatalog, searchKey } from "@/lib/karaoke";
+import {
+  nextQueuePosition,
+  rememberSearch,
+  searchCatalog,
+  upsertTrack,
+} from "@/lib/karaoke";
 import { prisma } from "@/lib/prisma";
 import {
   fieldErrors,
@@ -17,9 +21,14 @@ import { searchKaraokeVideos } from "@/lib/youtube";
 /**
  * Karaoke: todo lo que escribe el encargado.
  *
- * Exige sesion del panel, igual que el POS. La unica accion de karaoke abierta
- * a internet es la de pedir desde el QR de la mesa, y esa vive en
- * `actions/public.ts` con su limitador de peticiones.
+ * La noche la maneja el publico —las mesas eligen y entran solas a la cola—,
+ * asi que nada de aca es un paso obligatorio del karaoke: es la baranda. Sirve
+ * para reordenar, sacar lo que no corresponde, cargarle la cancion a quien no
+ * tiene telefono y podar el catalogo.
+ *
+ * Exige sesion del panel, igual que el POS. Lo que si esta abierto a internet
+ * —buscar y mandar una cancion desde la mesa— vive en `actions/public.ts` con
+ * sus limites.
  */
 
 /** Las tres pantallas que miran esto: el tablero, la TV y el QR de las mesas. */
@@ -50,7 +59,13 @@ export async function searchLocalCatalog(query: string): Promise<FormState> {
   );
 }
 
-/** Busqueda en YouTube. Cuesta 100 de las 10.000 unidades diarias. */
+/**
+ * Busqueda en YouTube. Cuesta 100 de las 10.000 unidades diarias.
+ *
+ * Lo que devuelve queda guardado en el catalogo del local en el momento, sin
+ * esperar a que alguien lo encole: si el encargado tuvo que pagar por esta
+ * busqueda, que al menos las mesas se la encuentren gratis despues.
+ */
 export async function searchYoutube(query: string): Promise<FormState> {
   await requireStaff();
 
@@ -64,63 +79,14 @@ export async function searchYoutube(query: string): Promise<FormState> {
 
   if (!result.ok) return formError(result.message);
 
+  await rememberSearch(parsed.data.query, result.videos);
+
   return formSuccess(
     result.videos.length > 0
       ? `${result.videos.length} resultado(s) en YouTube.`
       : "YouTube no devolvió karaokes para esa búsqueda.",
     { videos: result.videos },
   );
-}
-
-// --- Catalogo ----------------------------------------------------------------
-
-type TrackInput = {
-  videoId: string;
-  title: string;
-  channel?: string;
-  durationSeconds?: number;
-  thumbnailUrl?: string;
-};
-
-/**
- * Guarda la cancion en el catalogo del local.
- *
- * Es el motivo por el que la cuota alcanza: cada video que alguien encola
- * queda aca, y la proxima vez que pidan esa cancion sale del catalogo sin
- * tocar la API. `timesQueued` ademas ordena la lista que ve el cliente en su
- * mesa, que termina siendo el ranking real del local.
- */
-async function upsertTrack(
-  tx: Prisma.TransactionClient,
-  input: TrackInput,
-): Promise<string> {
-  const data = {
-    title: input.title,
-    channel: input.channel || null,
-    durationSeconds: input.durationSeconds ?? null,
-    thumbnailUrl: input.thumbnailUrl || null,
-    search: searchKey(input.title, input.channel),
-  };
-
-  const track = await tx.karaokeTrack.upsert({
-    where: { videoId: input.videoId },
-    create: { videoId: input.videoId, ...data },
-    update: data,
-    select: { id: true },
-  });
-
-  return track.id;
-}
-
-/** Siguiente lugar libre al final de la cola. */
-async function nextPosition(tx: Prisma.TransactionClient) {
-  const last = await tx.karaokeEntry.findFirst({
-    where: { status: { in: ["EN_COLA", "CANTANDO"] } },
-    orderBy: { position: "desc" },
-    select: { position: true },
-  });
-
-  return (last?.position ?? 0) + 1;
 }
 
 // --- Cola --------------------------------------------------------------------
@@ -142,28 +108,28 @@ export async function queueSong(
     parsed.data;
 
   await prisma.$transaction(async (tx) => {
-    const trackId = await upsertTrack(tx, {
+    const track = await upsertTrack(tx, {
       videoId,
       title,
-      channel: channel || undefined,
+      channel,
       durationSeconds,
-      thumbnailUrl: thumbnailUrl || undefined,
+      thumbnailUrl,
     });
 
     await tx.karaokeTrack.update({
-      where: { id: trackId },
+      where: { id: track.id },
       data: { timesQueued: { increment: 1 }, lastQueuedAt: new Date() },
     });
 
     await tx.karaokeEntry.create({
       data: {
-        trackId,
+        trackId: track.id,
         singer,
         tableId: tableId || null,
         note: note || null,
         source: "SALA",
         status: "EN_COLA",
-        position: await nextPosition(tx),
+        position: await nextQueuePosition(tx),
         queuedById: user.userId,
       },
     });
@@ -200,7 +166,7 @@ export async function acceptRequest(entryId: string): Promise<FormState> {
   await prisma.$transaction(async (tx) => {
     await tx.karaokeEntry.update({
       where: { id: entryId },
-      data: { status: "EN_COLA", position: await nextPosition(tx) },
+      data: { status: "EN_COLA", position: await nextQueuePosition(tx) },
     });
 
     await tx.karaokeTrack.update({
@@ -240,22 +206,26 @@ export async function resolveRequest(
   const { videoId, title, channel, durationSeconds, thumbnailUrl } = parsed.data;
 
   await prisma.$transaction(async (tx) => {
-    const trackId = await upsertTrack(tx, {
+    const track = await upsertTrack(tx, {
       videoId,
       title,
-      channel: channel || undefined,
+      channel,
       durationSeconds,
-      thumbnailUrl: thumbnailUrl || undefined,
+      thumbnailUrl,
     });
 
     await tx.karaokeTrack.update({
-      where: { id: trackId },
+      where: { id: track.id },
       data: { timesQueued: { increment: 1 }, lastQueuedAt: new Date() },
     });
 
     await tx.karaokeEntry.update({
       where: { id: entryId },
-      data: { trackId, status: "EN_COLA", position: await nextPosition(tx) },
+      data: {
+        trackId: track.id,
+        status: "EN_COLA",
+        position: await nextQueuePosition(tx),
+      },
     });
   });
 

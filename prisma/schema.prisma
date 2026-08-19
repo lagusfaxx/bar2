@@ -1339,3 +1339,26 @@ model KaraokeEntry {
   @@index([createdAt])
   @@map("karaoke_entries")
 }
+
+/**
+ * Una busqueda que ya se le pago a YouTube.
+ *
+ * Con las mesas buscando solas, la cuota de la API es el recurso escaso: son
+ * cien busquedas al dia para todo el local. Cada vez que se paga una, los
+ * videos quedan guardados como `KaraokeTrack` y la frase normalizada queda
+ * aca; la proxima mesa que escriba lo mismo se sirve del catalogo sin gastar
+ * nada. Un karaoke repite tanto que a las pocas noches casi todo sale de ahi.
+ */
+model KaraokeSearch {
+  /// Lo que se escribio, normalizado igual que `KaraokeTrack.search`.
+  key String @id
+
+  /// Cuantas veces se pidio. Es el ranking real de lo que busca la gente.
+  hits Int @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("karaoke_searches")
+}
