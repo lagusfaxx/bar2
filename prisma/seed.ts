@@ -1431,36 +1431,17 @@ async function main() {
     `· Carta: ${MENU.length} categorías, ${MENU.reduce((n, c) => n + c.products.length, 0)} productos`,
   );
 
-  // Zonas del salon: son las secciones en las que se parte el mapa de mesas
-  // que ven los garzones. Se ajustan despues desde el panel, en Sala → Mesas.
-  const zonas = [
-    { name: "Salón", color: "bone" },
-    { name: "Terraza", color: "esmeralda" },
-  ];
-
-  const zonaId = new Map<string, string>();
-
-  for (const [index, zona] of zonas.entries()) {
-    const guardada = await prisma.posZone.upsert({
-      where: { name: zona.name },
-      create: { ...zona, position: index },
-      update: {},
-      select: { id: true },
-    });
-
-    zonaId.set(zona.name, guardada.id);
-  }
-
   // Mesas del salon: sin ellas los garzones no tienen donde abrir una cuenta.
+  // Se ajustan despues desde el panel, en Sala → Mesas.
   const mesas = [
     ...Array.from({ length: 10 }, (_, index) => ({
       number: index + 1,
-      zoneId: zonaId.get("Salón") ?? null,
+      zone: "Salón",
       seats: 4,
     })),
     ...Array.from({ length: 4 }, (_, index) => ({
       number: index + 11,
-      zoneId: zonaId.get("Terraza") ?? null,
+      zone: "Terraza",
       seats: 6,
     })),
   ];
@@ -1472,7 +1453,7 @@ async function main() {
       update: {},
     });
   }
-  console.log(`· ${zonas.length} zonas, ${mesas.length} mesas`);
+  console.log(`· ${mesas.length} mesas`);
 
   // Galería — vinculamos algunas fotos a eventos existentes.
   const eventsForGallery = await prisma.event.findMany({

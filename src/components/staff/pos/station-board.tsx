@@ -1,29 +1,25 @@
 "use client";
 
-import { HandPlatter, Loader2, Utensils, Wine } from "lucide-react";
+import { Utensils, Wine } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useState } from "react";
 
-import { markTicketPickedUp } from "@/app/actions/pos";
 import { useWakeLock } from "@/components/staff/use-wake-lock";
 import type { BoardTicket } from "@/lib/pos";
 
 /**
  * Pantalla de cocina o de barra.
  *
- * Casi no se toca, y es a proposito: quien cocina tiene las manos mojadas o
- * con grasa y no las va a secar para tocar una pantalla. Antes esto pedia dos
- * toques por comanda —"empezar" y "listo"— y en la practica no los daba nadie,
- * asi que el tablero mostraba un estado que no era cierto.
+ * No tiene un solo boton, y es a proposito: quien cocina tiene las manos
+ * mojadas o con grasa y no las va a secar para tocar una pantalla. Antes esto
+ * pedia dos toques por comanda —"empezar" y "listo"— y en la practica no los
+ * daba nadie, asi que el tablero mostraba un estado que no era cierto.
  *
- * Lo que queda es lo que se necesita de verdad: la lista de lo que falta
- * preparar, la mas vieja arriba, con el tiempo que lleva esperando en letra
- * grande. Que el plato esta listo lo sigue avisando la campana, como siempre.
- *
- * El unico toque es "Entregada", y esta aca y no en el telefono del garzon
- * porque es aca donde pasa: el plato se pone en la barra del pase y cambia de
- * manos. Pedirselo al garzon significaba pedirle que declarara desde el
- * telefono, ya caminando con la bandeja, algo que acababa de hacer.
+ * Ahora es lo que se necesita de verdad: la lista de lo que falta preparar,
+ * la mas vieja arriba, con el tiempo que lleva esperando en letra grande. La
+ * comanda desaparece cuando el garzon marca que se la llevo, desde su
+ * telefono. Que el plato esta listo lo sigue avisando la campana, como
+ * siempre.
  */
 
 /**
@@ -192,7 +188,6 @@ function TicketCard({
 }) {
   const tipografia = TIPOGRAFIA[escala];
   const minutes = useMinutesSince(ticket.createdAt);
-  const [entregando, startTransition] = useTransition();
 
   const nivel =
     minutes === null
@@ -260,32 +255,6 @@ function TicketCard({
           </li>
         ))}
       </ul>
-
-      {/*
-        El unico boton de la pantalla, y va al pie de la comanda que despacha.
-
-        Es grande a proposito: se toca de paso, con el dorso de la mano o un
-        nudillo, en el momento en que se entrega el pedido. Se puede tocar dos
-        veces sin consecuencias —el servidor lo trata como una sola— asi que
-        no hay nada que confirmar.
-      */}
-      <button
-        type="button"
-        disabled={entregando}
-        onClick={() =>
-          startTransition(async () => {
-            await markTicketPickedUp(ticket.id);
-          })
-        }
-        className="mt-auto flex h-16 items-center justify-center gap-3 border-t border-line/60 text-lg text-bone-dim transition-colors hover:bg-bone/5 hover:text-bone disabled:opacity-50"
-      >
-        {entregando ? (
-          <Loader2 className="size-6 animate-spin" aria-hidden />
-        ) : (
-          <HandPlatter className="size-6" aria-hidden />
-        )}
-        Entregada
-      </button>
     </article>
   );
 }

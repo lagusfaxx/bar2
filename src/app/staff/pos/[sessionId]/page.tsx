@@ -7,7 +7,6 @@ import {
   getPosMenu,
   getPromotionOffers,
   getSessionDetail,
-  getStaffMembers,
   type PromotionOffer,
 } from "@/lib/pos";
 
@@ -34,12 +33,10 @@ export default async function SessionPage({
 
   // La carta se pasa entera al cliente: son unos pocos cientos de productos y
   // asi el garzon busca y carga sin esperar una peticion por toque.
-  const [session, menu, frequent, staff] = await Promise.all([
+  const [session, menu, frequent] = await Promise.all([
     getSessionDetail(sessionId),
     getPosMenu(),
     getFrequentProducts(),
-    // Para decir quien atiende la mesa cuando cambia de manos.
-    getStaffMembers(),
   ]);
 
   if (!session) notFound();
@@ -71,8 +68,6 @@ export default async function SessionPage({
       menu={menu}
       frequent={frequent}
       offers={offers}
-      staff={staff}
-      me={user.userId}
       // Recien abierta: se entra directo a cargar el pedido.
       autoOpenPicker={nueva === "1"}
     />

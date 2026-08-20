@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Printer, Send, User, Users } from "lucide-react";
+import { Loader2, Plus, Printer, Send, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type { TableOverview } from "@/lib/pos";
-import { tagColor, zoneColor } from "@/lib/pos-style";
 
 /**
  * Estado de la sala.
@@ -28,14 +27,6 @@ import { tagColor, zoneColor } from "@/lib/pos-style";
 export function TableGrid({ tables }: { tables: TableOverview[] }) {
   const router = useRouter();
   const [opening, setOpening] = useState<TableOverview | null>(null);
-
-  /**
-   * Que zona se esta mirando. `null` es la sala entera.
-   *
-   * En un local con terraza, el garzon que la atiende no tiene por que buscar
-   * sus seis mesas entre las treinta del salon.
-   */
-  const [zona, setZona] = useState<string | null>(null);
 
   /*
    * La sala se pone al dia sola.
@@ -55,213 +46,96 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
     );
   }
 
-  /*
-   * La sala, partida en zonas.
-   *
-   * El orden lo pone el panel (posicion de la zona) y aca solo se respeta el
-   * que traen las mesas. Las que no tienen zona van juntas al final, bajo
-   * "Otras mesas": una mesa sin zona tiene que seguir viendose: es una mesa
-   * del local igual que las demas.
-   */
-  const secciones: Array<{
-    id: string | null;
-    name: string | null;
-    color: string | null;
-    tables: TableOverview[];
-  }> = [];
-
-  for (const table of tables) {
-    const id = table.zone?.id ?? null;
-    const seccion = secciones.find((candidate) => candidate.id === id);
-
-    if (seccion) {
-      seccion.tables.push(table);
-    } else {
-      secciones.push({
-        id,
-        name: table.zone?.name ?? null,
-        color: table.zone?.color ?? null,
-        tables: [table],
-      });
-    }
-  }
-
-  // Las mesas sueltas al final, detras de las zonas.
-  secciones.sort((a, b) => (a.id === null ? 1 : 0) - (b.id === null ? 1 : 0));
-
-  const visibles =
-    zona === null
-      ? secciones
-      : secciones.filter((seccion) => seccion.id === zona);
-
-  /** Con una sola zona (o ninguna) no hay nada que elegir ni que titular. */
-  const porZonas = secciones.length > 1;
-
   return (
     <>
       <PorImprimir tables={tables} />
 
-      {porZonas && (
-        <div
-          role="tablist"
-          aria-label="Zonas del salón"
-          className="mb-5 flex flex-wrap gap-2"
-        >
-          <ZoneTab
-            active={zona === null}
-            onClick={() => setZona(null)}
-            label="Toda la sala"
-            count={tables.length}
-          />
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+        {tables.map((table) => {
+          const ocupada = table.session !== null;
 
-          {secciones.map((seccion) => (
-            <ZoneTab
-              key={seccion.id ?? "sueltas"}
-              active={zona === seccion.id}
-              onClick={() => setZona(seccion.id)}
-              label={seccion.name ?? "Otras mesas"}
-              count={seccion.tables.length}
-              color={seccion.color}
-            />
-          ))}
-        </div>
-      )}
+          return (
+            <button
+              key={table.id}
+              type="button"
+              onClick={() =>
+                ocupada
+                  ? router.push(`/staff/pos/${table.session!.id}`)
+                  : setOpening(table)
+              }
+              className={[
+                "flex min-h-28 flex-col justify-between border p-3 text-left transition-colors",
+                ocupada
+                  ? "border-crimson/50 bg-crimson/10 hover:border-crimson"
+                  : "border-line bg-ink-soft hover:border-bone/40",
+              ].join(" ")}
+            >
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="font-display text-2xl text-bone">
+                  {table.number}
+                </span>
 
-      {visibles.map((seccion) => (
-        <section key={seccion.id ?? "sueltas"} className="mb-6 last:mb-0">
-          {porZonas && (
-            <h2 className="mb-2 flex items-center gap-2 text-[0.65rem] uppercase tracking-[0.16em] text-muted">
-              <span
-                className={`size-2 rounded-full ${zoneColor(seccion.color).dot}`}
-                aria-hidden
-              />
-              {seccion.name ?? "Otras mesas"}
-            </h2>
-          )}
+                {ocupada && (
+                  <span className="font-display text-lg text-bone">
+                    {formatPrice(table.session!.pendingCents)}
+                  </span>
+                )}
+              </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-            {seccion.tables.map((table) => {
-              const ocupada = table.session !== null;
-              const etiqueta = table.session?.tag ?? null;
-
-              return (
-                <button
-                  key={table.id}
-                  type="button"
-                  onClick={() =>
-                    ocupada
-                      ? router.push(`/staff/pos/${table.session!.id}`)
-                      : setOpening(table)
-                  }
-                  className={[
-                    "flex min-h-28 flex-col justify-between border p-3 text-left transition-colors",
-                    ocupada
-                      ? "border-crimson/50 bg-crimson/10 hover:border-crimson"
-                      : "border-line bg-ink-soft hover:border-bone/40",
-                  ].join(" ")}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="font-display text-2xl text-bone">
-                      {table.number}
-                    </span>
-
-                    {ocupada && (
-                      <span className="font-display text-lg text-bone">
-                        {formatPrice(table.session!.pendingCents)}
-                      </span>
-                    )}
-                  </div>
+              {ocupada ? (
+                <div className="mt-2">
+                  <p className="text-sm font-medium text-crimson-bright">
+                    Ocupada
+                  </p>
 
                   {/*
-                    La etiqueta, apenas debajo del numero.
+                    Un solo aviso por mesa, el que manda.
 
-                    Es lo que cambia como se atiende esa mesa —un cumpleaños,
-                    una reserva, gente apurada— y hasta ahora vivia solo en la
-                    cabeza del que abrio la mesa. Va antes que el estado porque
-                    se lee de reojo desde el otro lado del salon.
+                    La tarjeta llegó a mostrar cuatro renglones —cuántos faltan
+                    enviar, cuánto se debe, cuántas comandas esperan, cuántos se
+                    sentaron y hace cuánto—, y una sala llena de eso es una
+                    pared de texto que no se lee de un vistazo, que es
+                    exactamente para lo que sirve la vista de sala. Con la mesa
+                    abierta lo urgente es siempre uno solo: si hay algo sin
+                    mandar, mandarlo; si no, ir a buscar lo que ya está listo. El
+                    resto —cuántos son, hace cuánto— está dentro de la cuenta,
+                    a un toque, y ahí sí importa.
                   */}
-                  {etiqueta && (
-                    <span
-                      className={`mt-2 inline-block max-w-full truncate border px-1.5 py-0.5 text-[0.7rem] ${
-                        tagColor(table.session!.tagColor).chip
-                      }`}
-                    >
-                      {etiqueta}
-                    </span>
-                  )}
-
-                  {ocupada ? (
-                    <div className="mt-2">
-                      <p className="text-sm font-medium text-crimson-bright">
-                        Ocupada
-                      </p>
-
-                      {/*
-                        Un solo aviso por mesa, el que manda.
-
-                        La tarjeta llegó a mostrar cuatro renglones —cuántos
-                        faltan enviar, cuánto se debe, cuántas comandas
-                        esperan, cuántos se sentaron y hace cuánto—, y una sala
-                        llena de eso es una pared de texto que no se lee de un
-                        vistazo, que es exactamente para lo que sirve la vista
-                        de sala. Con la mesa abierta lo urgente es siempre uno
-                        solo: si hay algo sin mandar, mandarlo; si no, ir a
-                        buscar lo que ya está listo. El resto —cuántos son,
-                        hace cuánto— está dentro de la cuenta, a un toque, y
-                        ahí sí importa.
-                      */}
-                      {table.session!.draftItems > 0 ? (
-                        <p className="mt-1 text-xs font-medium text-gilt-soft">
-                          Falta enviar {table.session!.draftItems}
-                        </p>
-                      ) : table.session!.pendingTickets > 0 ? (
-                        <p className="mt-1 text-xs font-medium text-gilt-soft">
-                          {table.session!.pendingTickets === 1
-                            ? "1 comanda por retirar"
-                            : `${table.session!.pendingTickets} comandas por retirar`}
-                        </p>
-                      ) : (
-                        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
-                          <Users className="size-3.5 shrink-0" aria-hidden />
-                          <span className="whitespace-nowrap">
-                            {table.session!.diners > 0
-                              ? `${table.session!.diners} cuentas`
-                              : `${table.session!.guests} personas`}
-                            <span aria-hidden> · </span>
-                            hace <Elapsed since={table.session!.openedAt} />
-                          </span>
-                        </p>
-                      )}
-
-                      {/*
-                        Quien la atiende.
-
-                        Es la pregunta que mas se hace en un turno lleno —"¿de
-                        quién es la 7?"— y hasta ahora se contestaba gritando.
-                        Va siempre, incluso cuando arriba hay un aviso urgente:
-                        saber a quién avisarle es parte del aviso.
-                      */}
-                      <p className="mt-1 flex items-center gap-1.5 text-xs text-bone-dim">
-                        <User className="size-3.5 shrink-0" aria-hidden />
-                        <span className="truncate">
-                          {table.session!.waiter?.name ?? "Sin garzón"}
-                        </span>
-                      </p>
-                    </div>
+                  {table.session!.draftItems > 0 ? (
+                    <p className="mt-1 text-xs font-medium text-gilt-soft">
+                      Falta enviar {table.session!.draftItems}
+                    </p>
+                  ) : table.session!.pendingTickets > 0 ? (
+                    <p className="mt-1 text-xs font-medium text-gilt-soft">
+                      {table.session!.pendingTickets === 1
+                        ? "1 comanda por retirar"
+                        : `${table.session!.pendingTickets} comandas por retirar`}
+                    </p>
                   ) : (
-                    <p className="mt-2 text-xs text-muted">
-                      <span className="mb-0.5 block text-sm font-medium text-bone-dim">
-                        Libre
+                    <p className="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                      <Users className="size-3.5 shrink-0" aria-hidden />
+                      <span className="whitespace-nowrap">
+                        {table.session!.diners > 0
+                          ? `${table.session!.diners} cuentas`
+                          : `${table.session!.guests} personas`}
+                        <span aria-hidden> · </span>
+                        hace <Elapsed since={table.session!.openedAt} />
                       </span>
-                      {table.name ?? `${table.seats} lugares`}
                     </p>
                   )}
-                </button>
-              );
-            })}
-          </div>
-        </section>
-      ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-xs text-muted">
+                  <span className="mb-0.5 block text-sm font-medium text-bone-dim">
+                    Libre
+                  </span>
+                  {table.name ?? table.zone ?? `${table.seats} lugares`}
+                </p>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       {opening && (
         <OpenTableSheet table={opening} onClose={() => setOpening(null)} />
@@ -441,50 +315,5 @@ function OpenTableSheet({
         </div>
       </div>
     </div>
-  );
-}
-
-/**
- * Boton de una zona.
- *
- * Filtra la sala sin sacar nada de lugar: la casilla de cada mesa queda donde
- * estaba, solo desaparecen las de las otras zonas. En una terraza de seis
- * mesas eso es la diferencia entre mirar y buscar.
- */
-function ZoneTab({
-  active,
-  onClick,
-  label,
-  count,
-  color,
-}: {
-  active: boolean;
-  onClick: () => void;
-  label: string;
-  count: number;
-  color?: string | null;
-}) {
-  return (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onClick}
-      className={[
-        "flex h-11 items-center gap-2 border px-3 text-sm transition-colors",
-        active
-          ? "border-crimson bg-crimson/10 text-bone"
-          : "border-line text-muted hover:border-bone/40 hover:text-bone",
-      ].join(" ")}
-    >
-      {color !== undefined && (
-        <span
-          className={`size-2 shrink-0 rounded-full ${zoneColor(color).dot}`}
-          aria-hidden
-        />
-      )}
-      {label}
-      <span className="text-xs text-muted">{count}</span>
-    </button>
   );
 }
