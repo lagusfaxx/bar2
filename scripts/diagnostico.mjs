@@ -3,13 +3,17 @@
  *
  *   node scripts/diagnostico.mjs
  *
- * Contesta cuatro preguntas que el panel del VPS no puede contestar, porque
- * mira la maquina entera y promediada sobre minutos:
+ * Contesta lo que el panel del VPS no puede, porque mira la maquina entera y
+ * promediada sobre minutos:
  *
- *   1. ¿El contenedor se reinicio? Un reinicio es, por si solo, motivo de 524.
+ *   1. ¿Se reinicio la app? ¿Falta procesador o el cuello es el disco?
  *   2. ¿La app contesta rapido AHORA, medida desde adentro?
- *   3. ¿Que esta haciendo Postgres en este momento, y quien espera a quien?
- *   4. ¿Cuanto trabajo de mas hizo la base desde que arranco?
+ *   3. ¿Se aplicaron las migraciones de indices?
+ *   4. ¿Que esta haciendo Postgres en este momento, y quien espera a quien?
+ *   5. ¿Cuanto trabajo de mas hizo la base desde que arranco?
+ *
+ * Conviene correrlo EN PLENO SERVICIO, con las pantallas encendidas: en un
+ * local vacio, o recien desplegado, todos los numeros dan bien.
  *
  * Solo lee: no modifica ni una fila.
  */
@@ -62,6 +66,37 @@ try {
   console.log(`   No pude leerlo: ${error.message}`);
 }
 
+/*
+ * Carga alta con CPU baja no es una contradiccion: en Linux la carga cuenta
+ * tambien lo que espera al disco. Separarlo es la diferencia entre "falta
+ * procesador" y "el disco no da abasto", que se arreglan de maneras opuestas.
+ */
+try {
+  const cpu = () => {
+    const linea = readFileSync("/proc/stat", "utf8").split("\n")[0].split(/\s+/).slice(1);
+    const n = linea.map(Number);
+
+    return { total: n.reduce((a, b) => a + b, 0), ocupado: n[0] + n[1] + n[2], espera: n[4] };
+  };
+
+  const antes = cpu();
+  await new Promise((listo) => setTimeout(listo, 1000));
+  const ahora = cpu();
+
+  const total = ahora.total - antes.total;
+  const trabajando = ((ahora.ocupado - antes.ocupado) / total) * 100;
+  const esperandoDisco = ((ahora.espera - antes.espera) / total) * 100;
+
+  console.log(`   En este segundo: ${trabajando.toFixed(0)}% calculando, ${esperandoDisco.toFixed(0)}% esperando al disco`);
+
+  if (esperandoDisco > 10) {
+    console.log("   AVISO: el disco es el cuello, no el procesador. Eso sube la carga");
+    console.log("          dejando la CPU baja, y hace lento todo lo que toque la base.");
+  }
+} catch (error) {
+  console.log(`   No pude medir el reparto de CPU: ${error.message}`);
+}
+
 // --- 2. ¿Cuanto tarda la app en contestar? ------------------------------------
 
 console.log(titulo("2. Respuesta de la app (20 pedidos a /api/health)"));
@@ -110,7 +145,36 @@ const cliente = new pg.Client({ connectionString: url });
 
 await cliente.connect();
 
-console.log(titulo("3. Que esta haciendo Postgres ahora"));
+console.log(titulo("3. ¿Llegaron los indices nuevos?"));
+
+const esperados = [
+  ["pos_order_items_ticketId_idx", "lineas de una comanda (pantallas de cocina y barra)"],
+  ["pos_order_items_createdAt_idx", "ranking de lo mas vendido"],
+  ["pos_order_items_updatedAt_idx", "sondeo de cambios"],
+  ["pos_order_tickets_status_number_idx", "cola de impresion"],
+  ["pos_order_tickets_updatedAt_idx", "sondeo de cambios"],
+  ["pos_table_sessions_updatedAt_idx", "sondeo de cambios"],
+];
+
+const presentes = new Set(
+  (
+    await cliente.query(
+      "SELECT indexname FROM pg_indexes WHERE indexname = ANY($1)",
+      [esperados.map(([nombre]) => nombre)],
+    )
+  ).rows.map((fila) => fila.indexname),
+);
+
+for (const [nombre, para] of esperados) {
+  console.log(`   ${presentes.has(nombre) ? "si" : "NO"}  ${nombre.padEnd(38)} ${para}`);
+}
+
+if (presentes.size < esperados.length) {
+  console.log("   AVISO: falta alguno. La migracion no se aplico: revisa el log de arranque");
+  console.log("          del contenedor, donde corre 'prisma migrate deploy'.");
+}
+
+console.log(titulo("4. Que esta haciendo Postgres ahora"));
 
 const actividad = await cliente.query(`
   SELECT state,
@@ -154,36 +218,80 @@ if (enCurso.rows.length > 0) {
   }
 }
 
-console.log(titulo("4. Trabajo de mas acumulado (desde que arranco Postgres)"));
+console.log(titulo("5. Trabajo de la base, medido en vivo (15 segundos)"));
 
-const tablas = await cliente.query(`
-  SELECT relname AS tabla, seq_scan, seq_tup_read, idx_scan, n_live_tup
-  FROM pg_stat_user_tables
-  WHERE relname LIKE 'pos_%' OR relname IN ('redemptions', 'menu_products', 'menu_categories')
-  ORDER BY seq_tup_read DESC NULLS LAST
-  LIMIT 8
-`);
+/*
+ * Aca hubo una leccion, aprendida mirando una salida real.
+ *
+ * La primera version mostraba los totales desde que arranco Postgres y
+ * marcaba como sospechosa cualquier tabla muy recorrida. En una base con
+ * ciento y pico de filas eso asusta sin motivo: cuando una tabla entra en una
+ * sola pagina de disco, Postgres elige leerla entera A PROPOSITO, porque es
+ * mas rapido que abrir un indice. Miles de "recorridos" ahi no son un
+ * problema, son la decision correcta.
+ *
+ * Lo que si importa es el ritmo: cuanto trabajo esta haciendo AHORA, mientras
+ * el local atiende. Por eso se mide una ventana y se compara, en vez de
+ * mostrar un acumulado de semanas que nadie sabe con que comparar.
+ */
+const VENTANA_SEG = 15;
+
+const medir = async () =>
+  new Map(
+    (
+      await cliente.query(`
+        SELECT relname AS tabla, seq_scan, seq_tup_read, idx_scan, n_live_tup
+        FROM pg_stat_user_tables
+        WHERE relname LIKE 'pos_%' OR relname IN ('redemptions', 'menu_products', 'menu_categories')
+      `)
+    ).rows.map((fila) => [fila.tabla, fila]),
+  );
+
+const antesDb = await medir();
+console.log(`   Midiendo ${VENTANA_SEG} segundos de actividad real...`);
+await new Promise((listo) => setTimeout(listo, VENTANA_SEG * 1000));
+const despuesDb = await medir();
+
+const filas = [...despuesDb.values()]
+  .map((fila) => {
+    const previa = antesDb.get(fila.tabla);
+
+    return {
+      tabla: fila.tabla,
+      filasTabla: Number(fila.n_live_tup),
+      recorridos: Number(fila.seq_scan) - Number(previa?.seq_scan ?? 0),
+      leidas: Number(fila.seq_tup_read) - Number(previa?.seq_tup_read ?? 0),
+      porIndice: Number(fila.idx_scan ?? 0) - Number(previa?.idx_scan ?? 0),
+    };
+  })
+  .sort((a, b) => b.leidas - a.leidas)
+  .slice(0, 8);
 
 console.log("   tabla                    recorridos    filas leidas   por indice     filas");
 
-for (const fila of tablas.rows) {
-  const aviso = Number(fila.seq_tup_read) > 10_000_000 ? "  <--" : "";
+for (const fila of filas) {
+  // Por debajo de esto, leer la tabla entera es lo correcto y no cuesta nada.
+  const chica = fila.filasTabla < 5000;
+  const nota = fila.leidas > 500_000 ? "  <-- MIRAR" : chica ? "  (tabla chica)" : "";
 
   console.log(
     "   " +
       String(fila.tabla).padEnd(24) +
-      String(fila.seq_scan).padStart(10) +
-      String(fila.seq_tup_read).padStart(16) +
-      String(fila.idx_scan ?? 0).padStart(13) +
-      String(fila.n_live_tup).padStart(10) +
-      aviso,
+      String(fila.recorridos).padStart(10) +
+      String(fila.leidas).padStart(16) +
+      String(fila.porIndice).padStart(13) +
+      String(fila.filasTabla).padStart(10) +
+      nota,
   );
 }
 
-console.log('\n   "recorridos"   = veces que Postgres leyo la tabla entera.');
-console.log('   "filas leidas" = filas que tuvo que mirar para descartarlas.');
-console.log("   En millones, eso es trabajo tirado a la basura: es exactamente");
-console.log("   lo que sacan los indices nuevos.");
+const totalLeidas = filas.reduce((suma, fila) => suma + fila.leidas, 0);
+
+console.log(`\n   En ${VENTANA_SEG} segundos la base miro ${totalLeidas.toLocaleString("es-CL")} filas.`);
+console.log("   Con el local vacio deberia ser casi cero. En pleno servicio, unos");
+console.log("   pocos miles. Cientos de miles significa trabajo repetido: ahi si");
+console.log("   faltan indices, o alguien esta pidiendo la misma vista sin parar.");
+console.log('   "(tabla chica)" = cabe en una pagina; leerla entera es lo correcto.');
 
 await cliente.end();
 console.log();

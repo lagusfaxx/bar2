@@ -128,6 +128,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 # ssh—. Se corre con: node scripts/diagnostico.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/scripts/diagnostico.mjs ./scripts/diagnostico.mjs
 
+# Prueba de carga: una noche llena, sin la noche. Mismo motivo que el anterior
+# —se necesita donde corre la app de verdad— y ademas necesita hablarle a la
+# base y al servidor por dentro. Se corre con: node scripts/carga.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/carga.mjs ./scripts/carga.mjs
+
 COPY --chown=nextjs:nodejs docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
