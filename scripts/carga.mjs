@@ -11,10 +11,13 @@
  *   node scripts/carga.mjs                  (30 mesas, 6 garzones, 2 minutos)
  *   node scripts/carga.mjs --mesas 40 --garzones 8 --minutos 5
  *   node scripts/carga.mjs --viejo          (el comportamiento anterior, para comparar)
+ *   node scripts/carga.mjs --limpiar        (borrar restos de una prueba cortada)
  *
  * NO imprime nada. Crea mesas abiertas con consumo, pero ninguna comanda: el
  * papel sale al enviar el pedido a la estacion, y eso el simulador no lo hace
- * nunca. Al terminar borra todo lo que creo, incluso si lo cortas con Ctrl-C.
+ * nunca. Al terminar borra todo lo que creo, tambien si lo cortan con Ctrl-C o
+ * si se cierra la terminal. Si aun asi quedaran restos —un corte de luz, un
+ * contenedor reiniciado a la fuerza— se limpian con `--limpiar`.
  *
  * Aun asi, escribe en la base a la que apunta: mientras dura, el personal ve
  * mesas de prueba en la sala. Corrélo con el local cerrado.
@@ -64,18 +67,19 @@ const MESAS = opcion("mesas", 30);
 const GARZONES = opcion("garzones", 6);
 const MINUTOS = opcion("minutos", 2);
 const VIEJO = args.includes("--viejo");
+const SOLO_LIMPIAR = args.includes("--limpiar");
 
 const desconocidos = args.filter(
   (arg, i) =>
     arg.startsWith("--") &&
-    !["--mesas", "--garzones", "--minutos", "--viejo"].includes(arg) &&
+    !["--mesas", "--garzones", "--minutos", "--viejo", "--limpiar"].includes(arg) &&
     // Los valores no empiezan con "--", asi que no se confunden con opciones.
     i >= 0,
 );
 
 if (desconocidos.length > 0) {
   console.error(`No entiendo: ${desconocidos.join(" ")}`);
-  console.error("Opciones: --mesas N --garzones N --minutos N --viejo");
+  console.error("Opciones: --mesas N --garzones N --minutos N --viejo --limpiar");
   process.exit(1);
 }
 
@@ -518,11 +522,37 @@ async function terminar() {
   await cliente.end().catch(() => {});
 }
 
-process.on("SIGINT", async () => {
-  console.log("\nCortado a mano.");
-  await terminar();
+/*
+ * Tambien hay que limpiar cuando cierran la terminal.
+ *
+ * Pasó: se cerro el contenedor de la terminal a mitad de una prueba y quedaron
+ * cuarenta mesas falsas abiertas en la sala. Al cerrar una terminal el proceso
+ * recibe SIGHUP, y sin atenderlo Node se muere en el acto sin pasar por la
+ * limpieza. SIGTERM es lo que manda Docker al parar el contenedor.
+ *
+ * Con SIGKILL no hay nada que hacer —no se puede atender—, y para eso esta
+ * `--limpiar`.
+ */
+for (const señal of ["SIGINT", "SIGHUP", "SIGTERM"]) {
+  process.on(señal, async () => {
+    console.log(`\nInterrumpido (${señal}).`);
+    await terminar();
+    process.exit(0);
+  });
+}
+
+if (SOLO_LIMPIAR) {
+  const borradas = await limpiar();
+
+  console.log(
+    borradas > 0
+      ? `Listo: ${borradas} mesas de prueba borradas.`
+      : "No habia nada que limpiar: ninguna mesa de prueba en la base.",
+  );
+
+  await cliente.end();
   process.exit(0);
-});
+}
 
 const usuario = (
   await cliente.query(
