@@ -42,8 +42,14 @@ export function TableGrid({
    * telefono, camina hasta la caja y espera imprimir ahi: si esta pantalla se
    * quedara con lo que habia cuando alguien la toco por ultima vez, llegaria y
    * no veria nada de lo que acaba de cargar.
+   *
+   * Cada cinco segundos, la mitad que antes: preguntar si algo cambio son
+   * unos pocos bytes y una consulta, asi que se puede preguntar mas seguido
+   * de lo que antes se podia rearmar. Una mesa que abre un companero aparece
+   * aca en cinco segundos como maximo —y al instante si en ese momento se
+   * vuelve a mirar el telefono, porque tambien se comprueba al despertar—.
    */
-  useLiveRefresh(10_000, { kind: "sala" }, version);
+  useLiveRefresh(5_000, { kind: "sala" }, version);
 
   if (tables.length === 0) {
     return (

@@ -99,10 +99,10 @@ export function Account({
    * viene a imprimir necesita encontrar aca lo que cargo caminando, y el que
    * sigue en la mesa necesita enterarse de que en la caja ya le cobraron.
    *
-   * Mas espaciado que la sala: esta pantalla se toca todo el rato, y cada toque
-   * ya la actualiza por su cuenta.
+   * Un poco mas espaciado que la sala: esta pantalla se toca todo el rato, y
+   * cada toque ya la actualiza por su cuenta.
    */
-  useLiveRefresh(15_000, { kind: "cuenta", sessionId: session.id }, version);
+  useLiveRefresh(8_000, { kind: "cuenta", sessionId: session.id }, version);
 
   const tab =
     session.tabs.find((candidate) => candidate.dinerId === activeTab) ??

@@ -42,11 +42,11 @@ export function StationBoard({
   /** Marca del estado de la estacion con la que se dibujo el tablero. */
   version: string;
 }) {
-  // La pantalla vive colgada en la pared: se actualiza sola cada 10 segundos.
-  // Pregunta primero si hay algo nuevo y solo entonces se rearma; una cocina
-  // tranquila deja de costarle una vista entera al servidor cada diez
-  // segundos, toda la noche.
-  useLiveRefresh(10_000, { kind: "estacion", station }, version);
+  // La pantalla vive colgada en la pared: se actualiza sola cada 5 segundos.
+  // Pregunta primero si hay algo nuevo y solo entonces se rearma, asi que
+  // puede mirar mas seguido y aun asi costar mucho menos: una comanda nueva
+  // aparece en la cocina en la mitad de tiempo que antes.
+  useLiveRefresh(5_000, { kind: "estacion", station }, version);
 
   // Y no se apaga: un tablero que hay que despertar tocandolo no sirve de nada
   // aca, que es justo lo que no se puede hacer.
