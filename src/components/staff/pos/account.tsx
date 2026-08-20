@@ -8,13 +8,12 @@ import {
   Loader2,
   MessageSquarePlus,
   Minus,
+  PackageCheck,
   Plus,
   RotateCw,
   Send,
-  Tag,
   Trash2,
   UserPlus,
-  Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -25,6 +24,7 @@ import {
   cancelItem,
   closeTable,
   detachCard,
+  markTicketPickedUp,
   removeDiner,
   removePromotion,
   reprintTicket,
@@ -38,11 +38,9 @@ import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
-import { TableSheet } from "@/components/staff/pos/table-sheet";
 import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
-import { tagColor } from "@/lib/pos-style";
 import type {
   AccountItem,
   AccountTab,
@@ -64,8 +62,6 @@ export function Account({
   menu,
   frequent,
   offers,
-  staff,
-  me,
   autoOpenPicker = false,
 }: {
   session: SessionDetail;
@@ -73,10 +69,6 @@ export function Account({
   frequent: PosMenuProduct[];
   /** Beneficios ya resueltos por pestaña ("mesa" = la cuenta compartida). */
   offers: Record<string, PromotionOffer[]>;
-  /** Entre quienes se reparte la sala, para decir quien atiende esta mesa. */
-  staff: Array<{ id: string; name: string }>;
-  /** Quien esta usando este telefono: es el que se ofrece primero. */
-  me: string;
   /** Mesa recien abierta: se entra directo a cargar, sin un toque de mas. */
   autoOpenPicker?: boolean;
 }) {
@@ -87,8 +79,6 @@ export function Account({
   const [addingDiner, setAddingDiner] = useState(false);
   const [scanningCard, setScanningCard] = useState(false);
   const [choosingPromo, setChoosingPromo] = useState(false);
-  /** Hoja de "quien atiende" y "como se marca" la mesa. */
-  const [editingTable, setEditingTable] = useState(false);
   const [feedback, setFeedback] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
 
@@ -233,54 +223,11 @@ export function Account({
               )}
             </h1>
             <p className="text-xs text-muted">
-              {session.table.zone && (
-                <span className="mr-1 text-bone-dim">
-                  {session.table.zone.name}
-                  <span aria-hidden> · </span>
-                </span>
-              )}
               {session.guests} personas
               {cerrada && (
                 <span className="ml-2 text-bone-dim">· Mesa cerrada</span>
               )}
             </p>
-
-            {/*
-              Quien atiende y como esta marcada la mesa, en una sola linea que
-              ademas es el boton para cambiarlas.
-
-              Las dos cosas cambian en la misma conversacion —"la 7 ahora la
-              llevo yo, y ojo que es un cumpleaños"— asi que se editan en la
-              misma hoja. Se muestra siempre, tambien cuando no hay garzon: es
-              justo el caso en que hay que tocarlo.
-            */}
-            {!cerrada && (
-              <button
-                type="button"
-                onClick={() => setEditingTable(true)}
-                className="mt-1 flex max-w-full items-center gap-2 text-xs text-bone-dim"
-              >
-                <span className="flex min-w-0 items-center gap-1">
-                  <Users className="size-3.5 shrink-0" aria-hidden />
-                  <span className="truncate">
-                    {session.waiter ? `Atiende ${session.waiter.name}` : "Sin garzón"}
-                  </span>
-                </span>
-
-                {session.tag ? (
-                  <span
-                    className={`max-w-[9rem] truncate border px-1.5 py-0.5 ${tagColor(session.tagColor).chip}`}
-                  >
-                    {session.tag}
-                  </span>
-                ) : (
-                  <span className="flex shrink-0 items-center gap-1 text-muted">
-                    <Tag className="size-3.5" aria-hidden />
-                    Etiquetar
-                  </span>
-                )}
-              </button>
-            )}
           </div>
 
           {/* "Pendiente" es palabra de sistema. Lo que el garzon necesita
@@ -330,17 +277,6 @@ export function Account({
             */}
             {!cerrada && (pendientes.length > 0 || fallidas.length > 0) && (
               <ul className="mb-4 flex flex-col gap-2">
-                {/*
-                  Aviso, no tarea.
-
-                  Aca habia un boton "Ya la retiré" y era un toque de mas por
-                  cada plato: el garzon ya se llevo la comanda —la tiene en la
-                  mano, esta caminando— y todavia le pediamos que lo declarara
-                  desde el telefono. La comanda sale del tablero cuando se
-                  entrega en la estacion, que es donde y cuando pasa de verdad.
-                  Lo que queda aca es lo unico que el garzon necesita saber: que
-                  hay algo esperandolo, y desde hace cuanto.
-                */}
                 {pendientes.map((ticket) => (
                   <li
                     key={ticket.id}
@@ -352,6 +288,16 @@ export function Account({
                         · hace <Elapsed since={ticket.createdAt} />
                       </span>
                     </span>
+
+                    <button
+                      type="button"
+                      disabled={pending}
+                      onClick={() => run(() => markTicketPickedUp(ticket.id))}
+                      className="flex h-11 shrink-0 items-center gap-2 border border-bone/25 px-4 text-sm text-bone disabled:opacity-50"
+                    >
+                      <PackageCheck className="size-4" aria-hidden />
+                      Ya la retiré
+                    </button>
                   </li>
                 ))}
 
@@ -903,23 +849,6 @@ export function Account({
             onClose={() => setPicker(false)}
           />
         </div>
-      )}
-
-      {editingTable && (
-        <TableSheet
-          sessionId={session.id}
-          tableNumber={session.table.number}
-          waiterId={session.waiter?.id ?? null}
-          tag={session.tag}
-          tagColorKey={session.tagColor}
-          staff={staff}
-          me={me}
-          onClose={() => setEditingTable(false)}
-          onDone={(result) => {
-            setFeedback(result);
-            setEditingTable(false);
-          }}
-        />
       )}
 
       {scanningCard && (

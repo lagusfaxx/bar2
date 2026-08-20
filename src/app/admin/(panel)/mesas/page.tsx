@@ -7,19 +7,12 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Mesas" };
 
 export default async function TablesPage() {
-  const [zones, tables] = await Promise.all([
-    prisma.posZone.findMany({
-      orderBy: [{ position: "asc" }, { name: "asc" }],
-      include: { _count: { select: { tables: true } } },
-    }),
-    prisma.posTable.findMany({
-      orderBy: [{ position: "asc" }, { number: "asc" }],
-      include: {
-        zone: { select: { id: true, name: true } },
-        _count: { select: { sessions: { where: { status: "OPEN" } } } },
-      },
-    }),
-  ]);
+  const tables = await prisma.posTable.findMany({
+    orderBy: [{ position: "asc" }, { number: "asc" }],
+    include: {
+      _count: { select: { sessions: { where: { status: "OPEN" } } } },
+    },
+  });
 
   return (
     <>
@@ -29,13 +22,6 @@ export default async function TablesPage() {
       />
 
       <TablesManager
-        zones={zones.map((zone) => ({
-          id: zone.id,
-          name: zone.name,
-          color: zone.color,
-          active: zone.active,
-          tables: zone._count.tables,
-        }))}
         tables={tables.map((table) => ({
           id: table.id,
           number: table.number,

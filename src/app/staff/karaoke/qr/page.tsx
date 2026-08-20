@@ -91,7 +91,7 @@ export default async function KaraokeQrPage() {
                 Escanea y pide tu canción
               </p>
               <p className="mt-1 text-xs text-neutral-600">
-                {table.name ?? table.zone?.name ?? "Te llamamos por el micrófono"}
+                {table.name ?? table.zone ?? "Te llamamos por el micrófono"}
               </p>
             </div>
           ))}
