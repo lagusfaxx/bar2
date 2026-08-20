@@ -973,6 +973,10 @@ model TableSession {
   openedAt DateTime  @default(now())
   closedAt DateTime?
 
+  // Marca de ultimo cambio. La usan las pantallas de sala para preguntar "¿algo
+  // nuevo?" sin volver a armar la vista entera (ver lib/pos-version.ts).
+  updatedAt DateTime @default(now()) @updatedAt
+
   diners      Diner[]
   items       OrderItem[]
   tickets     OrderTicket[]
@@ -982,6 +986,7 @@ model TableSession {
   @@index([status, openedAt])
   @@index([tableId, status])
   @@index([cardId])
+  @@index([updatedAt])
   @@map("pos_table_sessions")
 }
 
@@ -1069,6 +1074,13 @@ model OrderItem {
   @@index([sessionId, status])
   @@index([dinerId])
   @@index([paymentId])
+  // Las lineas de una comanda: las piden la pantalla de estacion y la cola de
+  // impresion en cada vuelta. Sin este indice se recorria la tabla entera.
+  @@index([ticketId])
+  // "Lo que mas se vende" agrupa por producto sobre los ultimos catorce dias.
+  @@index([createdAt])
+  // Sondeo de cambios de las pantallas de sala.
+  @@index([updatedAt])
   @@map("pos_order_items")
 }
 
@@ -1168,7 +1180,10 @@ model OrderTicket {
   items OrderItem[]
 
   @@index([status, createdAt])
+  // La cola de impresion pide las pendientes por numero, cada cuatro segundos.
+  @@index([status, number])
   @@index([kind, station, prep])
+  @@index([updatedAt])
   @@index([sessionId])
   @@index([paymentId])
   @@index([batchId])

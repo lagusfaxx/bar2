@@ -8,6 +8,7 @@ import { TableGrid } from "@/components/staff/pos/table-grid";
 import { getPanelSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
 import { getTablesOverview } from "@/lib/pos";
+import { posVersion } from "@/lib/pos-version";
 
 /** Sala: el estado de las mesas cambia cada minuto, nunca se cachea. */
 export const dynamic = "force-dynamic";
@@ -21,9 +22,12 @@ export default async function PosPage() {
 
   if (!session) redirect("/staff/login?volver=/staff/pos");
 
-  const [settings, tables] = await Promise.all([
+  const [settings, tables, version] = await Promise.all([
     getSettings(),
     getTablesOverview(),
+    // Marca del estado de la sala: la pantalla la usa para preguntar si algo
+    // cambio antes de volver a pedirla entera (ver lib/pos-version.ts).
+    posVersion({ kind: "sala" }),
   ]);
 
   return (
@@ -93,7 +97,7 @@ export default async function PosPage() {
         </p>
 
         <div className="mt-6">
-          <TableGrid tables={tables} />
+          <TableGrid tables={tables} version={version} />
         </div>
       </main>
     </>

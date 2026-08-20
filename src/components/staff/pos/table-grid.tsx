@@ -24,7 +24,14 @@ import type { TableOverview } from "@/lib/pos";
  * ocupada —y quien no distingue bien los colores no lo sabe nunca—. La
  * palabra no le quita nada a la vista rapida y elimina la adivinanza.
  */
-export function TableGrid({ tables }: { tables: TableOverview[] }) {
+export function TableGrid({
+  tables,
+  version,
+}: {
+  tables: TableOverview[];
+  /** Marca del estado de la sala con la que se dibujo esta pantalla. */
+  version: string;
+}) {
   const router = useRouter();
   const [opening, setOpening] = useState<TableOverview | null>(null);
 
@@ -36,7 +43,7 @@ export function TableGrid({ tables }: { tables: TableOverview[] }) {
    * quedara con lo que habia cuando alguien la toco por ultima vez, llegaria y
    * no veria nada de lo que acaba de cargar.
    */
-  useLiveRefresh(10_000);
+  useLiveRefresh(10_000, { kind: "sala" }, version);
 
   if (tables.length === 0) {
     return (

@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 
 import { purgeEdgeCache } from "@/lib/cloudflare";
+import { invalidatePosMenu } from "@/lib/pos";
 
 /**
  * Invalidacion del contenido publico.
@@ -45,6 +46,14 @@ export type ContentArea =
 export function revalidateContent(...areas: ContentArea[]) {
   for (const path of PUBLIC_PATHS) {
     revalidatePath(path);
+  }
+
+  // La app de sala guarda la carta en memoria un minuto para no consultarla en
+  // cada toque (ver lib/pos.ts). Al guardar un cambio se descarta esa copia:
+  // quien cambia un precio en el panel espera verlo en el POS enseguida, no
+  // dentro de un minuto.
+  if (areas.length === 0 || areas.includes("menu")) {
+    invalidatePosMenu();
   }
 
   // Las fichas de evento son rutas dinamicas: se invalidan como plantilla.
