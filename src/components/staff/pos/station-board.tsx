@@ -1,9 +1,9 @@
 "use client";
 
 import { Utensils, Wine } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { useWakeLock } from "@/components/staff/use-wake-lock";
 import type { BoardTicket } from "@/lib/pos";
 
@@ -35,17 +35,18 @@ const ROJO_MINUTOS = 15;
 export function StationBoard({
   station,
   tickets,
+  version,
 }: {
   station: "BARRA" | "COCINA";
   tickets: BoardTicket[];
+  /** Marca del estado de la estacion con la que se dibujo el tablero. */
+  version: string;
 }) {
-  const router = useRouter();
-
   // La pantalla vive colgada en la pared: se actualiza sola cada 10 segundos.
-  useEffect(() => {
-    const timer = setInterval(() => router.refresh(), 10_000);
-    return () => clearInterval(timer);
-  }, [router]);
+  // Pregunta primero si hay algo nuevo y solo entonces se rearma; una cocina
+  // tranquila deja de costarle una vista entera al servidor cada diez
+  // segundos, toda la noche.
+  useLiveRefresh(10_000, { kind: "estacion", station }, version);
 
   // Y no se apaga: un tablero que hay que despertar tocandolo no sirve de nada
   // aca, que es justo lo que no se puede hacer.

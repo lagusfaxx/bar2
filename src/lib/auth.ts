@@ -131,6 +131,26 @@ export async function getPanelSession(): Promise<PanelSession | null> {
   };
 }
 
+/**
+ * Sesion del panel comprobada solo por firma, sin ir a la base.
+ *
+ * Es para el sondeo de cambios de las pantallas de sala, que pregunta cada
+ * pocos segundos si hay algo nuevo y no devuelve ningun dato del negocio: solo
+ * una marca opaca que la pantalla compara con la suya. Cobrarle una consulta a
+ * la base a cada una de esas preguntas convertiria el ahorro en gasto.
+ *
+ * Para cualquier cosa que lea o escriba datos se usa `getPanelSession`, que
+ * ademas comprueba contra la base que la cuenta siga activa.
+ */
+export async function verifyPanelToken(): Promise<PanelSession | null> {
+  const token = (await cookies()).get(ADMIN_COOKIE)?.value;
+  if (!token) return null;
+
+  const payload = await verify<PanelSession>(token, "panel");
+
+  return payload?.userId ? payload : null;
+}
+
 const CMS_ROLES: UserRole[] = ["ADMIN", "EDITOR"];
 
 /** Exige una sesion valida con permiso sobre el CMS. Lanza si no la hay. */

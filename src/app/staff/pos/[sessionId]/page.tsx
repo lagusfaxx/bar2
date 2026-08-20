@@ -5,10 +5,11 @@ import { getPanelSession } from "@/lib/auth";
 import {
   getFrequentProducts,
   getPosMenu,
-  getPromotionOffers,
+  getPromotionOffersByTab,
   getSessionDetail,
   type PromotionOffer,
 } from "@/lib/pos";
+import { posVersion } from "@/lib/pos-version";
 
 export const dynamic = "force-dynamic";
 
@@ -33,10 +34,13 @@ export default async function SessionPage({
 
   // La carta se pasa entera al cliente: son unos pocos cientos de productos y
   // asi el garzon busca y carga sin esperar una peticion por toque.
-  const [session, menu, frequent] = await Promise.all([
+  const [session, menu, frequent, version] = await Promise.all([
     getSessionDetail(sessionId),
     getPosMenu(),
     getFrequentProducts(),
+    // Marca del estado de la cuenta: la pantalla pregunta por ella cada quince
+    // segundos y solo se rearma si cambio (ver lib/pos-version.ts).
+    posVersion({ kind: "cuenta", sessionId }),
   ]);
 
   if (!session) notFound();
@@ -52,14 +56,14 @@ export default async function SessionPage({
   const offers: Record<string, PromotionOffer[]> = {};
 
   if (session.card) {
-    const porPestaña = await Promise.all(
-      session.tabs.map(async (tab) => [
-        tab.dinerId ?? "mesa",
-        await getPromotionOffers(session.id, tab.dinerId),
-      ] as const),
+    const porPestaña = await getPromotionOffersByTab(
+      session.id,
+      session.tabs.map((tab) => tab.dinerId),
     );
 
-    for (const [key, value] of porPestaña) offers[key] = value;
+    for (const tab of session.tabs) {
+      offers[tab.dinerId ?? "mesa"] = porPestaña.get(tab.dinerId) ?? [];
+    }
   }
 
   return (
@@ -68,6 +72,7 @@ export default async function SessionPage({
       menu={menu}
       frequent={frequent}
       offers={offers}
+      version={version}
       // Recien abierta: se entra directo a cargar el pedido.
       autoOpenPicker={nueva === "1"}
     />

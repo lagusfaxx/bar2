@@ -107,14 +107,16 @@ export type PosMenuCategory = {
 };
 
 /**
- * La carta tal como la ve el garzon.
+ * La carta cargada de la base, tal cual, con su categoria.
  *
- * Es la misma consulta que alimenta la web publica, filtrada por disponible:
- * un producto nuevo aparece en el POS sin que nadie lo cargue de nuevo, y uno
- * agotado desaparece de las dos partes a la vez.
+ * Se guarda en memoria un minuto (ver `menuCache`): la carta se edita unas
+ * pocas veces por semana y en cambio se pide en cada vuelta de cada telefono
+ * abierto. Lo que se guarda son las filas, no los precios ya calculados: una
+ * promocion que arranca a las nueve tiene que arrancar a las nueve, no cuando
+ * venza un cache.
  */
-export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
-  const categories = await prisma.menuCategory.findMany({
+async function loadMenuRows() {
+  return prisma.menuCategory.findMany({
     where: { active: true },
     orderBy: { position: "asc" },
     include: {
@@ -124,6 +126,56 @@ export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
       },
     },
   });
+}
+
+type MenuRows = Awaited<ReturnType<typeof loadMenuRows>>;
+
+/** Cuanto vive la carta en memoria. */
+const MENU_TTL_MS = 60_000;
+
+/**
+ * Cuanto vive el ranking de lo mas vendido.
+ *
+ * Es un recuento de catorce dias: que se calcule cada cinco minutos en vez de
+ * en cada pedido no cambia el orden de la lista ni una vez por noche, y ahorra
+ * la consulta mas cara de la pantalla de la cuenta.
+ */
+const FRECUENTES_TTL_MS = 5 * 60_000;
+
+let menuCache: { at: number; rows: MenuRows } | null = null;
+let frecuentesCache: { at: number; clave: string; ids: string[] } | null = null;
+
+/**
+ * Descarta la carta guardada en memoria.
+ *
+ * La llama el panel al guardar cualquier cambio de la carta, para que el
+ * garzon vea el precio nuevo en el toque siguiente y no dentro de un minuto.
+ */
+export function invalidatePosMenu() {
+  menuCache = null;
+  frecuentesCache = null;
+}
+
+async function menuRows(): Promise<MenuRows> {
+  if (menuCache && Date.now() - menuCache.at < MENU_TTL_MS) {
+    return menuCache.rows;
+  }
+
+  const rows = await loadMenuRows();
+  menuCache = { at: Date.now(), rows };
+
+  return rows;
+}
+
+/**
+ * La carta tal como la ve el garzon.
+ *
+ * Es la misma consulta que alimenta la web publica, filtrada por disponible:
+ * un producto nuevo aparece en el POS sin que nadie lo cargue de nuevo, y uno
+ * agotado desaparece de las dos partes a la vez.
+ */
+export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
+  const categories = await menuRows();
 
   return categories
     .map((category) => ({
@@ -152,51 +204,77 @@ export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
  * En un bar lleno el garzon no puede buscar: el 80% de los pedidos son los
  * mismos veinte productos. Tenerlos a un toque, sin scroll ni teclado, es la
  * diferencia entre cargar un pedido en cinco segundos o en treinta.
+ *
+ * El ranking sale de un recuento sobre las lineas de las ultimas dos semanas
+ * —la consulta mas pesada de esta pantalla— y por eso se guarda unos minutos.
+ * Los datos de cada producto salen de la carta que ya esta en memoria, asi que
+ * la lista no cuesta ninguna consulta extra: tambien hereda de ella el filtro
+ * por categoria activa, que es lo correcto —no se puede ofrecer de atajo algo
+ * que ya no esta en la carta—.
  */
 export async function getFrequentProducts(
   limit = 12,
   days = 14,
 ): Promise<PosMenuProduct[]> {
-  const desde = new Date();
-  desde.setDate(desde.getDate() - days);
+  const clave = `${limit}:${days}`;
 
-  const ranking = await prisma.orderItem.groupBy({
-    by: ["productId"],
-    where: {
-      createdAt: { gte: desde },
-      status: { not: "CANCELLED" },
-      productId: { not: null },
-    },
-    _sum: { quantity: true },
-    orderBy: { _sum: { quantity: "desc" } },
-    take: limit,
-  });
+  const ids = await (async () => {
+    if (
+      frecuentesCache &&
+      frecuentesCache.clave === clave &&
+      Date.now() - frecuentesCache.at < FRECUENTES_TTL_MS
+    ) {
+      return frecuentesCache.ids;
+    }
 
-  const ids = ranking
-    .map((row) => row.productId)
-    .filter((id): id is string => id !== null);
+    const desde = new Date();
+    desde.setDate(desde.getDate() - days);
+
+    const ranking = await prisma.orderItem.groupBy({
+      by: ["productId"],
+      where: {
+        createdAt: { gte: desde },
+        status: { not: "CANCELLED" },
+        productId: { not: null },
+      },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: limit,
+    });
+
+    const encontrados = ranking
+      .map((row) => row.productId)
+      .filter((id): id is string => id !== null);
+
+    frecuentesCache = { at: Date.now(), clave, ids: encontrados };
+
+    return encontrados;
+  })();
 
   if (ids.length === 0) return [];
 
-  const products = await prisma.menuProduct.findMany({
-    where: { id: { in: ids }, available: true },
-    include: { category: { select: { station: true } } },
-  });
-
+  const categories = await menuRows();
   const now = new Date();
-  const porId = new Map(products.map((product) => [product.id, product]));
+
+  const porId = new Map(
+    categories.flatMap((category) =>
+      category.products.map(
+        (product) => [product.id, { product, category }] as const,
+      ),
+    ),
+  );
 
   // Se respeta el orden del ranking, que es lo que hace util a la lista.
   return ids
     .map((id) => porId.get(id))
-    .filter((product): product is NonNullable<typeof product> => !!product)
-    .map((product) => {
+    .filter((fila): fila is NonNullable<typeof fila> => !!fila)
+    .map(({ product, category }) => {
       const priced = priceFor(product, now);
 
       return {
         id: product.id,
         name: product.name,
-        station: stationFor(product),
+        station: product.station ?? category.station,
         unitPriceCents: priced.unitPriceCents,
         discountCents: priced.discountCents,
         discountLabel: priced.discountLabel,
@@ -693,20 +771,34 @@ const TYPE_SHORT: Record<string, string> = {
  * escrito. Esconder las que no se pueden usar obliga a la garzona a explicar
  * de memoria por que el cliente no ve su promo; mostrarlas con el motivo
  * ("necesita 2 x Schop en la cuenta") convierte el problema en una venta.
+ *
+ * Se resuelven todas las pestanas de la mesa de una vez —una por comensal mas
+ * la compartida— porque es como se muestran. Hacerlo de a una repetia cinco
+ * consultas por pestana (la tarjeta, las promociones vigentes, los canjes de
+ * la tarjeta, los de la mesa), asi que una mesa de seis personas costaba unas
+ * treinta consultas cada vez que se dibujaba la cuenta, que con el refresco
+ * automatico era cada quince segundos. Aca todo eso se pide una vez y lo unico
+ * que cambia por pestana es el reparto de las lineas, que se hace en memoria.
+ *
+ * La clave del mapa es el id del comensal, y `null` es la cuenta de la mesa.
  */
-export async function getPromotionOffers(
+export async function getPromotionOffersByTab(
   sessionId: string,
-  dinerId: string | null,
+  dinerIds: Array<string | null>,
   now = new Date(),
-): Promise<PromotionOffer[]> {
+): Promise<Map<string | null, PromotionOffer[]>> {
+  const vacio = new Map<string | null, PromotionOffer[]>(
+    dinerIds.map((dinerId) => [dinerId, []]),
+  );
+
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
     select: { id: true, cardId: true },
   });
 
-  if (!session?.cardId) return [];
+  if (!session?.cardId) return vacio;
 
-  const [card, promotions, items] = await Promise.all([
+  const [card, promotions, items, usos, canjesDeLaMesa] = await Promise.all([
     prisma.barzuCard.findUnique({
       where: { id: session.cardId },
       // El socio viaja con la tarjeta: las promos de cumpleanos se habilitan
@@ -725,15 +817,17 @@ export async function getPromotionOffers(
         category: { select: { name: true } },
       },
     }),
+    // Todas las lineas sin cobrar de la mesa, en una consulta: despues se
+    // reparten por comensal en memoria.
     prisma.orderItem.findMany({
       where: {
         sessionId,
-        dinerId,
         status: { not: "CANCELLED" },
         paymentId: null,
       },
       select: {
         id: true,
+        dinerId: true,
         productId: true,
         product: { select: { categoryId: true } },
         unitPriceCents: true,
@@ -741,85 +835,94 @@ export async function getPromotionOffers(
         quantity: true,
       },
     }),
+    // Cuantas veces uso ya cada promocion esta tarjeta (los canjes anulados no
+    // cuentan: la garzona se equivoco de boton y lo deshizo).
+    prisma.redemption.groupBy({
+      by: ["promotionId"],
+      where: { cardId: session.cardId, voidedAt: null },
+      _count: { _all: true },
+    }),
+    prisma.redemption.findMany({
+      where: { sessionId, voidedAt: null },
+      select: { promotionId: true },
+    }),
   ]);
 
-  if (!card) return [];
-
-  // Cuantas veces uso ya cada promocion esta tarjeta (los canjes anulados no
-  // cuentan: la garzona se equivoco de boton y lo deshizo).
-  const usos = await prisma.redemption.groupBy({
-    by: ["promotionId"],
-    where: { cardId: card.id, voidedAt: null },
-    _count: { _all: true },
-  });
+  if (!card) return vacio;
 
   const usosPorPromo = new Map(
     usos.map((uso) => [uso.promotionId, uso._count._all]),
   );
 
   const aplicadas = new Set(
-    (
-      await prisma.redemption.findMany({
-        where: { sessionId, voidedAt: null },
-        select: { promotionId: true },
-      })
-    ).map((redemption) => redemption.promotionId),
+    canjesDeLaMesa.map((redemption) => redemption.promotionId),
   );
 
-  const lineas = promoLines(items);
+  const ofertas = new Map<string | null, PromotionOffer[]>();
 
-  return promotions.map((promotion) => {
-    const eligibility = checkEligibility({
-      promotion,
-      card,
-      redemptionsForThisPromotion: usosPorPromo.get(promotion.id) ?? 0,
-      birthDate: card.member.birthDate,
-      now,
-    });
+  for (const dinerId of dinerIds) {
+    const lineas = promoLines(
+      items.filter((item) => (item.dinerId ?? null) === dinerId),
+    );
 
-    const resolved = resolvePromotion(promotion, lineas);
-    const applied = aplicadas.has(promotion.id);
+    ofertas.set(
+      dinerId,
+      promotions.map((promotion) => {
+        const eligibility = checkEligibility({
+          promotion,
+          card,
+          redemptionsForThisPromotion: usosPorPromo.get(promotion.id) ?? 0,
+          birthDate: card.member.birthDate,
+          now,
+        });
 
-    // La cortesia es el unico beneficio que no necesita nada cargado: al
-    // aplicarla se agrega el producto a la cuenta y sale hacia la cocina.
-    const addsProduct =
-      promotion.type === "FREE_ITEM" &&
-      promotion.scope === "PRODUCTO" &&
-      resolved.missing;
+        const resolved = resolvePromotion(promotion, lineas);
+        const applied = aplicadas.has(promotion.id);
 
-    const faltaConsumo = resolved.missing && !addsProduct;
+        // La cortesia es el unico beneficio que no necesita nada cargado: al
+        // aplicarla se agrega el producto a la cuenta y sale hacia la cocina.
+        const addsProduct =
+          promotion.type === "FREE_ITEM" &&
+          promotion.scope === "PRODUCTO" &&
+          resolved.missing;
 
-    return {
-      id: promotion.id,
-      title: promotion.title,
-      description: promotion.description,
-      terms: promotion.terms,
-      typeLabel: TYPE_SHORT[promotion.type] ?? "Beneficio",
-      scopeLabel:
-        promotion.scope === "PRODUCTO"
-          ? "Producto"
-          : promotion.scope === "CATEGORIA"
-            ? "Categoría"
-            : "Toda la cuenta",
-      targetName: promotion.product?.name ?? promotion.category?.name ?? null,
-      previewCents: resolved.discountCents,
-      detail: resolved.detail,
-      available: eligibility.ok && !applied && !faltaConsumo,
-      reason: applied
-        ? "Ya aplicada en esta mesa"
-        : !eligibility.ok
-          ? eligibility.reason
-          : faltaConsumo
-            ? requirementLabel(
-                promotion,
-                promotion.product?.name,
-                promotion.category?.name,
-              )
-            : null,
-      applied,
-      addsProduct,
-    };
-  });
+        const faltaConsumo = resolved.missing && !addsProduct;
+
+        return {
+          id: promotion.id,
+          title: promotion.title,
+          description: promotion.description,
+          terms: promotion.terms,
+          typeLabel: TYPE_SHORT[promotion.type] ?? "Beneficio",
+          scopeLabel:
+            promotion.scope === "PRODUCTO"
+              ? "Producto"
+              : promotion.scope === "CATEGORIA"
+                ? "Categoría"
+                : "Toda la cuenta",
+          targetName: promotion.product?.name ?? promotion.category?.name ?? null,
+          previewCents: resolved.discountCents,
+          detail: resolved.detail,
+          available: eligibility.ok && !applied && !faltaConsumo,
+          reason: applied
+            ? "Ya aplicada en esta mesa"
+            : !eligibility.ok
+              ? eligibility.reason
+              : faltaConsumo
+                ? requirementLabel(
+                    promotion,
+                    promotion.product?.name,
+                    promotion.category?.name,
+                  )
+                : null,
+          applied,
+          addsProduct,
+        };
+      }),
+    );
+  }
+
+  return ofertas;
 }
 
 /** Etiquetas de estacion, para no repetir el switch en cada pantalla. */

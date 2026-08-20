@@ -62,6 +62,7 @@ export function Account({
   menu,
   frequent,
   offers,
+  version,
   autoOpenPicker = false,
 }: {
   session: SessionDetail;
@@ -69,6 +70,8 @@ export function Account({
   frequent: PosMenuProduct[];
   /** Beneficios ya resueltos por pestaña ("mesa" = la cuenta compartida). */
   offers: Record<string, PromotionOffer[]>;
+  /** Marca del estado de la cuenta con la que se dibujo esta pantalla. */
+  version: string;
   /** Mesa recien abierta: se entra directo a cargar, sin un toque de mas. */
   autoOpenPicker?: boolean;
 }) {
@@ -99,7 +102,7 @@ export function Account({
    * Mas espaciado que la sala: esta pantalla se toca todo el rato, y cada toque
    * ya la actualiza por su cuenta.
    */
-  useLiveRefresh(15_000);
+  useLiveRefresh(15_000, { kind: "cuenta", sessionId: session.id }, version);
 
   const tab =
     session.tabs.find((candidate) => candidate.dinerId === activeTab) ??
