@@ -122,6 +122,12 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/src/generated ./src/generated
 
+# Diagnostico de rendimiento. Va dentro de la imagen a proposito: se necesita
+# justo cuando el local esta lleno y la app va lenta, y en ese momento lo unico
+# que hay a mano es la terminal del contenedor —donde no existen ni docker ni
+# ssh—. Se corre con: node scripts/diagnostico.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/scripts/diagnostico.mjs ./scripts/diagnostico.mjs
+
 COPY --chown=nextjs:nodejs docker/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
