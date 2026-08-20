@@ -218,36 +218,80 @@ if (enCurso.rows.length > 0) {
   }
 }
 
-console.log(titulo("5. Trabajo de mas acumulado (desde que arranco Postgres)"));
+console.log(titulo("5. Trabajo de la base, medido en vivo (15 segundos)"));
 
-const tablas = await cliente.query(`
-  SELECT relname AS tabla, seq_scan, seq_tup_read, idx_scan, n_live_tup
-  FROM pg_stat_user_tables
-  WHERE relname LIKE 'pos_%' OR relname IN ('redemptions', 'menu_products', 'menu_categories')
-  ORDER BY seq_tup_read DESC NULLS LAST
-  LIMIT 8
-`);
+/*
+ * Aca hubo una leccion, aprendida mirando una salida real.
+ *
+ * La primera version mostraba los totales desde que arranco Postgres y
+ * marcaba como sospechosa cualquier tabla muy recorrida. En una base con
+ * ciento y pico de filas eso asusta sin motivo: cuando una tabla entra en una
+ * sola pagina de disco, Postgres elige leerla entera A PROPOSITO, porque es
+ * mas rapido que abrir un indice. Miles de "recorridos" ahi no son un
+ * problema, son la decision correcta.
+ *
+ * Lo que si importa es el ritmo: cuanto trabajo esta haciendo AHORA, mientras
+ * el local atiende. Por eso se mide una ventana y se compara, en vez de
+ * mostrar un acumulado de semanas que nadie sabe con que comparar.
+ */
+const VENTANA_SEG = 15;
+
+const medir = async () =>
+  new Map(
+    (
+      await cliente.query(`
+        SELECT relname AS tabla, seq_scan, seq_tup_read, idx_scan, n_live_tup
+        FROM pg_stat_user_tables
+        WHERE relname LIKE 'pos_%' OR relname IN ('redemptions', 'menu_products', 'menu_categories')
+      `)
+    ).rows.map((fila) => [fila.tabla, fila]),
+  );
+
+const antesDb = await medir();
+console.log(`   Midiendo ${VENTANA_SEG} segundos de actividad real...`);
+await new Promise((listo) => setTimeout(listo, VENTANA_SEG * 1000));
+const despuesDb = await medir();
+
+const filas = [...despuesDb.values()]
+  .map((fila) => {
+    const previa = antesDb.get(fila.tabla);
+
+    return {
+      tabla: fila.tabla,
+      filasTabla: Number(fila.n_live_tup),
+      recorridos: Number(fila.seq_scan) - Number(previa?.seq_scan ?? 0),
+      leidas: Number(fila.seq_tup_read) - Number(previa?.seq_tup_read ?? 0),
+      porIndice: Number(fila.idx_scan ?? 0) - Number(previa?.idx_scan ?? 0),
+    };
+  })
+  .sort((a, b) => b.leidas - a.leidas)
+  .slice(0, 8);
 
 console.log("   tabla                    recorridos    filas leidas   por indice     filas");
 
-for (const fila of tablas.rows) {
-  const aviso = Number(fila.seq_tup_read) > 10_000_000 ? "  <--" : "";
+for (const fila of filas) {
+  // Por debajo de esto, leer la tabla entera es lo correcto y no cuesta nada.
+  const chica = fila.filasTabla < 5000;
+  const nota = fila.leidas > 500_000 ? "  <-- MIRAR" : chica ? "  (tabla chica)" : "";
 
   console.log(
     "   " +
       String(fila.tabla).padEnd(24) +
-      String(fila.seq_scan).padStart(10) +
-      String(fila.seq_tup_read).padStart(16) +
-      String(fila.idx_scan ?? 0).padStart(13) +
-      String(fila.n_live_tup).padStart(10) +
-      aviso,
+      String(fila.recorridos).padStart(10) +
+      String(fila.leidas).padStart(16) +
+      String(fila.porIndice).padStart(13) +
+      String(fila.filasTabla).padStart(10) +
+      nota,
   );
 }
 
-console.log('\n   "recorridos"   = veces que Postgres leyo la tabla entera.');
-console.log('   "filas leidas" = filas que tuvo que mirar para descartarlas.');
-console.log("   En millones, eso es trabajo tirado a la basura: es exactamente");
-console.log("   lo que sacan los indices nuevos.");
+const totalLeidas = filas.reduce((suma, fila) => suma + fila.leidas, 0);
+
+console.log(`\n   En ${VENTANA_SEG} segundos la base miro ${totalLeidas.toLocaleString("es-CL")} filas.`);
+console.log("   Con el local vacio deberia ser casi cero. En pleno servicio, unos");
+console.log("   pocos miles. Cientos de miles significa trabajo repetido: ahi si");
+console.log("   faltan indices, o alguien esta pidiendo la misma vista sin parar.");
+console.log('   "(tabla chica)" = cabe en una pagina; leerla entera es lo correcto.');
 
 await cliente.end();
 console.log();
