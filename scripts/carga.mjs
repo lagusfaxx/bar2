@@ -26,15 +26,69 @@ import { readFileSync, readdirSync } from "node:fs";
 // --- Argumentos ---------------------------------------------------------------
 
 const args = process.argv.slice(2);
+
+/*
+ * Los argumentos se validan de verdad.
+ *
+ * Un espacio que falta —"--garzones 300--minutos 2"— hacia que el valor fuera
+ * "300--minutos", que no es un numero, y la prueba corria con cero garzones
+ * informando alegremente que el servidor iba sobrado. Un resultado que miente
+ * es peor que ninguno: mejor negarse a arrancar y decir por que.
+ */
 const opcion = (nombre, defecto) => {
   const i = args.indexOf(`--${nombre}`);
-  return i >= 0 && args[i + 1] ? Number(args[i + 1]) : defecto;
+  if (i < 0) return defecto;
+
+  const crudo = args[i + 1];
+  const valor = Number(crudo);
+
+  if (crudo === undefined || crudo.startsWith("--")) {
+    console.error(`Falta el valor de --${nombre}.`);
+    process.exit(1);
+  }
+
+  if (!Number.isFinite(valor) || valor <= 0) {
+    console.error(`El valor de --${nombre} tiene que ser un numero mayor que cero, y llego "${crudo}".`);
+
+    if (/\d--/.test(crudo)) {
+      console.error("Parece que se junto con la opcion siguiente: falta un espacio.");
+    }
+
+    process.exit(1);
+  }
+
+  return valor;
 };
 
 const MESAS = opcion("mesas", 30);
 const GARZONES = opcion("garzones", 6);
 const MINUTOS = opcion("minutos", 2);
 const VIEJO = args.includes("--viejo");
+
+const desconocidos = args.filter(
+  (arg, i) =>
+    arg.startsWith("--") &&
+    !["--mesas", "--garzones", "--minutos", "--viejo"].includes(arg) &&
+    // Los valores no empiezan con "--", asi que no se confunden con opciones.
+    i >= 0,
+);
+
+if (desconocidos.length > 0) {
+  console.error(`No entiendo: ${desconocidos.join(" ")}`);
+  console.error("Opciones: --mesas N --garzones N --minutos N --viejo");
+  process.exit(1);
+}
+
+/*
+ * El generador corre en el mismo servidor que la app y compite con ella. Con
+ * muchos garzones el cuello puede pasar a ser el propio simulador, y entonces
+ * lo que se mide es su limite y no el de la app.
+ */
+if (GARZONES > 50) {
+  console.warn(`Aviso: ${GARZONES} garzones es mucho mas que cualquier local real.`);
+  console.warn("Sirve para buscar el techo, pero si los tiempos se disparan puede");
+  console.warn("ser el simulador ahogandose, no la app. Mira el TESTIGO para saberlo.\n");
+}
 
 const PUERTO = process.env.PORT ?? 3000;
 const BASE = `http://127.0.0.1:${PUERTO}`;
