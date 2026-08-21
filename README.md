@@ -201,9 +201,11 @@ prisma/
   schema.prisma          Modelo de datos
   migrations/            Migraciones versionadas
   seed.ts                Contenido de demostración (idempotente)
+  carta.ts               La carta del local: web, QR de la mesa y POS
 
 scripts/
   create-admin.ts        Crea o restablece un administrador
+  cargar-carta.ts        Aplica prisma/carta.ts sobre la base
   generate-artwork.mjs   Genera la imaginería de demostración
   print-agent.mjs        Agente de impresión de comandas (corre en el local)
 
@@ -983,6 +985,14 @@ El mismo comando **restablece la contraseña** de un administrador existente.
 categoría, fecha, entrada (libre o con precio) y el afiche vertical (5:7).
 Guardalo como borrador y marca *Publicado* cuando esté listo.
 
+**Cambiar la carta.** Un precio suelto o un producto que se agota se corrigen
+en **Carta**, desde el panel. Cuando cambia la carta impresa entera conviene
+editar `prisma/carta.ts` y correr `npm run carta:cargar`: deja la web, la carta
+del QR de la mesa y el POS mostrando lo mismo, sin tocar el resto del sitio y
+sin interrumpir las cuentas abiertas (cada línea ya cargada guarda su propio
+precio). Con `npm run carta:cargar -- --ver` se ve lo que cargaría, sin
+escribir nada.
+
 **Cambiar un texto del sitio.** Ajustes, en la pestaña correspondiente. Los
 cambios se ven en la web apenas guardas.
 
@@ -1006,6 +1016,7 @@ y `STAFF` para el personal de sala, que solo entra a la app de BarzuCard.
 | `npm run db:migrate` | Crea y aplica una migración en desarrollo. |
 | `npm run db:deploy` | Aplica migraciones en producción. |
 | `npm run db:seed` | Carga el contenido de demostración. |
+| `npm run carta:cargar` | Aplica la carta de `prisma/carta.ts` (`-- --ver` la muestra sin escribir). |
 | `npm run db:reset` | Borra la base, migra y siembra de nuevo. |
 | `npm run db:studio` | Prisma Studio. |
 | `npm run create:admin` | Crea o restablece un administrador. |
