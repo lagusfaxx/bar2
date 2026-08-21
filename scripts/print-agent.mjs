@@ -594,6 +594,32 @@ async function api(path, init) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Por donde y cuando salio el ultimo papel.
+ *
+ * Vive aca afuera a proposito. Lo que hay que saber para dar el aire es que
+ * hay sobre la bandeja, y eso no se acaba cuando termina la consulta a la cola:
+ * el resumen del cobro casi nunca llega en el mismo ciclo que la comanda —el
+ * garzon manda a la cocina y cobra minutos despues— asi que si el dato se
+ * perdiera en cada ciclo, el papel del cobro saldria siempre sin esperar, justo
+ * el caso en que la comanda anterior puede seguir en la ranura.
+ */
+let ultimo = { target: null, at: 0 };
+
+/**
+ * Deja pasar el tiempo que le falta a la impresora para estar libre.
+ *
+ * Se descuenta lo que ya paso desde el papel anterior en vez de dormir la pausa
+ * entera: entre dos ciclos separados por minutos no hay nada que esperar, y
+ * dormir igual dejaria al cliente parado frente a la caja sin motivo.
+ */
+async function esperarTurno(target) {
+  if (CONFIG.gapMs <= 0 || ultimo.target !== target) return;
+
+  const restante = CONFIG.gapMs - (Date.now() - ultimo.at);
+  if (restante > 0) await sleep(restante);
+}
+
 /** Como se nombra un papel en el registro de la consola. */
 function destinoDe(ticket) {
   return ticket.kind === "COBRO" ? "COBRO" : ticket.station;
@@ -650,9 +676,6 @@ function agrupar(tickets) {
 async function tick() {
   const { tickets } = await api("/api/pos/comandas");
 
-  /** La impresora de la ultima tira que salio, para no encimarle la siguiente. */
-  let anterior = null;
-
   for (const { target, papeles } of agrupar(tickets)) {
     const destino = papeles.map(destinoDe).join("+");
     const numeros = papeles.map((papel) => `#${papel.number}`).join(" ");
@@ -668,11 +691,11 @@ async function tick() {
     // misma ranura. Solo entre papeles que de verdad se imprimieron: si el
     // anterior fallo no hay nada sobre la bandeja que esperar. Dentro de una
     // tira no hace falta, que es justamente la gracia: es un solo papel.
-    if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
+    await esperarTurno(target);
 
     try {
       await print(target, renderLote(papeles));
-      anterior = target;
+      ultimo = { target, at: Date.now() };
 
       for (const papel of papeles) await acusar(papel.id, true);
 
@@ -774,8 +797,6 @@ if (testArg) {
     process.exit(0);
   }
 
-  let anterior = null;
-
   for (const { target, papeles } of lotes) {
     const destino = papeles.map(destinoDe).join("+");
 
@@ -787,11 +808,11 @@ if (testArg) {
 
     // Con la misma pausa del servicio: la prueba tiene que salir como saldra
     // de verdad, incluido el tiempo que hay para retirar cada papel.
-    if (anterior === target && CONFIG.gapMs > 0) await sleep(CONFIG.gapMs);
+    await esperarTurno(target);
 
     try {
       await print(target, renderLote(papeles));
-      anterior = target;
+      ultimo = { target, at: Date.now() };
       console.log(`✓ prueba de ${destino} enviada a ${target}`);
     } catch (error) {
       console.error(`✗ ${destino} (${target}): ${error.message}`);
