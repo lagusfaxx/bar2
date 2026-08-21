@@ -20,6 +20,30 @@
  * navegador, y se puede probar sola.
  */
 
+/*
+ * Lo ya aplanado se recuerda.
+ *
+ * Aplanar un texto son un `normalize("NFD")` y dos expresiones regulares, y
+ * hasta ahora eso se rehacia sobre el nombre y la categoria de *cada* producto
+ * de la carta en *cada* tecla que se toca. Doscientos productos por letra
+ * escrita, siempre con el mismo resultado: el nombre de un producto no cambia
+ * entre una letra y la siguiente. En el PC del mostrador eso es la diferencia
+ * entre una lista que sigue al dedo y una que llega tarde.
+ *
+ * Los mapas se vacian enteros al llegar al tope. No es un descarte fino, pero
+ * lo que se guarda es siempre la misma carta: el tope no se alcanza nunca en un
+ * servicio, y si se alcanzara, volver a llenarlo cuesta una busqueda.
+ */
+const TOPE_RECORDADO = 4_000;
+
+const aplanadas = new Map<string, string>();
+const partidas = new Map<string, string[]>();
+
+function recordar<T>(mapa: Map<string, T>, clave: string, valor: T) {
+  if (mapa.size >= TOPE_RECORDADO) mapa.clear();
+  mapa.set(clave, valor);
+}
+
 /**
  * Deja el texto en su forma comparable.
  *
@@ -28,18 +52,32 @@
  * espacio: asi "Piscola 1/2 Litro" y "piscola 1 2 litro" son lo mismo.
  */
 export function normalize(text: string): string {
-  return text
+  const guardada = aplanadas.get(text);
+  if (guardada !== undefined) return guardada;
+
+  const flat = text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, " ")
     .trim();
+
+  recordar(aplanadas, text, flat);
+
+  return flat;
 }
 
 /** Las palabras del texto, ya aplanadas. */
 export function tokenize(text: string): string[] {
+  const guardadas = partidas.get(text);
+  if (guardadas !== undefined) return guardadas;
+
   const flat = normalize(text);
-  return flat ? flat.split(" ") : [];
+  const words = flat ? flat.split(" ") : [];
+
+  recordar(partidas, text, words);
+
+  return words;
 }
 
 /**
@@ -159,7 +197,14 @@ export function scoreEntry(
 
   // Empate frecuente: "Schop" y "Schop Doble" con la misma puntuacion. Gana el
   // nombre mas corto, que es el que el garzon tenia en mente al escribir menos.
-  return total * 1000 - nameWords.join(" ").length;
+  //
+  // El largo se suma en vez de armar la cadena: es el mismo numero —las
+  // palabras mas los espacios entre ellas— sin crear un texto por producto y
+  // por tecla que solo se usaba para medirlo.
+  let largo = nameWords.length > 0 ? nameWords.length - 1 : 0;
+  for (const word of nameWords) largo += word.length;
+
+  return total * 1000 - largo;
 }
 
 /**
@@ -176,12 +221,25 @@ export function rankBySearch<T extends { name: string; category?: string | null 
   const needles = tokenize(query);
   if (needles.length === 0) return entries;
 
-  return entries
-    .map((entry) => ({ entry, score: scoreEntry(entry, needles) }))
-    .filter(
-      (row): row is { entry: T; score: number } => row.score !== null,
-    )
-    .map((row) => ({ ...row, score: row.score + boost(row.entry) }))
-    .sort((a, b) => b.score - a.score)
-    .map((row) => row.entry);
+  /*
+   * Una sola pasada y una sola lista.
+   *
+   * Antes eran cuatro encadenadas —puntuar, filtrar, sumar el impulso, ordenar—
+   * y cada una dejaba atras una copia entera de la carta. Se recorre igual, se
+   * ordena igual y sale lo mismo, pero sin la basura del medio, que en un
+   * equipo justo de memoria es lo que hace que el navegador se pare a limpiar
+   * justo mientras alguien escribe.
+   */
+  const puntuadas: Array<{ entry: T; score: number }> = [];
+
+  for (const entry of entries) {
+    const score = scoreEntry(entry, needles);
+    if (score === null) continue;
+
+    puntuadas.push({ entry, score: score + boost(entry) });
+  }
+
+  puntuadas.sort((a, b) => b.score - a.score);
+
+  return puntuadas.map((row) => row.entry);
 }

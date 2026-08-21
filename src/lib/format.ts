@@ -2,6 +2,60 @@ const LOCALE = "es-CL";
 const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
 const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "CLP";
 
+/*
+ * Los formateadores se arman una vez y se reusan.
+ *
+ * `new Intl.NumberFormat(...)` y `new Intl.DateTimeFormat(...)` no son
+ * baratos: cada uno resuelve por dentro las reglas del idioma, la moneda y la
+ * zona horaria. Hasta ahora se armaba uno nuevo por cada precio y por cada
+ * fecha dibujada — la sala son treinta precios, una cuenta cargada otros
+ * tantos, y la carta uno por producto, todo eso otra vez en cada vuelta del
+ * sondeo. En el PC del mostrador ese trabajo se nota; el resultado, en cambio,
+ * es siempre el mismo, porque un formateador no guarda estado.
+ */
+const formateadoresDeFecha = new Map<string, Intl.DateTimeFormat>();
+
+function dateFormat(locale: string, options: Intl.DateTimeFormatOptions) {
+  const clave = `${locale}|${JSON.stringify(options)}`;
+  let formateador = formateadoresDeFecha.get(clave);
+
+  if (!formateador) {
+    formateador = new Intl.DateTimeFormat(locale, options);
+    formateadoresDeFecha.set(clave, formateador);
+  }
+
+  return formateador;
+}
+
+/*
+ * Los dos unicos formatos de precio que existen: con decimales y sin ellos.
+ * Se piden tantas veces por pantalla que ni siquiera pasan por el mapa.
+ */
+let precioEntero: Intl.NumberFormat | null = null;
+let precioConDecimales: Intl.NumberFormat | null = null;
+
+function formatoDePrecio(decimales: 0 | 2) {
+  if (decimales === 0) {
+    precioEntero ??= new Intl.NumberFormat(LOCALE, {
+      style: "currency",
+      currency: CURRENCY,
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+
+    return precioEntero;
+  }
+
+  precioConDecimales ??= new Intl.NumberFormat(LOCALE, {
+    style: "currency",
+    currency: CURRENCY,
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return precioConDecimales;
+}
+
 /**
  * La hora del local, no la del servidor.
  *
@@ -13,7 +67,7 @@ const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "CLP";
  */
 export function zonedHour(date: Date | string) {
   return Number(
-    new Intl.DateTimeFormat("en-US", {
+    dateFormat("en-US", {
       timeZone: TIME_ZONE,
       hour: "2-digit",
       hour12: false,
@@ -30,7 +84,7 @@ export function zonedHour(date: Date | string) {
  * de horario de Chile son 23 o 25.
  */
 export function zonedStartOfHour(reference: Date, hour: number, daysAgo = 0) {
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  const parts = dateFormat("en-CA", {
     timeZone: TIME_ZONE,
     year: "numeric",
     month: "2-digit",
@@ -61,12 +115,7 @@ export function zonedStartOfHour(reference: Date, hour: number, daysAgo = 0) {
 export function formatPrice(cents: number | null | undefined) {
   if (cents == null) return "";
 
-  return new Intl.NumberFormat(LOCALE, {
-    style: "currency",
-    currency: CURRENCY,
-    minimumFractionDigits: cents % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(cents / 100);
+  return formatoDePrecio(cents % 100 === 0 ? 0 : 2).format(cents / 100);
 }
 
 /**
@@ -83,7 +132,7 @@ export function formatDuration(seconds: number | null | undefined) {
 }
 
 export function formatDate(date: Date | string, opts?: Intl.DateTimeFormatOptions) {
-  return new Intl.DateTimeFormat(LOCALE, {
+  return dateFormat(LOCALE, {
     timeZone: TIME_ZONE,
     day: "2-digit",
     month: "long",
@@ -93,7 +142,7 @@ export function formatDate(date: Date | string, opts?: Intl.DateTimeFormatOption
 }
 
 export function formatTime(date: Date | string) {
-  return new Intl.DateTimeFormat(LOCALE, {
+  return dateFormat(LOCALE, {
     timeZone: TIME_ZONE,
     hour: "2-digit",
     minute: "2-digit",
@@ -109,7 +158,7 @@ export function formatDateTime(date: Date | string) {
 export function dateParts(date: Date | string) {
   const value = new Date(date);
   const fmt = (opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat(LOCALE, { timeZone: TIME_ZONE, ...opts }).format(value);
+    dateFormat(LOCALE, { timeZone: TIME_ZONE, ...opts }).format(value);
 
   return {
     day: fmt({ day: "2-digit" }),
@@ -142,7 +191,7 @@ export function dateParts(date: Date | string) {
 
 /** Clave YYYY-MM-DD de un dia suelto. */
 export function dateOnlyKey(date: Date | string) {
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateFormat("en-CA", {
     timeZone: "UTC",
     year: "numeric",
     month: "2-digit",
@@ -155,7 +204,7 @@ export function formatDateOnly(
   date: Date | string,
   opts?: Intl.DateTimeFormatOptions,
 ) {
-  return new Intl.DateTimeFormat(LOCALE, {
+  return dateFormat(LOCALE, {
     timeZone: "UTC",
     day: "2-digit",
     month: "long",
@@ -166,7 +215,7 @@ export function formatDateOnly(
 
 /** Clave YYYY-MM-DD en la zona horaria del local (no en UTC). */
 export function dayKey(date: Date | string) {
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateFormat("en-CA", {
     timeZone: TIME_ZONE,
     year: "numeric",
     month: "2-digit",
@@ -336,7 +385,7 @@ export function promotionValueLabel(type: string, value: number) {
 export function toDateTimeLocal(date: Date | string | null | undefined) {
   if (!date) return "";
 
-  const parts = new Intl.DateTimeFormat("en-CA", {
+  const parts = dateFormat("en-CA", {
     timeZone: TIME_ZONE,
     hour12: false,
     year: "numeric",
@@ -360,7 +409,7 @@ export function toDateTimeLocal(date: Date | string | null | undefined) {
 /** Valor para un <input type="date"> a partir de una fecha. */
 export function toDateInput(date: Date | string | null | undefined) {
   if (!date) return "";
-  return new Intl.DateTimeFormat("en-CA", {
+  return dateFormat("en-CA", {
     timeZone: TIME_ZONE,
     year: "numeric",
     month: "2-digit",

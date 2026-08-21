@@ -11,7 +11,7 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { memo, useCallback, useMemo, useState, useTransition } from "react";
 
 import { addItem } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
@@ -161,31 +161,45 @@ export function ProductPicker({
     [menu, categoriaId],
   );
 
-  const add = (productId: string, name: string) => {
-    const formData = new FormData();
-    formData.set("sessionId", sessionId);
-    formData.set("productId", productId);
-    formData.set("quantity", "1");
-    if (dinerId) formData.set("dinerId", dinerId);
+  /*
+   * Estable entre dibujados, para que los productos no se rehagan todos.
+   *
+   * Las fichas de la carta estan memorizadas (ver `ProductTile`), y una
+   * memorizacion no sirve de nada si en cada tecla se les entrega una funcion
+   * nueva: con doscientos productos, esa sola diferencia obliga a rehacer la
+   * rejilla entera por cada letra escrita.
+   */
+  const add = useCallback(
+    (productId: string, name: string) => {
+      const formData = new FormData();
+      formData.set("sessionId", sessionId);
+      formData.set("productId", productId);
+      formData.set("quantity", "1");
+      if (dinerId) formData.set("dinerId", dinerId);
 
-    startTransition(async () => {
-      const result = await addItem(IDLE, formData);
+      startTransition(async () => {
+        const result = await addItem(IDLE, formData);
 
-      if (result.status === "error") {
-        setError(result.message ?? `No se pudo cargar ${name}.`);
-        return;
-      }
+        if (result.status === "error") {
+          setError(result.message ?? `No se pudo cargar ${name}.`);
+          return;
+        }
 
-      setError(null);
-      setLast({ id: String(result.data?.itemId ?? ""), name });
+        setError(null);
+        setLast({ id: String(result.data?.itemId ?? ""), name });
 
-      // Contador efimero: confirma el toque sin tener que mirar la cuenta.
-      setAdded((current) => ({
-        ...current,
-        [productId]: (current[productId] ?? 0) + 1,
-      }));
-    });
-  };
+        // Contador efimero: confirma el toque sin tener que mirar la cuenta.
+        setAdded((current) => ({
+          ...current,
+          [productId]: (current[productId] ?? 0) + 1,
+        }));
+      });
+    },
+    [sessionId, dinerId, startTransition],
+  );
+
+  /** Abre una categoria. Estable, por lo mismo que `add`. */
+  const abrirCategoria = useCallback((id: string) => setCategoriaId(id), []);
 
   /** Vuelve a la portada: ni categoria abierta ni busqueda escrita. */
   const volverAPortada = () => {
@@ -352,7 +366,7 @@ export function ProductPicker({
                   hint={product.category}
                   count={added[product.id] ?? 0}
                   disabled={pending}
-                  onClick={() => add(product.id, product.name)}
+                  onAdd={add}
                 />
               ))}
             </div>
@@ -367,7 +381,7 @@ export function ProductPicker({
                 product={product}
                 count={added[product.id] ?? 0}
                 disabled={pending}
-                onClick={() => add(product.id, product.name)}
+                onAdd={add}
               />
             ))}
           </div>
@@ -393,7 +407,7 @@ export function ProductPicker({
                       product={product}
                       count={added[product.id] ?? 0}
                       disabled={pending}
-                      onClick={() => add(product.id, product.name)}
+                      onAdd={add}
                     />
                   ))}
                 </div>
@@ -410,7 +424,7 @@ export function ProductPicker({
                   <CategoryTile
                     key={candidate.id}
                     category={candidate}
-                    onClick={() => setCategoriaId(candidate.id)}
+                    onOpen={abrirCategoria}
                   />
                 ))}
               </div>
@@ -513,17 +527,17 @@ export function ProductPicker({
  * la pena entrar o conviene buscar. Y dice a que estacion va, que es lo que el
  * garzon confirma de reojo antes de cargar.
  */
-function CategoryTile({
+const CategoryTile = memo(function CategoryTile({
   category,
-  onClick,
+  onOpen,
 }: {
   category: PosMenuCategory;
-  onClick: () => void;
+  onOpen: (id: string) => void;
 }) {
   return (
     <button
       type="button"
-      onClick={onClick}
+      onClick={() => onOpen(category.id)}
       className="flex min-h-24 w-full flex-col justify-between border border-line bg-ink p-3 text-left transition-colors hover:border-crimson active:border-crimson"
     >
       <span className="font-display text-base leading-tight text-bone">
@@ -539,7 +553,7 @@ function CategoryTile({
       </span>
     </button>
   );
-}
+});
 
 /**
  * Un producto.
@@ -549,19 +563,19 @@ function CategoryTile({
  * y —cuando se acaba de tocar— cuantos van cargados, que es la unica
  * confirmacion que el garzon alcanza a mirar antes del siguiente toque.
  */
-function ProductTile({
+const ProductTile = memo(function ProductTile({
   product,
   hint,
   count,
   disabled,
-  onClick,
+  onAdd,
 }: {
   product: PosMenuProduct;
   /** De donde salio, cuando la lista mezcla categorias (la busqueda). */
   hint?: string;
   count: number;
   disabled: boolean;
-  onClick: () => void;
+  onAdd: (productId: string, name: string) => void;
 }) {
   const final = product.unitPriceCents - product.discountCents;
 
@@ -569,7 +583,7 @@ function ProductTile({
     <button
       type="button"
       disabled={disabled}
-      onClick={onClick}
+      onClick={() => onAdd(product.id, product.name)}
       className="relative flex min-h-24 w-full flex-col justify-between border border-line bg-ink p-3 text-left transition-colors hover:border-crimson active:border-crimson disabled:opacity-60"
     >
       <span className="block text-sm leading-tight text-bone">{product.name}</span>
@@ -597,4 +611,4 @@ function ProductTile({
       )}
     </button>
   );
-}
+});
