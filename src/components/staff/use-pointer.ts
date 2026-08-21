@@ -68,16 +68,45 @@ function forzadoEnElEquipo(): boolean | null {
   return null;
 }
 
+/*
+ * La decision se calcula una vez, no en cada dibujado.
+ *
+ * `useSyncExternalStore` pregunta por el valor en cada render, y aca eso eran
+ * tres cosas: leer la direccion, leer el almacenamiento del equipo y armar una
+ * consulta de medios nueva. La carta se vuelve a dibujar en cada tecla que se
+ * toca, asi que ese trabajo se pagaba letra por letra para responder siempre lo
+ * mismo. Lo que puede cambiar en caliente —que se conecte o desconecte un
+ * mouse— lo sigue diciendo la misma consulta guardada, que es un objeto vivo.
+ */
+let consulta: MediaQueryList | null = null;
+let forzado: boolean | null = null;
+let yaSeMiro = false;
+
+function consultaDeMedios() {
+  consulta ??= window.matchMedia(PUNTERO_FINO);
+  return consulta;
+}
+
+/** Lo forzado, mirado una sola vez. `null` = no hay nada forzado. */
+function loForzado(): boolean | null {
+  if (!yaSeMiro) {
+    forzado = forzadoEnLaUrl() ?? forzadoEnElEquipo();
+    yaSeMiro = true;
+  }
+
+  return forzado;
+}
+
 function subscribe(alCambiar: () => void) {
   /*
    * Se guarda lo que venga en la direccion, para que valga tambien la proxima
    * vez que se abra la sala sin el parametro. Va aca y no al leer el valor
    * porque leer tiene que poder repetirse sin efectos.
    */
-  const forzado = forzadoEnLaUrl();
+  const enLaUrl = forzadoEnLaUrl();
 
   try {
-    if (forzado !== null) localStorage.setItem(STORAGE_KEY, forzado ? "1" : "0");
+    if (enLaUrl !== null) localStorage.setItem(STORAGE_KEY, enLaUrl ? "1" : "0");
     else if (new URLSearchParams(window.location.search).get("teclado") === "auto") {
       localStorage.removeItem(STORAGE_KEY);
     }
@@ -85,7 +114,11 @@ function subscribe(alCambiar: () => void) {
     // Sin donde guardar, el parametro vale solo para esta visita.
   }
 
-  const mq = window.matchMedia(PUNTERO_FINO);
+  // Lo guardado recien pudo cambiar: se vuelve a mirar una vez, aca.
+  forzado = enLaUrl ?? forzadoEnElEquipo();
+  yaSeMiro = true;
+
+  const mq = consultaDeMedios();
 
   // Un mouse se puede conectar y desconectar en caliente: la pantalla del
   // local puede arrancar sin el y recibirlo despues.
@@ -93,10 +126,7 @@ function subscribe(alCambiar: () => void) {
   return () => mq.removeEventListener("change", alCambiar);
 }
 
-const getSnapshot = () =>
-  forzadoEnLaUrl() ??
-  forzadoEnElEquipo() ??
-  window.matchMedia(PUNTERO_FINO).matches;
+const getSnapshot = () => loForzado() ?? consultaDeMedios().matches;
 
 const getServerSnapshot = () => false;
 

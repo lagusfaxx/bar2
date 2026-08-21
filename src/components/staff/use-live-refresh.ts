@@ -54,6 +54,17 @@ export function useLiveRefresh(
   const conocida = useRef(version);
   const fallos = useRef(0);
 
+  /*
+   * Una pregunta a la vez.
+   *
+   * El sondeo dispara cada pocos segundos, y al volver a mirar el aparato
+   * dispara ademas una vuelta suelta. Si el servidor esta lento, esas vueltas
+   * se encimaban: cada una abria su peticion y todas llegaban juntas, justo
+   * cuando el servidor ya no daba abasto. Mientras haya una en curso, la
+   * siguiente se saltea — la de despues pregunta lo mismo.
+   */
+  const enVuelo = useRef(false);
+
   // Al rearmarse la pantalla llega la marca nueva desde el servidor.
   useEffect(() => {
     conocida.current = version;
@@ -64,6 +75,9 @@ export function useLiveRefresh(
 
     const tick = async () => {
       if (document.visibilityState !== "visible") return;
+      if (enVuelo.current) return;
+
+      enVuelo.current = true;
 
       try {
         const response = await fetch(url, { cache: "no-store" });
@@ -92,6 +106,8 @@ export function useLiveRefresh(
           fallos.current = 0;
           router.refresh();
         }
+      } finally {
+        enVuelo.current = false;
       }
     };
 
