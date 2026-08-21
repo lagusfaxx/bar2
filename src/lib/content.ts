@@ -314,7 +314,8 @@ export type MenuCategoryWithProducts = Awaited<
  * Para quien se arma la carta.
  *
  * - `publica`: la vitrina de la web, que ve cualquiera. Deja fuera los
- *   productos marcados como no publicos (ver `MenuProduct.publicMenu`).
+ *   productos y las secciones marcados como no publicos (ver
+ *   `MenuProduct.publicMenu` y `MenuCategory.publicMenu`).
  * - `mesa`: la carta del QR que esta sobre la mesa. Es de puertas adentro y
  *   lleva todo lo que se vende, igual que el POS de los garzones.
  */
@@ -328,15 +329,18 @@ export type MenuScope = "publica" | "mesa";
  * el error que se puede corregir sin que lo haya visto media ciudad.
  */
 export async function getMenu(scope: MenuScope = "publica") {
+  const publica = scope === "publica";
+
   const categories = await prisma.menuCategory.findMany({
-    where: { active: true },
+    // Una seccion apagada para la web se lleva a sus productos con ella: no
+    // hace falta —ni serviria— repasarlos uno por uno.
+    where: publica ? { active: true, publicMenu: true } : { active: true },
     orderBy: { position: "asc" },
     include: {
       products: {
-        where:
-          scope === "publica"
-            ? { available: true, publicMenu: true }
-            : { available: true },
+        where: publica
+          ? { available: true, publicMenu: true }
+          : { available: true },
         orderBy: [{ position: "asc" }, { name: "asc" }],
       },
     },
@@ -362,7 +366,7 @@ export function getFeaturedProducts(take = 6) {
       available: true,
       featured: true,
       publicMenu: true,
-      category: { active: true },
+      category: { active: true, publicMenu: true },
     },
     orderBy: { position: "asc" },
     take,

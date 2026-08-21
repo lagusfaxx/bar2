@@ -172,6 +172,17 @@ model MenuCategory {
   position    Int     @default(0)
   active      Boolean @default(true)
 
+  // Si la seccion entera sale en la carta publica de la web.
+  //
+  // Es el mismo interruptor que `MenuProduct.publicMenu`, un piso mas arriba:
+  // apagado, ni la seccion ni ninguno de sus productos aparecen en /carta ni en
+  // la portada —los cortos de whisky, la carta de puros—, y todo sigue entero
+  // en la carta del QR de la mesa y en el POS. Manda sobre lo que diga cada
+  // producto: una seccion fuera de la vitrina se lleva a los suyos con ella.
+  //
+  // Distinto de `active`, que la apaga en todas partes.
+  publicMenu Boolean @default(true)
+
   // A donde sale la comanda de esta categoria. Se define una vez por categoria
   // y cada producto puede desviarse (ver MenuProduct.station).
   station Station @default(COCINA)

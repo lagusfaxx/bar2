@@ -48,6 +48,7 @@ export async function saveMenuCategory(
     imageUrl: input.imageUrl || null,
     icon: input.icon || null,
     active: input.active,
+    publicMenu: input.publicMenu,
     station: input.station,
   };
 
@@ -89,9 +90,19 @@ export async function deleteMenuCategory(id: string) {
   revalidateContent("menu");
 }
 
-export async function toggleMenuCategory(id: string, active: boolean) {
+/**
+ * Enciende o apaga una categoria desde la lista de la carta.
+ *
+ * `active` la saca de todas partes —web, carta de la mesa y POS—; `publicMenu`
+ * solo de la vitrina de la web.
+ */
+export async function toggleMenuCategory(
+  id: string,
+  field: "active" | "publicMenu",
+  value: boolean,
+) {
   await requireCmsUser();
-  await prisma.menuCategory.update({ where: { id }, data: { active } });
+  await prisma.menuCategory.update({ where: { id }, data: { [field]: value } });
   revalidateContent("menu");
 }
 

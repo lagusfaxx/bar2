@@ -35,9 +35,10 @@ export async function generateMetadata(): Promise<Metadata> {
  * No es un secreto criptografico —una URL corta se puede teclear— sino la
  * misma discrecion de una carta impresa: esta sobre la mesa, no en la vitrina.
  *
- * Y lleva algo mas que la carta de la web: los productos que el panel dejo
- * fuera de la vitrina publica —el combo del personal, lo que se ofrece en
- * mano— aparecen aca y en el POS, que es donde se piden.
+ * Y lleva algo mas que la carta de la web: lo que el panel dejo fuera de la
+ * vitrina publica —un producto suelto como el combo del personal, o una seccion
+ * entera como los cortos de whisky— aparece aca y en el POS, que es donde se
+ * pide.
  */
 export default async function CartaMesaPage() {
   // Ambito "mesa": lleva tambien los productos que no salen en la vitrina de

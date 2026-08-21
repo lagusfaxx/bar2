@@ -23,6 +23,7 @@ export type CategoryValues = {
   imageUrl?: string | null;
   icon?: string | null;
   active?: boolean;
+  publicMenu?: boolean;
   station?: "BARRA" | "COCINA";
 };
 
@@ -85,14 +86,25 @@ export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
             <option value="BARRA">Barra</option>
           </SelectField>
 
-          {/* El campo escondido, por lo mismo que en el formulario del
-              producto: sin el, desmarcar la casilla no apagaba nada. */}
-          <input type="hidden" name="active" value="" />
-          <CheckboxField
-            label="Categoría visible en la web"
-            name="active"
-            defaultChecked={category?.active ?? true}
-          />
+          {/* Los campos escondidos, por lo mismo que en el formulario del
+              producto: sin ellos, desmarcar una casilla no apagaba nada. */}
+          <div className="flex flex-col gap-3">
+            <input type="hidden" name="active" value="" />
+            <CheckboxField
+              label="Categoría activa"
+              name="active"
+              defaultChecked={category?.active ?? true}
+              hint="Apagada desaparece de todas partes: de la web, de la carta de la mesa y del POS."
+            />
+
+            <input type="hidden" name="publicMenu" value="" />
+            <CheckboxField
+              label="Mostrar en la carta pública de la web"
+              name="publicMenu"
+              defaultChecked={category?.publicMenu ?? true}
+              hint="Desmárcalo y la sección entera —con todos sus productos— desaparece de barzuo.cl/carta y de la portada. Sigue completa en la carta del QR de la mesa y en el POS, así que se vende igual. Es lo que se usa para algo como los cortos de whisky."
+            />
+          </div>
         </div>
 
         <div className="mt-6 flex flex-col gap-3 border-t border-line pt-5">

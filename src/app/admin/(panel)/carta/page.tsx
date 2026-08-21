@@ -43,7 +43,7 @@ export default async function AdminCartaPage() {
     <>
       <AdminHeader
         title="Carta y precios"
-        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, márcalo sin stock en vez de borrarlo; si es algo que se vende pero no se anuncia, sácalo solo de la carta pública con el botón del globo."
+        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, márcalo sin stock en vez de borrarlo; si es algo que se vende pero no se anuncia, sácalo solo de la carta pública con el botón del globo — en un producto suelto o en la categoría entera."
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/admin/carta/qr" size="sm" variant="outline">
@@ -83,6 +83,11 @@ export default async function AdminCartaPage() {
                     {category.active ? "Activa" : "Oculta"}
                   </Badge>
 
+                  {/* Se vende entera, pero no se anuncia en la web. */}
+                  {category.active && !category.publicMenu && (
+                    <Badge tone="muted">Solo mesa y POS</Badge>
+                  )}
+
                   <ActionButton
                     action={async () => {
                       "use server";
@@ -114,7 +119,38 @@ export default async function AdminCartaPage() {
                   <ActionButton
                     action={async () => {
                       "use server";
-                      await toggleMenuCategory(category.id, !category.active);
+                      await toggleMenuCategory(
+                        category.id,
+                        "publicMenu",
+                        !category.publicMenu,
+                      );
+                    }}
+                    title={
+                      category.publicMenu
+                        ? "Sacar la sección entera de la carta pública de la web"
+                        : "Mostrar la sección en la carta pública de la web"
+                    }
+                    aria-label={
+                      category.publicMenu
+                        ? `Sacar ${category.name} de la carta pública`
+                        : `Mostrar ${category.name} en la carta pública`
+                    }
+                  >
+                    {category.publicMenu ? (
+                      <Globe className="size-4" aria-hidden />
+                    ) : (
+                      <GlobeOff className="size-4" aria-hidden />
+                    )}
+                  </ActionButton>
+
+                  <ActionButton
+                    action={async () => {
+                      "use server";
+                      await toggleMenuCategory(
+                        category.id,
+                        "active",
+                        !category.active,
+                      );
                     }}
                     title={category.active ? "Ocultar" : "Mostrar"}
                     aria-label={category.active ? "Ocultar" : "Mostrar"}
@@ -168,8 +204,10 @@ export default async function AdminCartaPage() {
                           {!product.available && (
                             <Badge tone="muted">Sin stock</Badge>
                           )}
-                          {/* Se vende, pero no se anuncia en la web. */}
-                          {!product.publicMenu && (
+                          {/* Se vende, pero no se anuncia en la web. Si la
+                              seccion entera ya esta fuera, la etiqueta la lleva
+                              ella y repetirla en cada producto es ruido. */}
+                          {category.publicMenu && !product.publicMenu && (
                             <Badge tone="muted">Solo mesa y POS</Badge>
                           )}
                         </p>
@@ -245,10 +283,20 @@ export default async function AdminCartaPage() {
                               !product.publicMenu,
                             );
                           }}
+                          // Con la seccion entera fuera de la vitrina, este
+                          // boton no cambia nada de lo que se ve: se apaga para
+                          // no prometer algo que no va a pasar.
+                          className={
+                            category.publicMenu
+                              ? ""
+                              : "pointer-events-none opacity-30"
+                          }
                           title={
-                            product.publicMenu
-                              ? "Sacar de la carta pública de la web"
-                              : "Mostrar en la carta pública de la web"
+                            !category.publicMenu
+                              ? "La sección entera está fuera de la carta pública"
+                              : product.publicMenu
+                                ? "Sacar de la carta pública de la web"
+                                : "Mostrar en la carta pública de la web"
                           }
                           aria-label={
                             product.publicMenu
