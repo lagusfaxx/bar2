@@ -4,19 +4,22 @@ import { CornerDownLeft, Delete, X } from "lucide-react";
 import { useRef } from "react";
 
 /**
- * El teclado del POS.
+ * El teclado del POS, para la pantalla que no tiene ninguno.
  *
- * La pantalla tactil del mostrador no tiene teclado: ni fisico, ni el del
- * sistema. Un navegador de kiosco sobre Windows o Linux no levanta ninguno al
- * enfocar un campo, y cuando lo levanta se come media pantalla justo encima de
- * lo que hay que tocar. Con eso, cualquier campo de texto de la app es una
- * pared: el garzon lo toca, no pasa nada, y se queda ahi.
+ * La pantalla tactil del mostrador es un PC con mouse en modo kiosco: no tiene
+ * teclado fisico, y enfocar un campo no levanta el del sistema. Con eso,
+ * cualquier campo de texto de la app es una pared —el garzon lo toca, no pasa
+ * nada, y se queda ahi—. Este es el que llena ese hueco.
  *
- * Asi que el teclado lo pone la app, siempre, en las dos pantallas. En el
- * telefono tambien —aunque ahi el del sistema funcione— porque un POS que se
- * comporta distinto segun el aparato obliga a aprenderlo dos veces, y porque
- * el nuestro se dibuja adentro del panel: empuja el contenido en vez de
- * taparlo, y lo que se esta escribiendo nunca queda debajo del dedo.
+ * Solo ahi. En el telefono del garzon no se dibuja: el teclado del sistema ya
+ * sube solo al enfocar, es el que esa persona usa todo el dia, corrige,
+ * predice y entiende su idioma. Reemplazarlo por este seria cambiarle una
+ * herramienta buena por una peor, y ademas comerse la mitad de una pantalla
+ * que ya es chica. Quien decide cual va es `use-pointer`, mirando si el
+ * aparato apunta con un mouse o con un dedo.
+ *
+ * Se dibuja adentro del panel y no encima: empuja el contenido en vez de
+ * taparlo, asi lo que se esta escribiendo nunca queda debajo del dedo.
  *
  * Las teclas son grandes a proposito. La recomendacion para tactil es no bajar
  * de 44 puntos; en un POS de pie, con el local lleno, van 56 y con aire entre

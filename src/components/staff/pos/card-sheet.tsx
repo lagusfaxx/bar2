@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { attachCard } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
+import { useTecladoPropio } from "@/components/staff/use-pointer";
 import { useQrScanner } from "@/components/staff/use-qr-scanner";
 import { IDLE, type FormState } from "@/lib/form-state";
 
@@ -37,6 +38,11 @@ export function CardSheet({
    * Arranca en numeros, que es el caso de todas las noches.
    */
   const [teclado, setTeclado] = useState<"numeros" | "texto">("numeros");
+
+  /* En el telefono el numero se escribe con el teclado del sistema, que ya
+     ofrece el pad numerico con `inputMode`. El nuestro es para el mostrador,
+     donde no sube ninguno (ver `use-pointer`). */
+  const tecladoPropio = useTecladoPropio();
 
   const submit = (input: string) => {
     if (!input.trim()) return;
@@ -151,14 +157,31 @@ export function CardSheet({
             </button>
           </div>
 
-          <p
-            aria-live="polite"
-            className="mt-2 flex h-14 w-full items-center border border-line bg-ink px-3 font-mono text-lg tracking-[0.12em] text-bone"
-          >
-            {value || (
-              <span className="text-muted-dark">5210 •••• •••• ••••</span>
-            )}
-          </p>
+          {tecladoPropio ? (
+            <p
+              aria-live="polite"
+              className="mt-2 flex h-14 w-full items-center border border-line bg-ink px-3 font-mono text-lg tracking-[0.12em] text-bone"
+            >
+              {value || (
+                <span className="text-muted-dark">5210 •••• •••• ••••</span>
+              )}
+            </p>
+          ) : (
+            <input
+              type="text"
+              inputMode={teclado === "numeros" ? "numeric" : "text"}
+              autoComplete="off"
+              enterKeyHint="done"
+              aria-label="Número de la tarjeta o código del cupón"
+              value={value}
+              onChange={(event) => setValue(event.target.value.toUpperCase())}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") submit(value);
+              }}
+              placeholder="5210 •••• •••• ••••"
+              className="mt-2 h-14 w-full border border-line bg-ink px-3 font-mono text-lg tracking-[0.12em] text-bone placeholder:text-muted-dark focus:border-crimson focus:outline-none"
+            />
+          )}
 
           <span className="mt-1 block text-xs text-muted">
             Sirven los 16 dígitos de la tarjeta física o el código del cupón
@@ -186,17 +209,20 @@ export function CardSheet({
         </button>
 
         {/* Al pie y a lo ancho, como cualquier teclado: asi el boton de buscar
-            queda arriba y a la vista en vez de esconderse debajo de las teclas. */}
-        <div className="-mx-5 mt-4">
-          <Keyboard
-            variant={teclado}
-            onKey={(char) =>
-              setValue((actual) => (actual + char).toUpperCase().slice(0, 24))
-            }
-            onBackspace={() => setValue((actual) => actual.slice(0, -1))}
-            onClear={() => setValue("")}
-          />
-        </div>
+            queda arriba y a la vista en vez de esconderse debajo de las teclas.
+            En un telefono no va: ahi el teclado lo pone el sistema. */}
+        {tecladoPropio && (
+          <div className="-mx-5 mt-4">
+            <Keyboard
+              variant={teclado}
+              onKey={(char) =>
+                setValue((actual) => (actual + char).toUpperCase().slice(0, 24))
+              }
+              onBackspace={() => setValue((actual) => actual.slice(0, -1))}
+              onClear={() => setValue("")}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
