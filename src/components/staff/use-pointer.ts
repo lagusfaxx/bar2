@@ -5,57 +5,50 @@ import { useSyncExternalStore } from "react";
 /**
  * ¿Este aparato necesita que la app le ponga el teclado?
  *
- * La respuesta no es la misma en los dos lugares donde vive el POS, y por eso
- * hasta ahora estaba mal en uno de los dos:
+ * La respuesta no es la misma en los dos lugares donde vive el POS:
  *
  * - **El telefono del garzon** ya trae teclado. Aparece solo al enfocar un
  *   campo, es el que la persona usa todo el dia, corrige, predice y entiende
  *   su idioma. Poner el nuestro encima es cambiarle una herramienta buena por
- *   una peor, y ademas se comen la mitad de una pantalla que ya es chica.
- * - **La pantalla del mostrador** no trae ninguno: es un PC con mouse, en
- *   modo kiosco, y ahi enfocar un campo no levanta nada. Sin el nuestro, esos
- *   campos son una pared.
+ *   una peor, y ademas se come la mitad de una pantalla que ya es chica.
+ * - **La pantalla del mostrador** puede no traer ninguno: en modo kiosco,
+ *   enfocar un campo no levanta nada. Sin el nuestro, esos campos son una
+ *   pared.
  *
- * Lo que separa un caso del otro es que el aparato apunte con un dedo o con un
- * mouse, y eso el navegador ya lo sabe: `(pointer: fine)` es cierto cuando el
- * puntero principal es preciso —un mouse, un trackpad— y falso cuando es un
- * dedo. No hace falta adivinar el aparato por su `user agent`, que es lo que
- * envejece mal y falla justo en el equipo raro del local.
+ * La regla mira con que apunta el aparato, que el navegador ya sabe:
+ * `(pointer: fine)` es cierto cuando el puntero principal es preciso —un
+ * mouse, un trackpad— y falso cuando es un dedo. No hace falta adivinar el
+ * aparato por su `user agent`, que envejece mal.
+ *
+ * Pero la regla tiene un punto ciego conocido, y es justo el del local: **una
+ * pantalla tactil sin mouse se declara "dedo"** aunque el sistema tampoco
+ * tenga un teclado que ofrecer. Ese equipo se queda sin ninguno. Para eso esta
+ * la preferencia forzada de abajo, que manda sobre la regla.
  *
  * En el servidor devuelve `false`: se dibuja la version con teclado del
- * sistema, que es la que no estorba si el aparato resulta ser un telefono. En
- * el mostrador el nuestro aparece al hidratar, unos milisegundos despues.
+ * sistema, que es la que no estorba si el aparato resulta ser un telefono.
  */
 const PUNTERO_FINO = "(pointer: fine)";
 
-/**
- * Donde queda la decision forzada a mano, por equipo.
- *
- * La regla del puntero acierta en los dos casos que existen hoy, pero hay una
- * combinacion que la engaña: una pantalla tactil sin mouse conectado se
- * declara "dedo" —y entonces no dibujamos el teclado— aunque el sistema
- * tampoco tenga uno que ofrecer. Ahi el equipo se queda sin ninguno.
- *
- * Antes de que eso pase a la mitad de un servicio, se fuerza a mano abriendo
- * la sala con `?teclado=1` en ese equipo (o `?teclado=0` para lo contrario), y
- * queda guardado. `?teclado=auto` devuelve la decision a la regla.
- *
- * Vive en el equipo y no en los ajustes del panel, que lo aplicaria a todos:
- * es una particularidad de ese monitor, igual que la franja ciega.
- */
+/** Donde queda la decision forzada a mano, por equipo. */
 const STORAGE_KEY = "barzuo:teclado-propio";
 
-/** Lo forzado en la direccion, que ademas es como se configura. */
-function forzadoEnLaUrl(): boolean | null {
-  const valor = new URLSearchParams(window.location.search).get("teclado");
+/**
+ * La preferencia de este equipo, ya leida.
+ *
+ * `null` es "no hay ninguna, decide la regla". Vive en el modulo y no en un
+ * estado de React porque la comparten el componente que la aplica y todas las
+ * pantallas que la consultan.
+ */
+let forzado: boolean | null = null;
 
-  if (valor === "1") return true;
-  if (valor === "0") return false;
-  return null;
+const oyentes = new Set<() => void>();
+
+function avisar() {
+  for (const oyente of oyentes) oyente();
 }
 
-/** Lo forzado alguna vez en este equipo. */
-function forzadoEnElEquipo(): boolean | null {
+function leerGuardada(): boolean | null {
   try {
     const valor = localStorage.getItem(STORAGE_KEY);
 
@@ -68,35 +61,70 @@ function forzadoEnElEquipo(): boolean | null {
   return null;
 }
 
-function subscribe(alCambiar: () => void) {
-  /*
-   * Se guarda lo que venga en la direccion, para que valga tambien la proxima
-   * vez que se abra la sala sin el parametro. Va aca y no al leer el valor
-   * porque leer tiene que poder repetirse sin efectos.
-   */
-  const forzado = forzadoEnLaUrl();
+/**
+ * Lee `?teclado=` de la direccion y lo deja fijado en este equipo.
+ *
+ * La llama `<PreferenciaDeTeclado />` desde el armazon de sala, asi que
+ * funciona entrando por cualquier pantalla del equipo —la sala, una cuenta, la
+ * barra— y no solo por aquellas que resulten tener un campo de texto. Esa era
+ * justamente la trampa de la primera version: se leia dentro del propio hook,
+ * que solo esta montado donde hay algo que escribir, asi que abrir la sala con
+ * el parametro no hacia nada y parecia que la salida no existia.
+ *
+ * `?teclado=1` fuerza el nuestro, `?teclado=0` el del sistema, `?teclado=auto`
+ * devuelve la decision a la regla. Queda guardado en el equipo, no en los
+ * ajustes del panel, porque es una particularidad de ese monitor —igual que la
+ * franja ciega—.
+ */
+export function aplicarPreferenciaDeTeclado() {
+  const pedido = new URLSearchParams(window.location.search).get("teclado");
 
-  try {
-    if (forzado !== null) localStorage.setItem(STORAGE_KEY, forzado ? "1" : "0");
-    else if (new URLSearchParams(window.location.search).get("teclado") === "auto") {
-      localStorage.removeItem(STORAGE_KEY);
+  if (pedido === "1" || pedido === "0") {
+    try {
+      localStorage.setItem(STORAGE_KEY, pedido);
+    } catch {
+      // Sin donde guardar, vale solo para esta visita.
     }
-  } catch {
-    // Sin donde guardar, el parametro vale solo para esta visita.
+    forzado = pedido === "1";
+    avisar();
+    return;
   }
 
-  const mq = window.matchMedia(PUNTERO_FINO);
+  if (pedido === "auto") {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // Nada que limpiar.
+    }
+    forzado = null;
+    avisar();
+    return;
+  }
+
+  const guardada = leerGuardada();
+
+  if (guardada !== forzado) {
+    forzado = guardada;
+    avisar();
+  }
+}
+
+function subscribe(alCambiar: () => void) {
+  oyentes.add(alCambiar);
 
   // Un mouse se puede conectar y desconectar en caliente: la pantalla del
   // local puede arrancar sin el y recibirlo despues.
+  const mq = window.matchMedia(PUNTERO_FINO);
   mq.addEventListener("change", alCambiar);
-  return () => mq.removeEventListener("change", alCambiar);
+
+  return () => {
+    oyentes.delete(alCambiar);
+    mq.removeEventListener("change", alCambiar);
+  };
 }
 
 const getSnapshot = () =>
-  forzadoEnLaUrl() ??
-  forzadoEnElEquipo() ??
-  window.matchMedia(PUNTERO_FINO).matches;
+  forzado ?? window.matchMedia(PUNTERO_FINO).matches;
 
 const getServerSnapshot = () => false;
 

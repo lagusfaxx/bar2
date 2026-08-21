@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 
 import { DeadZone } from "@/components/staff/dead-zone";
+import { PreferenciaDeTeclado } from "@/components/staff/keyboard-preference";
 
 export const metadata: Metadata = {
   title: { default: "BarzuCard · Verificación", template: "%s · BARZUO" },
@@ -27,8 +28,10 @@ export default function StaffLayout({
 }) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-ink">
-      {/* Aplica la franja ciega del equipo, si ese equipo tiene una. */}
+      {/* Rarezas de este equipo: su franja ciega y si necesita que la app le
+          ponga el teclado. Se configuran una vez y quedan guardadas ahi. */}
       <DeadZone />
+      <PreferenciaDeTeclado />
       {children}
     </div>
   );
