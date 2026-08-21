@@ -33,6 +33,7 @@ import {
 } from "@/app/actions/pos";
 import { CardSheet } from "@/components/staff/pos/card-sheet";
 import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
+import { Keyboard } from "@/components/staff/pos/keyboard";
 import { Elapsed } from "@/components/staff/pos/elapsed";
 import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
@@ -821,7 +822,7 @@ export function Account({
 
         {/* La carta, fija, solo cuando hay ancho de sobra. */}
         {!cerrada && (
-          <aside className="hidden w-[26rem] shrink-0 border-l border-line lg:block xl:w-[30rem]">
+          <aside className="hidden w-[28rem] shrink-0 border-l border-line lg:block xl:w-[34rem]">
             <ProductPicker
               variant="panel"
               sessionId={session.id}
@@ -1085,15 +1086,24 @@ function DinerForm({
           Sirve para separar su consumo y cobrarle aparte. Descríbela por la
           ropa o el lugar en la mesa; no hace falta preguntarle el nombre.
         </span>
+        {/* Solo lectura y con el teclado de la app debajo: en la pantalla del
+            mostrador no hay ninguno del sistema que aparezca al enfocar. */}
         <input
           type="text"
           value={label}
-          autoFocus
-          onChange={(event) => setLabel(event.target.value)}
+          readOnly
           placeholder="Polera azul, pelo largo…"
           className="mt-2 h-12 w-full border border-line bg-ink px-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
         />
       </label>
+
+      <div className="mt-3">
+        <Keyboard
+          onKey={(char) => setLabel((actual) => (actual + char).slice(0, 40))}
+          onBackspace={() => setLabel((actual) => actual.slice(0, -1))}
+          onClear={() => setLabel("")}
+        />
+      </div>
 
       <div className="mt-3 flex gap-2">
         <button
