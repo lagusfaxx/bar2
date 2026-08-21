@@ -74,8 +74,9 @@ export default async function MenuQrPage() {
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl">QR de la carta</h1>
           <p className="text-xs text-neutral-600">
-            Uno por mesa. Imprime, recorta y pégalos. Es la única carta con
-            precios: la de la web va sin ellos.
+            Uno por mesa. Imprime, recorta y pégalos. Lleva a la carta de sala,
+            la misma que ven los garzones en el POS: es la única con precios,
+            porque la de la web va sin ellos.
           </p>
         </div>
       </header>

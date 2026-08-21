@@ -4,6 +4,7 @@ import { randomInt } from "node:crypto";
 
 import type { Station, TicketKind } from "@/generated/prisma/enums";
 import { checkEligibility } from "@/lib/barzucard";
+import { audienceFilter } from "@/lib/content";
 import { prisma } from "@/lib/prisma";
 import {
   requirementLabel,
@@ -117,7 +118,10 @@ export type PosMenuCategory = {
  */
 async function loadMenuRows() {
   return prisma.menuCategory.findMany({
-    where: { active: true },
+    // La carta de sala: la misma que abre el cliente con el QR de la mesa, y
+    // no la vitrina de la web. Los garzones cobran lo que dice la carta
+    // impresa, con sus variantes y sus promos de barra.
+    where: { active: true, audience: audienceFilter("sala") },
     orderBy: { position: "asc" },
     include: {
       products: {

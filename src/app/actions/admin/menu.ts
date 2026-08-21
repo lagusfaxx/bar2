@@ -49,6 +49,7 @@ export async function saveMenuCategory(
     icon: input.icon || null,
     active: input.active,
     station: input.station,
+    audience: input.audience,
   };
 
   if (categoryId) {

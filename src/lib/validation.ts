@@ -126,6 +126,8 @@ export const menuCategorySchema = z.object({
   icon: trimmed.max(40).optional().or(z.literal("")),
   active: z.coerce.boolean().default(true),
   station: z.enum(["BARRA", "COCINA"]).default("COCINA"),
+  // En que carta sale. Por omision, en las dos.
+  audience: z.enum(["AMBAS", "WEB", "SALA"]).default("AMBAS"),
 });
 
 export const menuProductSchema = z.object({

@@ -33,6 +33,7 @@ export default async function EditarCategoriaPage({
           icon: category.icon,
           active: category.active,
           station: category.station,
+          audience: category.audience,
         }}
       />
     </>

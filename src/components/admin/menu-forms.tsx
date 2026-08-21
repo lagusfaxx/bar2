@@ -24,6 +24,7 @@ export type CategoryValues = {
   icon?: string | null;
   active?: boolean;
   station?: "BARRA" | "COCINA";
+  audience?: "AMBAS" | "WEB" | "SALA";
 };
 
 export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
@@ -85,8 +86,20 @@ export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
             <option value="BARRA">Barra</option>
           </SelectField>
 
+          <SelectField
+            label="En qué carta sale"
+            name="audience"
+            defaultValue={category?.audience ?? "AMBAS"}
+            hint="La carta de la web es la vitrina pública y va sin precios. La de sala es la del QR de la mesa y la que usan los garzones en el POS."
+            error={state.errors?.audience}
+          >
+            <option value="AMBAS">En las dos cartas</option>
+            <option value="WEB">Solo en la carta de la web</option>
+            <option value="SALA">Solo en la carta de sala (QR y POS)</option>
+          </SelectField>
+
           <CheckboxField
-            label="Categoría visible en la web"
+            label="Categoría visible"
             name="active"
             defaultChecked={category?.active ?? true}
           />

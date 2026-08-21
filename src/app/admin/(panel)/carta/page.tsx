@@ -29,6 +29,13 @@ import { prisma } from "@/lib/prisma";
 
 export const metadata = { title: "Carta" };
 
+/** Como se lee en el panel el campo `audience` de cada categoria. */
+const AUDIENCE_LABEL = {
+  AMBAS: "Web y sala",
+  WEB: "Solo web",
+  SALA: "Solo sala",
+} as const;
+
 export default async function AdminCartaPage() {
   const categories = await prisma.menuCategory.findMany({
     orderBy: { position: "asc" },
@@ -41,7 +48,7 @@ export default async function AdminCartaPage() {
     <>
       <AdminHeader
         title="Carta y precios"
-        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, ocúltalo en vez de borrarlo."
+        description="Los platos y tragos, agrupados por categoría. Cada categoría dice en qué carta sale: la de la web es la vitrina pública y va sin precios; la de sala es la del QR de las mesas y la que ven los garzones en el POS, con precios. Si algo se acaba, ocúltalo en vez de borrarlo."
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/admin/carta/qr" size="sm" variant="outline">
@@ -77,6 +84,8 @@ export default async function AdminCartaPage() {
               description={`${category.products.length} producto${category.products.length === 1 ? "" : "s"}`}
               action={
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <Badge tone="muted">{AUDIENCE_LABEL[category.audience]}</Badge>
+
                   <Badge tone={category.active ? "free" : "muted"}>
                     {category.active ? "Activa" : "Oculta"}
                   </Badge>

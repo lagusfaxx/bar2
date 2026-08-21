@@ -32,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * los datos estructurados que lee Google.
  */
 export default async function CartaPage() {
-  const [menu, settings] = await Promise.all([getMenu(), getSettings()]);
+  const [menu, settings] = await Promise.all([getMenu("web"), getSettings()]);
 
   // Datos estructurados sin `offers`: un `Menu` de schema.org no obliga a
   // declarar precios, y ponerlos aqui seria filtrar por la puerta de atras

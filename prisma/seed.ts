@@ -483,6 +483,10 @@ type SeedCategory = {
   description: string;
   icon: string;
   image: number;
+  /** En que carta sale. Ver `MenuCategory.audience`. */
+  audience?: "AMBAS" | "WEB" | "SALA";
+  /** Impresora de la categoria. Vacio = se deduce del slug (ver `stationFor`). */
+  station?: "BARRA" | "COCINA";
   products: Array<{
     name: string;
     description: string;
@@ -493,7 +497,13 @@ type SeedCategory = {
   }>;
 };
 
-const MENU: SeedCategory[] = [
+/**
+ * La carta de la vitrina: la que se ve en /carta, sin precios.
+ *
+ * Es una seleccion presentable —una foto por categoria, una linea por plato—
+ * y no la carta operativa: no trae las variantes que la sala necesita cobrar.
+ */
+const MENU_WEB: SeedCategory[] = [
   {
     slug: "empanadas",
     name: "Empanadas",
@@ -1043,6 +1053,542 @@ const MENU: SeedCategory[] = [
 ];
 
 /**
+ * Una cerveza, en las tres formas en que se cobra.
+ *
+ * En la carta impresa cada cerveza es una fila con tres precios —sola, chelada
+ * y michelada—, pero en la comanda son tres cosas distintas: la barra prepara
+ * una u otra y el precio cambia. Se expanden aca para no repetir el mismo
+ * bloque treinta veces.
+ */
+function cerveza(
+  name: string,
+  formato: string,
+  [sola, chelada, michelada]: [number, number, number],
+  tags?: string[],
+): SeedCategory["products"] {
+  return [
+    { name, description: formato, price: sola, tags },
+    { name: `${name} Chelada`, description: formato, price: chelada, tags },
+    { name: `${name} Michelada`, description: formato, price: michelada, tags },
+  ];
+}
+
+/** El precio de un coctel de la carta, que solo tiene nombre y valor. */
+const coctel = (name: string, price: number, tags?: string[]) => ({
+  name,
+  description: "",
+  price,
+  tags,
+});
+
+/**
+ * La carta de sala: la carta impresa de BARZUO, tal cual.
+ *
+ * Es la que abre el cliente con el QR de la mesa y la que ven los garzones en
+ * el POS, y por eso esta completa: cada variante que se cobra aparte —chelada,
+ * michelada, copa de vino, la promo de dos cortos— es un producto propio, para
+ * que nadie tenga que hacer cuentas de cabeza al cargar la mesa.
+ *
+ * No sale en la web publica: /carta muestra `MENU_WEB`.
+ */
+const MENU_SALA: SeedCategory[] = [
+  {
+    slug: "sala-empanadas",
+    name: "Empanadas (8 unid)",
+    description: "Todas las porciones traen salsa del chef.",
+    icon: "Croissant",
+    image: 1,
+    station: "COCINA",
+    products: [
+      { name: "Empanadas Queso", description: "Ocho unidades.", price: 669000 },
+      { name: "Empanadas Queso Aceituna", description: "Ocho unidades.", price: 859000 },
+      { name: "Empanadas Queso Champiñón", description: "Ocho unidades.", price: 859000 },
+      {
+        name: "Empanadas Queso, Camarón y Ciboulette",
+        description: "Ocho unidades.",
+        price: 959000,
+      },
+    ],
+  },
+  {
+    slug: "sala-quesadillas",
+    name: "Quesadillas",
+    description: "Todas las porciones traen salsa del chef.",
+    icon: "Pizza",
+    image: 2,
+    station: "COCINA",
+    products: [
+      {
+        name: "Quesadilla Pollo, Champiñón y Pimentón",
+        description: "Con salsa del chef.",
+        price: 899000,
+      },
+      {
+        name: "Quesadilla Carne, Champiñón y Pimentón",
+        description: "Con salsa del chef.",
+        price: 1099000,
+      },
+      {
+        name: "Quesadilla Camarón, Aceitunas y Pimentón",
+        description: "Con salsa del chef.",
+        price: 1299000,
+      },
+    ],
+  },
+  {
+    slug: "sala-charcuteria",
+    name: "Charcutería",
+    description: "Todas las porciones traen salsa del chef.",
+    icon: "Utensils",
+    image: 3,
+    station: "COCINA",
+    products: [
+      {
+        name: "Tabla de Charcutería",
+        description:
+          "Queso, salame, jamón, aceitunas, galletas, tostadas & frutos secos.",
+        price: 1299000,
+      },
+    ],
+  },
+  {
+    slug: "sala-frituras",
+    name: "Frituras",
+    description: "Para picar y compartir.",
+    icon: "Utensils",
+    image: 4,
+    station: "COCINA",
+    products: [
+      { name: "Porción de Papas Fritas", description: "", price: 700000 },
+      {
+        name: "Chorrillana Clásica",
+        description:
+          "Carne, 700 gramos de papas fritas, cebolla caramelizada, vianesas, longanizas, huevo.",
+        price: 1399000,
+      },
+      {
+        name: "Chorrillana Vegetariana",
+        description:
+          "Pimentón rojo, pimentón verde, pimentón amarillo, cebolla caramelizada, champiñón, callampas deshidratadas, crema.",
+        price: 1399000,
+      },
+    ],
+  },
+  {
+    slug: "sala-churrascos",
+    name: "Churrascos",
+    description: "Todos vienen acompañados de papas fritas.",
+    icon: "Sandwich",
+    image: 5,
+    station: "COCINA",
+    products: [
+      {
+        name: "Churrasco Chacarero",
+        description:
+          "Jugosa carne de res a la plancha con tomate, porotos verdes, ají verde, acompañado de papas fritas.",
+        price: 1299000,
+      },
+      {
+        name: "Churrasco Luco",
+        description:
+          "Jugosa carne de res a la plancha con queso derretido en crujiente pan, acompañado de papas fritas.",
+        price: 1299000,
+      },
+      {
+        name: "Churrasco Italiana",
+        description:
+          "Jugosa carne de res a la plancha, cubierta con palta, tomate y mayonesa, acompañado de papas fritas.",
+        price: 1299000,
+      },
+    ],
+  },
+  {
+    slug: "sala-hamburguesas",
+    name: "Hamburguesas",
+    description: "A la parrilla, en pan de la casa.",
+    icon: "Beef",
+    image: 6,
+    station: "COCINA",
+    products: [
+      {
+        name: "Hamburguesa Italiana",
+        description: "Tomate fresco, palta, mayonesa, acompañada con papas fritas.",
+        price: 1199000,
+      },
+      {
+        name: "Hamburguesa Luco",
+        description: "Queso derretido, acompañado de papas fritas.",
+        price: 1199000,
+      },
+      {
+        name: "Hamburguesa Vegetariana",
+        description: "Carne de soya, tomate, palta y mayonesa.",
+        price: 1199000,
+      },
+    ],
+  },
+  {
+    slug: "sala-pizzas-a-la-piedra",
+    name: "Pizzas a la Piedra",
+    description: "Masa fina, horneada sobre piedra.",
+    icon: "Pizza",
+    image: 7,
+    station: "COCINA",
+    products: [
+      {
+        name: "Pizza Napolitana",
+        description: "Salsa de tomate, mozzarella, jamón y tomate.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza 4 Carnes",
+        description: "Queso mozzarella, choricillo, jamón, salame y tocino.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza 4 Quesos",
+        description:
+          "Queso parmesano, queso azul, queso mozzarella y queso mantecoso.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Peperonni",
+        description: "Queso, peperonni & salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Hawaiana",
+        description:
+          "Jamón y piña con un contraste dulce y delicioso, salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Vegetariana",
+        description:
+          "Queso, champiñón, pimentón verde y rojo, tomate fresco, ligera y vibrante, salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Champiñón",
+        description: "Champiñón, aceitunas, queso & salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Jamón Serrano",
+        description: "Rúcula, jamón serrano, queso & salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Mediterránea Dulce",
+        description:
+          "Queso de cabra y mermelada de tomate, sofisticada y sorprendente.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Volcán de Tocino",
+        description:
+          "Tocino crocante, cebolla caramelizada, crema explosiva y cremosa, salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Carnívora Azul",
+        description:
+          "Carne mechada y queso azul, fuerte, ahumada y memorable, salsa pomodoro.",
+        price: 1359000,
+      },
+      {
+        name: "Pizza Mechada Palta",
+        description: "Carne mechada, queso, palta & salsa pomodoro.",
+        price: 1359000,
+      },
+    ],
+  },
+  {
+    slug: "sala-cortos-de-whisky",
+    name: "Cortos de Whisky",
+    description: "Incluyen bebida.",
+    icon: "Wine",
+    image: 8,
+    station: "BARRA",
+    products: [
+      { name: "Ballantines", description: "Incluye bebida.", price: 750000 },
+      {
+        name: "Promo 2 Cortos Ballantines + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1250000,
+      },
+      { name: "Jhonnie Walker Rojo", description: "Incluye bebida.", price: 850000 },
+      {
+        name: "Promo 2 Cortos Jhonnie Walker Rojo + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1450000,
+      },
+      { name: "Jhonnie Walker Negro", description: "Incluye bebida.", price: 899000 },
+      { name: "Jack Daniel", description: "Incluye bebida.", price: 850000 },
+    ],
+  },
+  {
+    slug: "sala-cortos-de-ron",
+    name: "Cortos de Ron",
+    description: "Incluyen bebida.",
+    icon: "Wine",
+    image: 9,
+    station: "BARRA",
+    products: [
+      { name: "Ron Barcelo", description: "Incluye bebida.", price: 650000 },
+      {
+        name: "Promo 2 Cortos Ron Barcelo + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1100000,
+      },
+    ],
+  },
+  {
+    slug: "sala-cortos-de-pisco",
+    name: "Cortos de Pisco",
+    description: "Incluyen bebida.",
+    icon: "Wine",
+    image: 10,
+    station: "BARRA",
+    products: [
+      { name: "Pisco Alto 35°", description: "Incluye bebida.", price: 650000 },
+      {
+        name: "Promo 2 Cortos Pisco Alto 35° + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1050000,
+      },
+      { name: "Pisco Alto 40°", description: "Incluye bebida.", price: 699000 },
+      {
+        name: "Promo 2 Cortos Pisco Alto 40° + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1100000,
+      },
+      { name: "Pisco Mistral 35°", description: "Incluye bebida.", price: 675000 },
+      {
+        name: "Promo 2 Cortos Pisco Mistral 35° + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1150000,
+      },
+      { name: "Pisco Mistral 40°", description: "Incluye bebida.", price: 750000 },
+      {
+        name: "Promo 2 Cortos Pisco Mistral 40° + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1350000,
+      },
+    ],
+  },
+  {
+    slug: "sala-cortos-de-gin",
+    name: "Cortos de Gin",
+    description: "Incluyen bebida o tónica.",
+    icon: "Wine",
+    image: 11,
+    station: "BARRA",
+    products: [
+      { name: "Gin Gora", description: "Incluye bebida o tónica.", price: 750000 },
+      {
+        name: "Promo 2 Cortos Gin Gora + Bebida",
+        description: "Dos cortos y una bebida.",
+        price: 1299000,
+      },
+      { name: "Gin Beefeeter", description: "Incluye bebida o tónica.", price: 750000 },
+      { name: "Gin Tanqueray", description: "Incluye bebida o tónica.", price: 850000 },
+      {
+        name: "Gin Tropical",
+        description: "Gin, Red Bull Tropical, sabor a elección.",
+        price: 899000,
+      },
+    ],
+  },
+  {
+    slug: "sala-cervezas",
+    name: "Cervezas",
+    description: "Schop de 500 cc y botellines de 300 a 355 cc.",
+    icon: "Beer",
+    image: 12,
+    station: "BARRA",
+    products: [
+      ...cerveza("Schop Kunstmann Torobayo", "Schop 500 cc.", [589000, 669000, 709000]),
+      ...cerveza("Schop Austral Calafate", "Schop 500 cc.", [589000, 669000, 709000]),
+      ...cerveza("Schop Heineken", "Schop 500 cc.", [489000, 569000, 609000]),
+      ...cerveza("Royal Guard", "Botellín 300 a 355 cc.", [439000, 519000, 559000]),
+      ...cerveza("Heineken", "Botellín 300 a 355 cc.", [439000, 519000, 559000]),
+      ...cerveza("Corona", "Botellín 300 a 355 cc.", [450000, 530000, 570000]),
+      ...cerveza("Mahou 0.0", "Botellín 300 a 355 cc.", [400000, 480000, 520000], [
+        "sin alcohol",
+      ]),
+      ...cerveza("Royal 0.0", "Botellín 300 a 355 cc.", [459000, 539000, 579000], [
+        "sin alcohol",
+      ]),
+      ...cerveza("Cristal 0.0", "Botellín 300 a 355 cc.", [459000, 539000, 579000], [
+        "sin alcohol",
+      ]),
+      ...cerveza("Heineken 0.0", "Botellín 300 a 355 cc.", [459000, 539000, 579000], [
+        "sin alcohol",
+      ]),
+    ],
+  },
+  {
+    slug: "sala-bebidas",
+    name: "Bebidas",
+    description: "Bebidas y energéticas.",
+    icon: "CupSoda",
+    image: 13,
+    station: "BARRA",
+    products: [
+      { name: "Coca-Cola Original", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Coca-Cola 0.0", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Sprite Original", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Sprite 0.0", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Ginger Ale", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Ginger Ale 0.0", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Fanta Original", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Fanta 0.0", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Tónica", description: "", price: 275000, tags: ["sin alcohol"] },
+      { name: "Red Bull", description: "", price: 379000, tags: ["sin alcohol"] },
+    ],
+  },
+  {
+    slug: "sala-jugos-y-limonadas",
+    name: "Jugos & Limonadas",
+    description: "Recién preparados.",
+    icon: "CupSoda",
+    image: 14,
+    station: "BARRA",
+    products: [
+      {
+        name: "Jugos Naturales",
+        description: "Frambuesa, frutilla, piña, maracuyá y mango.",
+        price: 350000,
+        tags: ["sin alcohol"],
+      },
+      { name: "Limonada Original", description: "", price: 300000, tags: ["sin alcohol"] },
+      {
+        name: "Limonada Menta Jengibre",
+        description: "",
+        price: 399000,
+        tags: ["sin alcohol"],
+      },
+      {
+        name: "Agua Mineral",
+        description: "Con o sin gas.",
+        price: 299000,
+        tags: ["sin alcohol"],
+      },
+    ],
+  },
+  {
+    slug: "sala-coctel",
+    name: "Cóctel",
+    description: "La coctelería de la barra.",
+    icon: "Martini",
+    image: 15,
+    station: "BARRA",
+    products: [
+      coctel("Aperol", 700000),
+      coctel("Ramazzotti", 700000),
+      coctel("Campari Tónica", 699000),
+      coctel("Campari Sprits", 750000),
+      coctel("Daiquiri Tradicional", 659000),
+      coctel("Daiquiri Sabores", 700000),
+      coctel("Mojito Tradicional", 659000),
+      coctel("Mojito Sabores", 700000),
+      coctel("Mojito Aperol o Ramazzotti", 850000),
+      coctel("Whisky Sour", 650000),
+      coctel("Pisco Sour", 650000),
+      coctel("Pisco Sour Catedral", 750000),
+      coctel("Caipiriña", 659000),
+      coctel("Piña Colada", 659000),
+      coctel("Corto Tequila", 359000),
+      coctel("Tequila Margarita", 600000),
+      coctel("Tequila Sunrise", 659000),
+      coctel("Pink Margarita", 659000),
+      coctel("Tom Collins", 659000),
+      coctel("John Collins", 759000),
+      coctel("Ruso Blanco", 659000),
+      coctel("Ruso Negro", 659000),
+      coctel("Vodka Naranja", 659000),
+      coctel("Sangría", 659000),
+      coctel("Fernet con Bebida", 659000),
+      coctel("Moscow Mule", 659000),
+      coctel("Clavo Oxidado", 779000),
+      coctel("Negroni", 650000),
+    ],
+  },
+  {
+    slug: "sala-coctel-sin-alcohol",
+    name: "Cóctel Sin Alcohol 0.0",
+    description: "La misma coctelería, sin una gota de alcohol.",
+    icon: "Martini",
+    image: 1,
+    station: "BARRA",
+    products: [
+      coctel("Primavera 0.0", 500000, ["sin alcohol"]),
+      coctel("Piña Colada 0.0", 500000, ["sin alcohol"]),
+      coctel("Frambuesa Colada 0.0", 550000, ["sin alcohol"]),
+      coctel("Daiquiri Sabores 0.0", 500000, ["sin alcohol"]),
+      coctel("Mojito Tradicional 0.0", 550000, ["sin alcohol"]),
+      coctel("Mojito Sabores 0.0", 600000, ["sin alcohol"]),
+      coctel("Zerozzotti 0.0", 1200000, ["sin alcohol"]),
+      coctel("Gin Tanqueray 0.0", 1200000, ["sin alcohol"]),
+      coctel("Fernet 0.0", 850000, ["sin alcohol"]),
+      coctel("Aperol 0.0", 1200000, ["sin alcohol"]),
+      coctel("Ron 0.0", 1100000, ["sin alcohol"]),
+      coctel("Pisco 0.0", 750000, ["sin alcohol"]),
+    ],
+  },
+  {
+    slug: "sala-vinos-reserva",
+    name: "Vinos Reserva",
+    description: "Por botella o por copa.",
+    icon: "Wine",
+    image: 2,
+    station: "BARRA",
+    products: [
+      { name: "Doña Dominga (botella)", description: "Reserva.", price: 1350000 },
+      { name: "Doña Dominga (copa)", description: "Reserva.", price: 425000 },
+      { name: "Casillero del Diablo (botella)", description: "Reserva.", price: 1350000 },
+      { name: "Casillero del Diablo (copa)", description: "Reserva.", price: 425000 },
+      {
+        name: "Espumante Undurraga Brut (botella)",
+        description: "Espumante brut.",
+        price: 1350000,
+      },
+      {
+        name: "Espumante Undurraga Brut (copa)",
+        description: "Espumante brut.",
+        price: 425000,
+      },
+    ],
+  },
+  {
+    slug: "sala-vinos-gran-reserva",
+    name: "Vinos Gran Reserva",
+    description: "Solo por botella.",
+    icon: "Wine",
+    image: 3,
+    station: "BARRA",
+    products: [
+      { name: "Santa Ema (botella)", description: "Gran Reserva.", price: 1800000 },
+      { name: "Pérez Cruz (botella)", description: "Gran Reserva.", price: 1800000 },
+    ],
+  },
+];
+
+/**
+ * Las dos cartas, una detras de otra.
+ *
+ * El orden importa: la posicion de cada categoria sale de su lugar en esta
+ * lista, y cada carta se lee filtrada por `audience`, asi que la web queda
+ * ordenada como `MENU_WEB` y la de sala como `MENU_SALA`.
+ */
+const MENU: SeedCategory[] = [
+  ...MENU_WEB.map((category) => ({ ...category, audience: "WEB" as const })),
+  ...MENU_SALA.map((category) => ({ ...category, audience: "SALA" as const })),
+];
+
+
+/**
  * Restos de la carta de demostracion anterior.
  *
  * Al reemplazarla por la carta real quedaron categorias que ya no existen y,
@@ -1153,7 +1699,7 @@ const PROMOTIONS: Array<{
     value: 0,
     image: 1,
     maxPerCard: 0,
-    productSlug: "cervezas-schop-heineken",
+    productSlug: "sala-cervezas-schop-heineken",
     weekdays: [2, 3, 4],
   },
   {
@@ -1166,7 +1712,7 @@ const PROMOTIONS: Array<{
     value: 20,
     image: 2,
     maxPerCard: 1,
-    categorySlug: "cervezas",
+    categorySlug: "sala-cervezas",
   },
   {
     slug: "tabla-barzuo-bonificada",
@@ -1178,7 +1724,7 @@ const PROMOTIONS: Array<{
     value: 0,
     image: 3,
     maxPerCard: 1,
-    productSlug: "charcuteria-y-frituras-tabla-de-charcuteria",
+    productSlug: "sala-charcuteria-tabla-de-charcuteria",
   },
   {
     slug: "3000-off-en-la-cuenta",
@@ -1201,7 +1747,7 @@ const PROMOTIONS: Array<{
     value: 0,
     image: 5,
     maxPerCard: 1,
-    productSlug: "vinos-undurraga-brut",
+    productSlug: "sala-vinos-reserva-espumante-undurraga-brut-botella",
   },
   {
     slug: "papas-de-la-casa",
@@ -1212,7 +1758,7 @@ const PROMOTIONS: Array<{
     value: 0,
     image: 6,
     maxPerCard: 1,
-    productSlug: "charcuteria-y-frituras-porcion-de-papas-fritas",
+    productSlug: "sala-frituras-porcion-de-papas-fritas",
     maxTotal: 100,
   },
 ];
@@ -1392,7 +1938,8 @@ async function main() {
         icon: category.icon,
         imageUrl: `/demo/category-${category.image}.jpg`,
         position: categoryIndex,
-        station: stationFor(category.slug),
+        station: category.station ?? stationFor(category.slug),
+        audience: category.audience ?? "AMBAS",
       },
       update: {
         name: category.name,
@@ -1401,6 +1948,11 @@ async function main() {
         imageUrl: `/demo/category-${category.image}.jpg`,
         position: categoryIndex,
         active: true,
+        // A diferencia de la impresora, la carta si se pisa: separar la
+        // vitrina de la carta de sala es justo lo que este seed viene a
+        // hacer, y una base sembrada antes tiene todas las categorias en
+        // AMBAS —o sea, la carta de la web tambien en el POS—.
+        audience: category.audience ?? "AMBAS",
       },
     });
 
@@ -1409,7 +1961,9 @@ async function main() {
       const data = {
         categoryId: saved.id,
         name: product.name,
-        description: product.description,
+        // Hay productos de la carta de sala que son solo nombre y precio (los
+        // cocteles): sin descripcion se guarda vacio, no una cadena vacia.
+        description: product.description || null,
         priceCents: product.price,
         imageUrl: product.image ? `/demo/product-${product.image}.jpg` : null,
         featured: product.featured ?? false,
@@ -1427,9 +1981,11 @@ async function main() {
   }
   await removeLegacyMenu();
 
-  console.log(
-    `· Carta: ${MENU.length} categorías, ${MENU.reduce((n, c) => n + c.products.length, 0)} productos`,
-  );
+  const cuenta = (carta: SeedCategory[]) =>
+    `${carta.length} categorías, ${carta.reduce((n, c) => n + c.products.length, 0)} productos`;
+
+  console.log(`· Carta de la web: ${cuenta(MENU_WEB)}`);
+  console.log(`· Carta de sala (QR de la mesa y POS): ${cuenta(MENU_SALA)}`);
 
   // Mesas del salon: sin ellas los garzones no tienen donde abrir una cuenta.
   // Se ajustan despues desde el panel, en Sala → Mesas.

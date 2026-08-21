@@ -4,7 +4,11 @@ import { cache } from "react";
 
 import { dateOnlyKey, dayKey } from "@/lib/format";
 
-import type { EventAccess, EventCategory } from "@/generated/prisma/enums";
+import type {
+  EventAccess,
+  EventCategory,
+  MenuAudience,
+} from "@/generated/prisma/enums";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -310,9 +314,29 @@ export type MenuCategoryWithProducts = Awaited<
   ReturnType<typeof getMenu>
 >[number];
 
-export function getMenu() {
+/**
+ * Que carta se esta pidiendo.
+ *
+ * "web" es la vitrina publica de /carta, sin precios. "sala" es la carta del
+ * local: la del QR de la mesa y la que ven los garzones en el POS, con las
+ * variantes y las promos de barra que solo tienen sentido para cobrar.
+ */
+export type MenuAudienceScope = "web" | "sala";
+
+/**
+ * Las categorias que le tocan a cada carta.
+ *
+ * `AMBAS` es el valor de siempre, asi que una categoria que nadie clasifico
+ * sigue saliendo en las dos. Solo se separa lo que el panel marco a proposito.
+ */
+export function audienceFilter(scope: MenuAudienceScope) {
+  const own: MenuAudience = scope === "web" ? "WEB" : "SALA";
+  return { in: ["AMBAS", own] satisfies MenuAudience[] };
+}
+
+export function getMenu(scope: MenuAudienceScope) {
   return prisma.menuCategory.findMany({
-    where: { active: true },
+    where: { active: true, audience: audienceFilter(scope) },
     orderBy: { position: "asc" },
     include: {
       products: {
@@ -325,7 +349,12 @@ export function getMenu() {
 
 export function getFeaturedProducts(take = 6) {
   return prisma.menuProduct.findMany({
-    where: { available: true, featured: true, category: { active: true } },
+    where: {
+      available: true,
+      featured: true,
+      // La portada es web publica: los destacados salen de la carta de la web.
+      category: { active: true, audience: audienceFilter("web") },
+    },
     orderBy: { position: "asc" },
     take,
     include: { category: { select: { name: true, slug: true } } },

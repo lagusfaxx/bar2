@@ -162,6 +162,15 @@ model EventRating {
 // Carta / Menu
 // ---------------------------------------------------------------------------
 
+enum MenuAudience {
+  /** Sale en las dos cartas. Es lo que traen las categorias de siempre. */
+  AMBAS
+  /** Solo en la web publica (/carta), la que va sin precios. */
+  WEB
+  /** Solo en la carta de sala: el QR de la mesa y el POS de los garzones. */
+  SALA
+}
+
 model MenuCategory {
   id          String  @id @default(cuid())
   slug        String  @unique
@@ -176,6 +185,12 @@ model MenuCategory {
   // y cada producto puede desviarse (ver MenuProduct.station).
   station Station @default(COCINA)
 
+  // Quien ve esta categoria. La carta de la web y la de sala dejaron de ser la
+  // misma lista con y sin precios: la de sala es la carta impresa del local,
+  // con todas sus variantes y promos de barra, y la de la web es la vitrina.
+  // Cada una se edita sin tocar la otra.
+  audience MenuAudience @default(AMBAS)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -183,6 +198,7 @@ model MenuCategory {
   promotions Promotion[]
 
   @@index([active, position])
+  @@index([audience, active, position])
   @@map("menu_categories")
 }
 

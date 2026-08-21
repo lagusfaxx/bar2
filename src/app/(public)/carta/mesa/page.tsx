@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * misma discrecion de una carta impresa: esta sobre la mesa, no en la vitrina.
  */
 export default async function CartaMesaPage() {
-  const menu = await getMenu();
+  const menu = await getMenu("sala");
 
   return (
     <>
