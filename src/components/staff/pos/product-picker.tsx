@@ -1,13 +1,25 @@
 "use client";
 
-import { Check, Loader2, MessageSquarePlus, Search, Send, X } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronRight,
+  Loader2,
+  MessageSquarePlus,
+  Search,
+  Send,
+  Star,
+  X,
+} from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 
 import { addItem } from "@/app/actions/pos";
+import { Keyboard } from "@/components/staff/pos/keyboard";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { formatPrice } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
 import type { PosMenuCategory, PosMenuProduct } from "@/lib/pos";
+import { rankBySearch } from "@/lib/search";
 
 /**
  * Selector de productos.
@@ -15,6 +27,21 @@ import type { PosMenuCategory, PosMenuProduct } from "@/lib/pos";
  * Se carga sobre la cuenta abierta, sin salir de la mesa: el garzon toca un
  * producto y ya queda cargado. Se mantiene abierto a proposito, porque los
  * pedidos vienen de a varios.
+ *
+ * La pantalla trabaja en tres estados y nunca mas de uno a la vez, que es como
+ * funciona cualquier POS de mostrador (Toast, Square, Lightspeed) y como
+ * conviene que funcione el nuestro:
+ *
+ * 1. **Portada**: los de siempre, y despues las categorias. Nada mas.
+ * 2. **Una categoria**: sus productos, en rejilla, con la vuelta arriba.
+ * 3. **Buscando**: una sola lista ordenada por lo que mejor pega.
+ *
+ * Antes eran las tres cosas juntas, una debajo de la otra: la carta entera
+ * apilada en una columna. Con doscientos productos eso es medio minuto de
+ * deslizar con el cliente esperando, y el garzon terminaba usando siempre los
+ * frecuentes porque el resto no valia la pena buscarlo. Dos toques a una
+ * categoria de doce productos siempre le ganan a un deslizamiento largo: cada
+ * pantalla ofrece pocas opciones, y por eso se elige rapido.
  *
  * Tiene dos formas segun donde se use, y es la misma lista en las dos:
  *
@@ -55,6 +82,8 @@ export function ProductPicker({
 }) {
   const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
+  const [categoriaId, setCategoriaId] = useState<string | null>(null);
+  const [tecleando, setTecleando] = useState(false);
   const [pending, startTransition] = useTransition();
   const [added, setAdded] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -69,34 +98,63 @@ export function ProductPicker({
     [added],
   );
 
-  /*
-   * Busca por producto y tambien por categoria.
+  /**
+   * La carta aplanada, con la categoria pegada a cada producto.
    *
-   * Antes solo miraba el nombre del producto, y en un bar eso deja fuera la
-   * palabra que uno escribe primero: "cerveza" no encontraba nada, porque las
-   * cervezas de la carta se llaman "Schop Kunstmann" o "Escudo". Lo mismo con
-   * "trago", "vino" o "postre". Ahora, si lo escrito coincide con la
-   * categoria, se muestra la categoria entera; si no, sus productos que
-   * coincidan.
+   * Es lo que se busca: en la busqueda no hay secciones, hay una sola lista
+   * ordenada por que tan bien pega cada cosa. Que un producto diga a que
+   * categoria pertenece es lo unico que se necesita de ellas ahi.
    */
-  const results = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+  const indice = useMemo(
+    () =>
+      menu.flatMap((categoria) =>
+        categoria.products.map((product) => ({
+          ...product,
+          category: categoria.name,
+          categoriaId: categoria.id,
+        })),
+      ),
+    [menu],
+  );
 
-    if (!needle) return menu;
+  /**
+   * Lo que mas se vende, para desempatar.
+   *
+   * Con "schop" en la mano hay cinco productos que pegan igual de bien. El que
+   * salio doscientas veces en la quincena va primero: es, casi siempre, el que
+   * se esta pidiendo.
+   */
+  const ranking = useMemo(
+    () => new Map(frequent.map((product, indice) => [product.id, frequent.length - indice])),
+    [frequent],
+  );
 
-    return menu
-      .map((category) => {
-        if (category.name.toLowerCase().includes(needle)) return category;
+  const buscando = query.trim().length > 0;
 
-        return {
-          ...category,
-          products: category.products.filter((product) =>
-            product.name.toLowerCase().includes(needle),
-          ),
-        };
-      })
-      .filter((category) => category.products.length > 0);
-  }, [menu, query]);
+  /**
+   * Resultados de la busqueda.
+   *
+   * El orden y el filtro viven en `lib/search`: tolera tildes, mayusculas,
+   * palabras al reves y una letra mal escrita. Antes esto era un `includes()`
+   * sobre el nombre, y en un tactil sin teclado eso significaba que un dedo
+   * torpe no encontraba nada y volvia a deslizar la carta entera.
+   *
+   * Se corta en cuarenta: si lo escrito devuelve mas que eso, el problema es
+   * que falta escribir, no que falte lista.
+   */
+  const resultados = useMemo(() => {
+    if (!buscando) return [];
+
+    return rankBySearch(indice, query, (product) => (ranking.get(product.id) ?? 0) * 50).slice(
+      0,
+      40,
+    );
+  }, [buscando, indice, query, ranking]);
+
+  const categoria = useMemo(
+    () => menu.find((candidate) => candidate.id === categoriaId) ?? null,
+    [menu, categoriaId],
+  );
 
   const add = (productId: string, name: string) => {
     const formData = new FormData();
@@ -124,6 +182,20 @@ export function ProductPicker({
     });
   };
 
+  /** Vuelve a la portada: ni categoria abierta ni busqueda escrita. */
+  const volverAPortada = () => {
+    setCategoriaId(null);
+    setQuery("");
+    setTecleando(false);
+  };
+
+  /** Rejilla de dos columnas; tres cuando la pantalla lo permite. */
+  const rejilla = enPanel
+    ? "grid grid-cols-2 gap-2 xl:grid-cols-3"
+    : "grid grid-cols-2 gap-2 sm:grid-cols-3";
+
+  const enPortada = !buscando && !categoria;
+
   return (
     <div
       className={
@@ -138,163 +210,259 @@ export function ProductPicker({
       <header
         className={
           enPanel
-            ? "shrink-0 border-b border-line px-4 py-3"
-            : "shrink-0 border-b border-line px-4 py-3 pt-safe"
+            ? "shrink-0 border-b border-line px-3 py-3"
+            : "shrink-0 border-b border-line px-3 py-3 pt-safe"
         }
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs text-muted">Se agrega a la cuenta de</p>
-            <p className="truncate font-display text-lg text-bone">{dinerLabel}</p>
-          </div>
-
-          {/* En panel no hay nada que cerrar: la carta es parte de la pantalla. */}
-          {!enPanel && (
+        <div className="flex items-center gap-2">
+          {/* Un solo boton de vuelta, siempre en el mismo lugar y siempre con
+              el mismo significado: salir de donde estoy. En la portada del
+              telefono es la salida de la carta; adentro, la vuelta atras. */}
+          {!enPortada ? (
             <button
               type="button"
-              onClick={onClose}
-              className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
-              aria-label="Volver a la cuenta sin enviar"
+              onClick={volverAPortada}
+              className="flex size-12 shrink-0 items-center justify-center border border-line text-bone"
+              aria-label="Volver a las categorías"
+            >
+              <ArrowLeft className="size-5" aria-hidden />
+            </button>
+          ) : (
+            !enPanel && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex size-12 shrink-0 items-center justify-center border border-line text-bone"
+                aria-label="Volver a la cuenta sin enviar"
+              >
+                <X className="size-5" aria-hidden />
+              </button>
+            )
+          )}
+
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-muted">
+              {buscando
+                ? "Buscando en la carta"
+                : categoria
+                  ? "Categoría"
+                  : "Se agrega a la cuenta de"}
+            </p>
+            <p className="truncate font-display text-lg text-bone">
+              {buscando ? query : (categoria?.name ?? dinerLabel)}
+            </p>
+          </div>
+        </div>
+
+        {/*
+          El campo de busqueda no es un campo: es un boton.
+
+          En el mostrador no hay teclado que enfocar, asi que tocar aca abre el
+          nuestro (ver `keyboard.tsx`) en vez de esperar uno que no va a venir.
+          Muestra lo escrito y trae su propia X para vaciarlo, que es lo que se
+          quiere cuando la busqueda no dio con nada.
+        */}
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTecleando(true)}
+            className={[
+              "flex h-12 min-w-0 flex-1 items-center gap-2 border px-3 text-left",
+              tecleando ? "border-crimson bg-ink" : "border-line bg-ink",
+            ].join(" ")}
+          >
+            <Search className="size-4 shrink-0 text-muted" aria-hidden />
+            <span className={query ? "truncate text-bone" : "truncate text-muted"}>
+              {query || "Buscar un producto"}
+            </span>
+          </button>
+
+          {buscando && (
+            <button
+              type="button"
+              onClick={volverAPortada}
+              className="flex size-12 shrink-0 items-center justify-center border border-line text-muted"
+              aria-label="Borrar la búsqueda"
             >
               <X className="size-5" aria-hidden />
             </button>
           )}
         </div>
-
-        <div className="relative mt-3">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
-            aria-hidden
-          />
-          <input
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar en la carta…"
-            aria-label="Buscar producto"
-            className="h-12 w-full border border-line bg-ink-soft pl-10 pr-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
-          />
-        </div>
       </header>
 
       {error && (
-        <p role="alert" className="shrink-0 border-b border-crimson/40 bg-crimson/10 px-4 py-2 text-sm text-crimson-bright">
+        <p
+          role="alert"
+          className="shrink-0 border-b border-crimson/40 bg-crimson/10 px-4 py-2 text-sm text-crimson-bright"
+        >
           {error}
         </p>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-        {/* Los frecuentes van primero: el grueso de los pedidos sale de aca
-            sin buscar ni desplazarse. */}
-        {!query.trim() && frequent.length > 0 && (
-          <section className="mb-6">
-            <h3 className="mb-2 text-[0.6rem] uppercase tracking-[0.2em] text-gilt-soft">
-              Los de siempre
-            </h3>
-
-            <div className="grid grid-cols-2 gap-2">
-              {frequent.map((product) => (
-                <ProductButton
-                  key={`frecuente-${product.id}`}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
+        {/* --- Buscando: una sola lista, la mejor primero. --- */}
+        {buscando &&
+          (resultados.length === 0 ? (
+            <div className="py-10 text-center">
+              <p className="text-sm text-muted">Nada con ese nombre en la carta.</p>
+              <button
+                type="button"
+                onClick={volverAPortada}
+                className="mx-auto mt-4 flex h-12 items-center justify-center gap-2 border border-bone/25 px-5 text-base text-bone"
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                Ver las categorías
+              </button>
+            </div>
+          ) : (
+            <div className={rejilla}>
+              {resultados.map((product) => (
+                <ProductTile
+                  key={`resultado-${product.id}`}
                   product={product}
+                  hint={product.category}
                   count={added[product.id] ?? 0}
                   disabled={pending}
-                  compact
                   onClick={() => add(product.id, product.name)}
                 />
               ))}
             </div>
-          </section>
+          ))}
+
+        {/* --- Una categoria: solo sus productos. --- */}
+        {!buscando && categoria && (
+          <div className={rejilla}>
+            {categoria.products.map((product) => (
+              <ProductTile
+                key={product.id}
+                product={product}
+                count={added[product.id] ?? 0}
+                disabled={pending}
+                onClick={() => add(product.id, product.name)}
+              />
+            ))}
+          </div>
         )}
 
-        {results.length === 0 && (
-          <p className="py-10 text-center text-sm text-muted">
-            Nada con ese nombre en la carta.
-          </p>
-        )}
+        {/* --- Portada: los de siempre y las categorias. --- */}
+        {enPortada && (
+          <>
+            {/* El grueso de los pedidos sale de aca sin buscar ni entrar a
+                ninguna categoria: son los veinte productos que se repiten toda
+                la noche. */}
+            {frequent.length > 0 && (
+              <section className="mb-5">
+                <h3 className="mb-2 flex items-center gap-1.5 text-[0.6rem] uppercase tracking-[0.2em] text-gilt-soft">
+                  <Star className="size-3" aria-hidden />
+                  Los de siempre
+                </h3>
 
-        {results.map((category) => (
-          <section key={category.id} className="mb-6">
-            <h3 className="mb-2 flex items-center gap-2 text-[0.6rem] uppercase tracking-[0.2em] text-muted">
-              {category.name}
-              <span className="text-bone-dim">
-                {category.station === "BARRA" ? "\u00b7 barra" : "\u00b7 cocina"}
-              </span>
-            </h3>
+                <div className={rejilla}>
+                  {frequent.map((product) => (
+                    <ProductTile
+                      key={`frecuente-${product.id}`}
+                      product={product}
+                      count={added[product.id] ?? 0}
+                      disabled={pending}
+                      onClick={() => add(product.id, product.name)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
 
-            <ul className="flex flex-col gap-2">
-              {category.products.map((product) => (
-                <li key={product.id}>
-                  <ProductButton
-                    product={product}
-                    count={added[product.id] ?? 0}
-                    disabled={pending}
-                    onClick={() => add(product.id, product.name)}
+            <section>
+              <h3 className="mb-2 text-[0.6rem] uppercase tracking-[0.2em] text-muted">
+                La carta
+              </h3>
+
+              <div className={rejilla}>
+                {menu.map((candidate) => (
+                  <CategoryTile
+                    key={candidate.id}
+                    category={candidate}
+                    onClick={() => setCategoriaId(candidate.id)}
                   />
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
+                ))}
+              </div>
+            </section>
+          </>
+        )}
       </div>
 
-      <footer className="shrink-0 border-t border-line bg-ink-soft px-4 py-3 pb-safe">
-        {/* Atajo a la nota de lo ultimo cargado: es cuando el garzon todavia
-            tiene el "sin lechuga" fresco en la cabeza. */}
-        {last?.id && (
-          <button
-            type="button"
-            onClick={() => setNoting(true)}
-            className="mb-2 flex h-12 w-full items-center justify-center gap-2 border border-gilt/50 text-base text-gilt-soft"
-          >
-            <MessageSquarePlus className="size-4" aria-hidden />
-            Agregar nota a {last.name}
-          </button>
-        )}
+      {/*
+        El pie tiene un solo trabajo por vez.
 
-        {/*
-          Tomar el pedido termina aca.
+        Con el teclado abierto, es el teclado: nada mas compite por el pulgar.
+        Cerrado, es donde termina de tomarse el pedido.
+      */}
+      {tecleando ? (
+        <Keyboard
+          onKey={(char) => setQuery((current) => (current + char).slice(0, 40))}
+          onBackspace={() => setQuery((current) => current.slice(0, -1))}
+          onClear={() => setQuery("")}
+          onDone={() => setTecleando(false)}
+          doneLabel="Listo"
+        />
+      ) : (
+        <footer className="shrink-0 border-t border-line bg-ink-soft px-3 py-3 pb-safe">
+          {/* Atajo a la nota de lo ultimo cargado: es cuando el garzon todavia
+              tiene el "sin lechuga" fresco en la cabeza. */}
+          {last?.id && (
+            <button
+              type="button"
+              onClick={() => setNoting(true)}
+              className="mb-2 flex h-12 w-full items-center justify-center gap-2 border border-gilt/50 text-base text-gilt-soft"
+            >
+              <MessageSquarePlus className="size-4" aria-hidden />
+              Agregar nota a {last.name}
+            </button>
+          )}
 
-          Este boton mandaba a la cuenta y ahi habia que buscar otro para
-          enviar: dos toques para una sola intencion —"ya esta, mandalo"— con
-          una pantalla intermedia en el medio que no aporta nada, porque el
-          garzon acaba de cargar los productos y los tiene frescos. Ahora envia
-          y vuelve de una. Para salir sin mandar esta la X de la cabecera, que
-          es el gesto de siempre para cerrar sin hacer nada.
+          {/*
+            Tomar el pedido termina aca.
 
-          En panel no existe: la cuenta y su boton de enviar estan al lado.
-        */}
-        {enPanel ? (
-          <p className="text-center text-sm text-muted">
-            {totalAdded > 0
-              ? `${totalAdded} ${totalAdded === 1 ? "producto agregado" : "productos agregados"} a la cuenta`
-              : "Toca un producto para agregarlo a la cuenta"}
-          </p>
-        ) : draftCount > 0 && onSend ? (
-          <button
-            type="button"
-            disabled={pending || sending}
-            onClick={onSend}
-            className="flex h-14 w-full items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
-          >
-            {pending || sending ? (
-              <Loader2 className="size-5 animate-spin" aria-hidden />
-            ) : (
-              <Send className="size-5" aria-hidden />
-            )}
-            Enviar {draftCount} {destino}
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex h-14 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone"
-          >
-            <Check className="size-4" aria-hidden />
-            Volver a la cuenta
-          </button>
-        )}
-      </footer>
+            Este boton mandaba a la cuenta y ahi habia que buscar otro para
+            enviar: dos toques para una sola intencion —"ya esta, mandalo"— con
+            una pantalla intermedia en el medio que no aporta nada, porque el
+            garzon acaba de cargar los productos y los tiene frescos. Ahora
+            envia y vuelve de una. Para salir sin mandar esta la X de la
+            cabecera, que es el gesto de siempre para cerrar sin hacer nada.
+
+            En panel no existe: la cuenta y su boton de enviar estan al lado.
+          */}
+          {enPanel ? (
+            <p className="text-center text-sm text-muted">
+              {totalAdded > 0
+                ? `${totalAdded} ${totalAdded === 1 ? "producto agregado" : "productos agregados"} a la cuenta`
+                : "Toca un producto para agregarlo a la cuenta"}
+            </p>
+          ) : draftCount > 0 && onSend ? (
+            <button
+              type="button"
+              disabled={pending || sending}
+              onClick={onSend}
+              className="flex h-14 w-full items-center justify-center gap-2 bg-gilt text-base font-medium text-ink disabled:opacity-60"
+            >
+              {pending || sending ? (
+                <Loader2 className="size-5 animate-spin" aria-hidden />
+              ) : (
+                <Send className="size-5" aria-hidden />
+              )}
+              Enviar {draftCount} {destino}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex h-14 w-full items-center justify-center gap-2 border border-bone/25 text-base text-bone"
+            >
+              <Check className="size-4" aria-hidden />
+              Volver a la cuenta
+            </button>
+          )}
+        </footer>
+      )}
 
       {noting && last?.id && (
         <NoteSheet
@@ -308,18 +476,61 @@ export function ProductPicker({
   );
 }
 
-/** Boton de un producto. `compact` es la version de rejilla, para frecuentes. */
-function ProductButton({
+/**
+ * Una categoria de la portada.
+ *
+ * Dice cuantos productos tiene: no es adorno, es lo que deja decidir si vale
+ * la pena entrar o conviene buscar. Y dice a que estacion va, que es lo que el
+ * garzon confirma de reojo antes de cargar.
+ */
+function CategoryTile({
+  category,
+  onClick,
+}: {
+  category: PosMenuCategory;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex min-h-24 w-full flex-col justify-between border border-line bg-ink p-3 text-left transition-colors hover:border-crimson active:border-crimson"
+    >
+      <span className="font-display text-base leading-tight text-bone">
+        {category.name}
+      </span>
+
+      <span className="mt-2 flex items-center justify-between gap-2 text-[0.65rem] uppercase tracking-[0.12em] text-muted">
+        <span>
+          {category.products.length}{" "}
+          {category.products.length === 1 ? "producto" : "productos"}
+        </span>
+        <ChevronRight className="size-4 shrink-0" aria-hidden />
+      </span>
+    </button>
+  );
+}
+
+/**
+ * Un producto.
+ *
+ * Cuadrado y grande: en un tactil de pie, la recomendacion de no bajar de 44
+ * puntos es el piso, no la meta. Cabe el nombre en dos lineas, el precio final
+ * y —cuando se acaba de tocar— cuantos van cargados, que es la unica
+ * confirmacion que el garzon alcanza a mirar antes del siguiente toque.
+ */
+function ProductTile({
   product,
+  hint,
   count,
   disabled,
-  compact,
   onClick,
 }: {
   product: PosMenuProduct;
+  /** De donde salio, cuando la lista mezcla categorias (la busqueda). */
+  hint?: string;
   count: number;
   disabled: boolean;
-  compact?: boolean;
   onClick: () => void;
 }) {
   const final = product.unitPriceCents - product.discountCents;
@@ -329,40 +540,31 @@ function ProductButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className={[
-        "relative w-full border border-line bg-ink-soft text-left transition-colors hover:border-crimson disabled:opacity-60",
-        compact
-          ? "flex min-h-20 flex-col justify-between p-3"
-          : "flex items-center justify-between gap-3 px-4 py-3",
-      ].join(" ")}
+      className="relative flex min-h-24 w-full flex-col justify-between border border-line bg-ink p-3 text-left transition-colors hover:border-crimson active:border-crimson disabled:opacity-60"
     >
-      <span className={compact ? "block" : "min-w-0"}>
-        <span
-          className={
-            compact
-              ? "block text-sm leading-tight text-bone"
-              : "block truncate text-bone"
-          }
-        >
-          {product.name}
-        </span>
+      <span className="block text-sm leading-tight text-bone">{product.name}</span>
 
+      <span className="mt-2 block">
         {product.discountCents > 0 && (
-          <span className="mt-0.5 block text-[0.65rem] uppercase tracking-[0.14em] text-gilt-soft">
+          <span className="mb-0.5 block truncate text-[0.6rem] uppercase tracking-[0.12em] text-gilt-soft">
             {product.discountLabel}
           </span>
         )}
-      </span>
 
-      <span className="flex shrink-0 items-center gap-2 self-end">
-        <span className="font-display text-bone">{formatPrice(final)}</span>
-
-        {count > 0 && (
-          <span className="flex size-6 items-center justify-center rounded-full bg-emerald-500/20 text-[0.65rem] font-bold text-emerald-300">
-            {count}
+        {hint && (
+          <span className="mb-0.5 block truncate text-[0.6rem] uppercase tracking-[0.12em] text-muted-dark">
+            {hint}
           </span>
         )}
+
+        <span className="font-display text-bone">{formatPrice(final)}</span>
       </span>
+
+      {count > 0 && (
+        <span className="absolute right-1.5 top-1.5 flex size-7 items-center justify-center rounded-full bg-emerald-500/25 text-xs font-bold text-emerald-300">
+          {count}
+        </span>
+      )}
     </button>
   );
 }

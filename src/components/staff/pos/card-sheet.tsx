@@ -1,9 +1,10 @@
 "use client";
 
 import { Camera, CameraOff, Loader2, X } from "lucide-react";
-import { useRef, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { attachCard } from "@/app/actions/pos";
+import { Keyboard } from "@/components/staff/pos/keyboard";
 import { useQrScanner } from "@/components/staff/use-qr-scanner";
 import { IDLE, type FormState } from "@/lib/form-state";
 
@@ -25,7 +26,17 @@ export function CardSheet({
   const [state, setState] = useState<FormState>(IDLE);
   const [pending, startTransition] = useTransition();
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+
+  /**
+   * Que teclado se muestra.
+   *
+   * Son dos cosas distintas las que se escriben aca. Los 16 digitos de la
+   * tarjeta de plastico piden un pad de calculadora —teclas enormes, tres por
+   * fila— porque son dieciseis toques seguidos y un error obliga a empezar de
+   * nuevo. El codigo del cupon (BZD-••••••) lleva letras y pide el completo.
+   * Arranca en numeros, que es el caso de todas las noches.
+   */
+  const [teclado, setTeclado] = useState<"numeros" | "texto">("numeros");
 
   const submit = (input: string) => {
     if (!input.trim()) return;
@@ -117,27 +128,43 @@ export function CardSheet({
           </button>
         )}
 
-        <label className="mt-5 block">
-          <span className="text-sm text-bone">O escribe el número</span>
-          <input
-            ref={inputRef}
-            type="text"
-            inputMode="numeric"
-            autoComplete="off"
-            enterKeyHint="done"
-            value={value}
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") submit(value);
-            }}
-            placeholder="5210 •••• •••• ••••"
-            className="mt-2 h-14 w-full border border-line bg-ink px-3 font-mono text-lg tracking-[0.12em] text-bone placeholder:text-muted-dark focus:border-crimson focus:outline-none"
-          />
+        {/*
+          El numero, con el teclado que pone la app.
+
+          La pantalla del mostrador no levanta el del sistema al enfocar un
+          campo, asi que antes esto se podia tocar y no pasaba nada: quedaba
+          solo la camara, y la tarjeta de plastico no tiene QR. El campo es de
+          solo lectura y todo entra por las teclas de abajo.
+        */}
+        <div className="mt-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-sm text-bone">O escribe el número</span>
+
+            <button
+              type="button"
+              onClick={() =>
+                setTeclado((actual) => (actual === "numeros" ? "texto" : "numeros"))
+              }
+              className="text-xs uppercase tracking-[0.14em] text-muted underline underline-offset-4"
+            >
+              {teclado === "numeros" ? "Código BZD" : "Números"}
+            </button>
+          </div>
+
+          <p
+            aria-live="polite"
+            className="mt-2 flex h-14 w-full items-center border border-line bg-ink px-3 font-mono text-lg tracking-[0.12em] text-bone"
+          >
+            {value || (
+              <span className="text-muted-dark">5210 •••• •••• ••••</span>
+            )}
+          </p>
+
           <span className="mt-1 block text-xs text-muted">
             Sirven los 16 dígitos de la tarjeta física o el código del cupón
             (BZD-••••••).
           </span>
-        </label>
+        </div>
 
         {(state.status === "error" || scanError) && (
           <p role="alert" className="mt-4 text-sm text-crimson-bright">
@@ -157,6 +184,19 @@ export function CardSheet({
             "Buscar tarjeta"
           )}
         </button>
+
+        {/* Al pie y a lo ancho, como cualquier teclado: asi el boton de buscar
+            queda arriba y a la vista en vez de esconderse debajo de las teclas. */}
+        <div className="-mx-5 mt-4">
+          <Keyboard
+            variant={teclado}
+            onKey={(char) =>
+              setValue((actual) => (actual + char).toUpperCase().slice(0, 24))
+            }
+            onBackspace={() => setValue((actual) => actual.slice(0, -1))}
+            onClear={() => setValue("")}
+          />
+        </div>
       </div>
     </div>
   );

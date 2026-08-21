@@ -4,6 +4,7 @@ import { Loader2, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { setItemNote } from "@/app/actions/pos";
+import { Keyboard } from "@/components/staff/pos/keyboard";
 
 /**
  * Notas de uso frecuente.
@@ -48,6 +49,15 @@ export function NoteSheet({
   const [note, setNote] = useState(current ?? "");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+
+  /**
+   * El teclado de la app, no el del sistema.
+   *
+   * En la pantalla del mostrador no hay ninguno que aparezca al enfocar el
+   * campo, asi que sin esto la nota libre es letra muerta: quedan solo los
+   * botones de arriba. Empieza cerrado porque casi siempre alcanza con ellos.
+   */
+  const [tecleando, setTecleando] = useState(false);
 
   /** Agrega o quita la nota rapida, sin pisar lo que ya estaba escrito. */
   const toggle = (quick: string) => {
@@ -130,13 +140,26 @@ export function NoteSheet({
           </span>
           <textarea
             value={note}
-            onChange={(event) => setNote(event.target.value)}
+            readOnly
+            onFocus={() => setTecleando(true)}
+            onClick={() => setTecleando(true)}
             rows={2}
             maxLength={140}
             placeholder="Lo que haga falta aclarar"
-            className="mt-2 w-full border border-line bg-ink px-3 py-2 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
+            className="mt-2 w-full cursor-pointer border border-line bg-ink px-3 py-2 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
           />
         </label>
+
+        {tecleando && (
+          <div className="mt-3 -mx-5">
+            <Keyboard
+              onKey={(char) => setNote((actual) => (actual + char).slice(0, 140))}
+              onBackspace={() => setNote((actual) => actual.slice(0, -1))}
+              onClear={() => setNote("")}
+              onDone={() => setTecleando(false)}
+            />
+          </div>
+        )}
 
         {error && (
           <p role="alert" className="mt-3 text-sm text-crimson-bright">
