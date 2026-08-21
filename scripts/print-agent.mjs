@@ -80,6 +80,21 @@ const CONFIG = {
    */
   gapMs: num(process.env.PRINT_GAP_MS, 3000),
   /*
+   * Juntar en una sola tira las comandas del mismo envio.
+   *
+   * Encendido, la garzona retira una vez y parte el papel en dos. Apagado, cada
+   * comanda vuelve a salir en su propio papel y entre una y otra corre la pausa
+   * de arriba, que es como funcionaba antes de que existiera el agrupamiento.
+   *
+   * Existe el interruptor porque el agrupamiento cambia lo que la garzona ve en
+   * la ranura y eso se decide en el local, no aca: con una sola impresora hay
+   * bares donde conviene un papel largo y otros donde conviene el papel por
+   * estacion con su tiempo para retirarlo.
+   */
+  batch: !["0", "false", "no"].includes(
+    (process.env.PRINT_BATCH ?? "").trim().toLowerCase(),
+  ),
+  /*
    * Propina sugerida en el papel del cliente, en porcentaje.
    *
    * El papel del cobro se le pasa al cliente para que revise el total, asi que
@@ -654,7 +669,7 @@ function agrupar(tickets) {
   for (const ticket of tickets) {
     const target = printerFor(ticket);
     const clave =
-      ticket.kind === "COMANDA" && ticket.batchId
+      CONFIG.batch && ticket.kind === "COMANDA" && ticket.batchId
         ? `${ticket.batchId}|${target}`
         : null;
 
@@ -829,6 +844,19 @@ for (const [destino, target] of Object.entries(CONFIG.printers)) {
   const via = esRuta(target) ? "USB" : "red";
   console.log(`  ${destino}: ${target} (${via})`);
 }
+/*
+ * Como van a salir los papeles, dicho al arrancar.
+ *
+ * El agrupamiento se nombra aunque este encendido por defecto: es lo que decide
+ * si la pausa se ve o no en la ranura —dos comandas juntas en una tira no tienen
+ * entre que esperar— y sin esta linea la unica forma de saber en cual de los dos
+ * modos quedo el local es mirando salir el papel.
+ */
+console.log(
+  CONFIG.batch
+    ? "  las comandas del mismo envio salen juntas en una tira"
+    : "  cada comanda sale en su propio papel",
+);
 if (CONFIG.gapMs > 0) {
   console.log(`  ${CONFIG.gapMs / 1000}s entre papeles de la misma impresora`);
 }
