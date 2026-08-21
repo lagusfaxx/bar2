@@ -1,6 +1,6 @@
 "use client";
 
-import { Menu, Sparkles, X } from "lucide-react";
+import { Menu, Sparkles, UserRound, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -203,11 +203,35 @@ export function SiteHeader({
           </ul>
 
           {loyaltyEnabled && (
-            <ButtonLink href="/barzucard" size="lg" className="mt-8 w-full">
+            <ButtonLink href="/barzucard" size="lg" className="mt-8 w-full shrink-0">
               <Sparkles className="size-4" aria-hidden />
               Quiero mi {loyaltyTitle}
             </ButtonLink>
           )}
+
+          {/*
+            La entrada del equipo, al pie del menu.
+
+            El garzon que llega a su turno abre el sitio en su telefono, y hasta
+            ahora la unica forma de entrar era saberse la direccion de memoria o
+            tenerla guardada. Aca la encuentra a un toque desde cualquier
+            pagina, sin bajar hasta el final del pie.
+
+            Deliberadamente pequeño y en gris: es lo ultimo del menu, debajo de
+            todo lo que le importa a un cliente, y no compite con nada. Quien lo
+            necesita lo busca una vez y ya sabe donde esta; quien no, no lo
+            registra.
+
+            A /staff y no a /staff/login, para que con la sesion abierta entre
+            derecho a la sala.
+          */}
+          <Link
+            href="/staff"
+            className="mt-8 flex shrink-0 items-center justify-center gap-2 border-t border-line/70 pt-6 pb-2 text-xs text-muted-dark transition-colors hover:text-bone-dim"
+          >
+            <UserRound className="size-3.5" aria-hidden />
+            Soy del equipo
+          </Link>
         </nav>
       </div>
     </>

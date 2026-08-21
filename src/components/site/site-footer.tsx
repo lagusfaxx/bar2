@@ -230,6 +230,27 @@ export function SiteFooter({ settings, social, hours }: FooterProps) {
             <Link href="/legales" className="transition-colors hover:text-bone-dim">
               Términos y privacidad
             </Link>
+            {/*
+              La puerta del equipo, en el renglon de siempre.
+
+              Va aca y no arriba por una razon de oficio: el sitio es la cara
+              del bar y su portada se le muestra a un cliente, no a un turno
+              entrante. Un boton de "ingresar" compitiendo con la cartelera le
+              dice al que llega que esto es un sistema, cuando lo que tiene que
+              decirle es que esto es un bar.
+
+              Abajo, en cambio, no le quita nada a nadie y esta en todas las
+              paginas: el garzon que abre el sitio en su telefono llega igual,
+              y para el es un lugar que se aprende una vez. Es el mismo trato
+              que ya recibia el panel, y por eso comparten renglon.
+
+              Apunta a /staff y no a /staff/login: con la sesion abierta —que
+              es lo normal a mitad de un turno— entra derecho a la sala en vez
+              de pedir la clave de nuevo.
+            */}
+            <Link href="/staff" className="transition-colors hover:text-bone-dim">
+              App de sala
+            </Link>
             <Link href="/admin" className="transition-colors hover:text-bone-dim">
               Panel administrativo
             </Link>
