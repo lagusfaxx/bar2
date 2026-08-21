@@ -15,6 +15,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import { addItem } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
+import { useTecladoPropio } from "@/components/staff/pos/use-teclado-propio";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { formatPrice } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
@@ -83,6 +84,9 @@ export function ProductPicker({
   const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
   const [categoriaId, setCategoriaId] = useState<string | null>(null);
+  /** En el mostrador la busqueda se escribe con el teclado de la app; en el
+      telefono, con el del aparato. */
+  const propio = useTecladoPropio();
   const [tecleando, setTecleando] = useState(false);
   const [pending, startTransition] = useTransition();
   const [added, setAdded] = useState<Record<string, number>>({});
@@ -255,27 +259,46 @@ export function ProductPicker({
         </div>
 
         {/*
-          El campo de busqueda no es un campo: es un boton.
+          En el mostrador el campo de busqueda no es un campo: es un boton.
 
-          En el mostrador no hay teclado que enfocar, asi que tocar aca abre el
+          Ahi no hay teclado del sistema que enfocar, asi que tocarlo abre el
           nuestro (ver `keyboard.tsx`) en vez de esperar uno que no va a venir.
-          Muestra lo escrito y trae su propia X para vaciarlo, que es lo que se
+          En el telefono si lo hay, y entonces es un campo comun y corriente.
+          En los dos casos trae su propia X para vaciarlo, que es lo que se
           quiere cuando la busqueda no dio con nada.
         */}
         <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setTecleando(true)}
-            className={[
-              "flex h-12 min-w-0 flex-1 items-center gap-2 border px-3 text-left",
-              tecleando ? "border-crimson bg-ink" : "border-line bg-ink",
-            ].join(" ")}
-          >
-            <Search className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className={query ? "truncate text-bone" : "truncate text-muted"}>
-              {query || "Buscar un producto"}
-            </span>
-          </button>
+          {propio ? (
+            <button
+              type="button"
+              onClick={() => setTecleando(true)}
+              className={[
+                "flex h-12 min-w-0 flex-1 items-center gap-2 border px-3 text-left",
+                tecleando ? "border-crimson bg-ink" : "border-line bg-ink",
+              ].join(" ")}
+            >
+              <Search className="size-4 shrink-0 text-muted" aria-hidden />
+              <span
+                className={query ? "truncate text-bone" : "truncate text-muted"}
+              >
+                {query || "Buscar un producto"}
+              </span>
+            </button>
+          ) : (
+            <div className="flex h-12 min-w-0 flex-1 items-center gap-2 border border-line bg-ink px-3 focus-within:border-crimson">
+              <Search className="size-4 shrink-0 text-muted" aria-hidden />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value.slice(0, 40))}
+                maxLength={40}
+                autoComplete="off"
+                aria-label="Buscar un producto"
+                placeholder="Buscar un producto"
+                className="min-w-0 flex-1 bg-transparent text-bone placeholder:text-muted focus:outline-none"
+              />
+            </div>
+          )}
 
           {buscando && (
             <button
@@ -396,7 +419,7 @@ export function ProductPicker({
         Con el teclado abierto, es el teclado: nada mas compite por el pulgar.
         Cerrado, es donde termina de tomarse el pedido.
       */}
-      {tecleando ? (
+      {propio && tecleando ? (
         <Keyboard
           onKey={(char) => setQuery((current) => (current + char).slice(0, 40))}
           onBackspace={() => setQuery((current) => current.slice(0, -1))}

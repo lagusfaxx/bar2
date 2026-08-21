@@ -5,6 +5,7 @@ import { useState, useTransition } from "react";
 
 import { setItemNote } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
+import { useTecladoPropio } from "@/components/staff/pos/use-teclado-propio";
 
 /**
  * Notas de uso frecuente.
@@ -51,12 +52,16 @@ export function NoteSheet({
   const [error, setError] = useState<string | null>(null);
 
   /**
-   * El teclado de la app, no el del sistema.
+   * El teclado de la app, solo donde hace falta.
    *
-   * En la pantalla del mostrador no hay ninguno que aparezca al enfocar el
-   * campo, asi que sin esto la nota libre es letra muerta: quedan solo los
-   * botones de arriba. Empieza cerrado porque casi siempre alcanza con ellos.
+   * En la pantalla del mostrador no hay ninguno del sistema que aparezca al
+   * enfocar el campo, asi que sin esto la nota libre es letra muerta: quedan
+   * solo los botones de arriba. En el telefono sobra: el campo es un campo
+   * normal y el teclado lo levanta el aparato.
    */
+  const propio = useTecladoPropio();
+  /** Con el teclado de la app: si esta abierto. Empieza cerrado porque casi
+      siempre alcanza con las notas rapidas. */
   const [tecleando, setTecleando] = useState(false);
 
   /** Agrega o quita la nota rapida, sin pisar lo que ya estaba escrito. */
@@ -140,17 +145,21 @@ export function NoteSheet({
           </span>
           <textarea
             value={note}
-            readOnly
-            onFocus={() => setTecleando(true)}
-            onClick={() => setTecleando(true)}
+            readOnly={propio}
+            onChange={(event) => setNote(event.target.value)}
+            onFocus={propio ? () => setTecleando(true) : undefined}
+            onClick={propio ? () => setTecleando(true) : undefined}
             rows={2}
             maxLength={140}
             placeholder="Lo que haga falta aclarar"
-            className="mt-2 w-full cursor-pointer border border-line bg-ink px-3 py-2 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
+            className={[
+              "mt-2 w-full border border-line bg-ink px-3 py-2 text-bone placeholder:text-muted focus:border-crimson focus:outline-none",
+              propio ? "cursor-pointer" : "",
+            ].join(" ")}
           />
         </label>
 
-        {tecleando && (
+        {propio && tecleando && (
           <div className="mt-3 -mx-5">
             <Keyboard
               onKey={(char) => setNote((actual) => (actual + char).slice(0, 140))}

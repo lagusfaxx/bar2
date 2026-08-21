@@ -12,11 +12,14 @@ import { useRef } from "react";
  * lo que hay que tocar. Con eso, cualquier campo de texto de la app es una
  * pared: el garzon lo toca, no pasa nada, y se queda ahi.
  *
- * Asi que el teclado lo pone la app, siempre, en las dos pantallas. En el
- * telefono tambien —aunque ahi el del sistema funcione— porque un POS que se
- * comporta distinto segun el aparato obliga a aprenderlo dos veces, y porque
- * el nuestro se dibuja adentro del panel: empuja el contenido en vez de
- * taparlo, y lo que se esta escribiendo nunca queda debajo del dedo.
+ * Asi que en esa pantalla el teclado lo pone la app: se dibuja adentro del
+ * panel, empuja el contenido en vez de taparlo, y lo que se esta escribiendo
+ * nunca queda debajo del dedo.
+ *
+ * En el telefono no. Ahi el del sistema aparece solo, y es mejor que este:
+ * corrige, predice, y trae los acentos y la ñ que el garzon usa sin pensar.
+ * Quien decide cual va es `useTecladoPropio`, mirando si hay mouse; los
+ * campos de la app se montan de solo lectura o editables segun esa respuesta.
  *
  * Las teclas son grandes a proposito. La recomendacion para tactil es no bajar
  * de 44 puntos; en un POS de pie, con el local lleno, van 56 y con aire entre

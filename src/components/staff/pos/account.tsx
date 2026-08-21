@@ -34,6 +34,7 @@ import {
 import { CardSheet } from "@/components/staff/pos/card-sheet";
 import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
 import { Keyboard } from "@/components/staff/pos/keyboard";
+import { useTecladoPropio } from "@/components/staff/pos/use-teclado-propio";
 import { Elapsed } from "@/components/staff/pos/elapsed";
 import { PromoSheet } from "@/components/staff/pos/promo-sheet";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
@@ -1064,6 +1065,10 @@ function DinerForm({
   const [label, setLabel] = useState("");
   const [pending, startTransition] = useTransition();
 
+  /** En el mostrador escribe el teclado de la app; en el telefono, el del
+      aparato. */
+  const propio = useTecladoPropio();
+
   const submit = () => {
     const formData = new FormData();
     formData.set("sessionId", sessionId);
@@ -1086,24 +1091,28 @@ function DinerForm({
           Sirve para separar su consumo y cobrarle aparte. Descríbela por la
           ropa o el lugar en la mesa; no hace falta preguntarle el nombre.
         </span>
-        {/* Solo lectura y con el teclado de la app debajo: en la pantalla del
-            mostrador no hay ninguno del sistema que aparezca al enfocar. */}
+        {/* De solo lectura solo en el mostrador, donde no hay teclado del
+            sistema que aparezca al enfocar y escribe el de abajo. */}
         <input
           type="text"
           value={label}
-          readOnly
+          readOnly={propio}
+          onChange={(event) => setLabel(event.target.value.slice(0, 40))}
+          maxLength={40}
           placeholder="Polera azul, pelo largo…"
           className="mt-2 h-12 w-full border border-line bg-ink px-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
         />
       </label>
 
-      <div className="mt-3">
-        <Keyboard
-          onKey={(char) => setLabel((actual) => (actual + char).slice(0, 40))}
-          onBackspace={() => setLabel((actual) => actual.slice(0, -1))}
-          onClear={() => setLabel("")}
-        />
-      </div>
+      {propio && (
+        <div className="mt-3">
+          <Keyboard
+            onKey={(char) => setLabel((actual) => (actual + char).slice(0, 40))}
+            onBackspace={() => setLabel((actual) => actual.slice(0, -1))}
+            onClear={() => setLabel("")}
+          />
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2">
         <button
