@@ -310,22 +310,60 @@ export type MenuCategoryWithProducts = Awaited<
   ReturnType<typeof getMenu>
 >[number];
 
-export function getMenu() {
-  return prisma.menuCategory.findMany({
+/**
+ * Para quien se arma la carta.
+ *
+ * - `publica`: la vitrina de la web, que ve cualquiera. Deja fuera los
+ *   productos marcados como no publicos (ver `MenuProduct.publicMenu`).
+ * - `mesa`: la carta del QR que esta sobre la mesa. Es de puertas adentro y
+ *   lleva todo lo que se vende, igual que el POS de los garzones.
+ */
+export type MenuScope = "publica" | "mesa";
+
+/**
+ * La carta agrupada por categoria.
+ *
+ * El ambito por omision es el publico —el mas restrictivo— a proposito: una
+ * pantalla nueva que olvide declararlo muestra de menos, nunca de mas, que es
+ * el error que se puede corregir sin que lo haya visto media ciudad.
+ */
+export async function getMenu(scope: MenuScope = "publica") {
+  const categories = await prisma.menuCategory.findMany({
     where: { active: true },
     orderBy: { position: "asc" },
     include: {
       products: {
-        where: { available: true },
+        where:
+          scope === "publica"
+            ? { available: true, publicMenu: true }
+            : { available: true },
         orderBy: [{ position: "asc" }, { name: "asc" }],
       },
     },
   });
+
+  /*
+   * Una categoria sin productos no se dibuja.
+   *
+   * Antes no podia pasar casi nunca; ahora si: una categoria entera puede
+   * quedar fuera de la vitrina publica producto por producto. Sin este filtro,
+   * la web mostraria su nombre en la barra de secciones y una seccion vacia
+   * debajo — que es peor que no mostrarla. Vale igual para la carta de la mesa
+   * cuando se acaba todo lo de una seccion. Es lo mismo que ya hace la carta
+   * del POS (ver `getPosMenu`).
+   */
+  return categories.filter((category) => category.products.length > 0);
 }
 
+/** Los destacados de la portada. Portada es vitrina: solo lo publico. */
 export function getFeaturedProducts(take = 6) {
   return prisma.menuProduct.findMany({
-    where: { available: true, featured: true, category: { active: true } },
+    where: {
+      available: true,
+      featured: true,
+      publicMenu: true,
+      category: { active: true },
+    },
     orderBy: { position: "asc" },
     take,
     include: { category: { select: { name: true, slug: true } } },

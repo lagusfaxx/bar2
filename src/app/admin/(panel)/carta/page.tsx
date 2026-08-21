@@ -3,6 +3,8 @@ import {
   ArrowUp,
   Eye,
   EyeOff,
+  Globe,
+  GlobeOff,
   Pencil,
   Plus,
   QrCode,
@@ -41,7 +43,7 @@ export default async function AdminCartaPage() {
     <>
       <AdminHeader
         title="Carta y precios"
-        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, ocúltalo en vez de borrarlo."
+        description="Los platos y tragos, agrupados por categoría. Se cargan una sola vez y alimentan las dos cartas: la de la web, que va sin precios, y la del QR de las mesas, que sí los muestra. Si algo se acaba, márcalo sin stock en vez de borrarlo; si es algo que se vende pero no se anuncia, sácalo solo de la carta pública con el botón del globo."
         action={
           <div className="flex flex-wrap gap-2">
             <ButtonLink href="/admin/carta/qr" size="sm" variant="outline">
@@ -166,6 +168,10 @@ export default async function AdminCartaPage() {
                           {!product.available && (
                             <Badge tone="muted">Sin stock</Badge>
                           )}
+                          {/* Se vende, pero no se anuncia en la web. */}
+                          {!product.publicMenu && (
+                            <Badge tone="muted">Solo mesa y POS</Badge>
+                          )}
                         </p>
                         {product.description && (
                           <p className="mt-0.5 line-clamp-1 text-xs text-muted">
@@ -227,6 +233,33 @@ export default async function AdminCartaPage() {
                             <EyeOff className="size-4" aria-hidden />
                           ) : (
                             <Eye className="size-4" aria-hidden />
+                          )}
+                        </ActionButton>
+
+                        <ActionButton
+                          action={async () => {
+                            "use server";
+                            await toggleMenuProduct(
+                              product.id,
+                              "publicMenu",
+                              !product.publicMenu,
+                            );
+                          }}
+                          title={
+                            product.publicMenu
+                              ? "Sacar de la carta pública de la web"
+                              : "Mostrar en la carta pública de la web"
+                          }
+                          aria-label={
+                            product.publicMenu
+                              ? `Sacar ${product.name} de la carta pública`
+                              : `Mostrar ${product.name} en la carta pública`
+                          }
+                        >
+                          {product.publicMenu ? (
+                            <Globe className="size-4" aria-hidden />
+                          ) : (
+                            <GlobeOff className="size-4" aria-hidden />
                           )}
                         </ActionButton>
 

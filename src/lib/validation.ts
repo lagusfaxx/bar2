@@ -137,6 +137,9 @@ export const menuProductSchema = z.object({
   imageUrl: optionalUrl,
   available: z.coerce.boolean().default(true),
   featured: z.coerce.boolean().default(false),
+  // Si el producto sale en la carta publica de la web. Apagado, sigue en la
+  // carta del QR de la mesa y en el POS (ver MenuProduct.publicMenu).
+  publicMenu: z.coerce.boolean().default(true),
   tags: trimmed.max(200).optional().or(z.literal("")),
   // Vacio = el producto sigue la impresora de su categoria.
   station: z.enum(["BARRA", "COCINA"]).optional().or(z.literal("")),

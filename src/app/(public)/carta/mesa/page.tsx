@@ -34,9 +34,15 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * No es un secreto criptografico —una URL corta se puede teclear— sino la
  * misma discrecion de una carta impresa: esta sobre la mesa, no en la vitrina.
+ *
+ * Y lleva algo mas que la carta de la web: los productos que el panel dejo
+ * fuera de la vitrina publica —el combo del personal, lo que se ofrece en
+ * mano— aparecen aca y en el POS, que es donde se piden.
  */
 export default async function CartaMesaPage() {
-  const menu = await getMenu();
+  // Ambito "mesa": lleva tambien los productos que no salen en la vitrina de
+  // la web. Quien la abre ya esta sentado en el local.
+  const menu = await getMenu("mesa");
 
   return (
     <>

@@ -85,6 +85,9 @@ export function MenuCategoryForm({ category }: { category?: CategoryValues }) {
             <option value="BARRA">Barra</option>
           </SelectField>
 
+          {/* El campo escondido, por lo mismo que en el formulario del
+              producto: sin el, desmarcar la casilla no apagaba nada. */}
+          <input type="hidden" name="active" value="" />
           <CheckboxField
             label="Categoría visible en la web"
             name="active"
@@ -113,6 +116,7 @@ export type ProductValues = {
   imageUrl?: string | null;
   available?: boolean;
   featured?: boolean;
+  publicMenu?: boolean;
   tags?: string[];
   station?: "BARRA" | "COCINA" | "";
   promoPrice?: string;
@@ -202,13 +206,34 @@ export function MenuProductForm({
             defaultValue={product?.imageUrl}
           />
 
+          {/*
+            Cada casilla lleva delante un campo escondido con el valor
+            "apagado".
+
+            Un `checkbox` sin marcar no manda nada, asi que al guardar el
+            servidor no podia distinguir "lo desmarque" de "ese campo no venia
+            en el formulario" y dejaba el valor anterior: desmarcar "Disponible"
+            no apagaba nada. Con el campo escondido siempre viaja un valor, y el
+            de la casilla lo pisa cuando esta marcada.
+          */}
           <div className="flex flex-col gap-3">
+            <input type="hidden" name="available" value="" />
             <CheckboxField
               label="Disponible"
               name="available"
               defaultChecked={product?.available ?? true}
-              hint="Si está sin stock, no aparece en la carta pública."
+              hint="Si está sin stock, no aparece en ninguna carta ni en el POS."
             />
+
+            <input type="hidden" name="publicMenu" value="" />
+            <CheckboxField
+              label="Mostrar en la carta pública de la web"
+              name="publicMenu"
+              defaultChecked={product?.publicMenu ?? true}
+              hint="Desmárcalo y el producto desaparece de barzuo.cl/carta y de la portada. Sigue apareciendo en la carta del QR de la mesa y en el POS de los garzones, así que se puede vender igual."
+            />
+
+            <input type="hidden" name="featured" value="" />
             <CheckboxField
               label="Destacado"
               name="featured"
