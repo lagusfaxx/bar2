@@ -119,10 +119,11 @@ async function loadMenuRows() {
   /*
    * El POS ve todo lo que se vende.
    *
-   * No mira `publicMenu`, que es cosa de la vitrina de la web: un producto
-   * sacado de la carta publica —el combo del personal, lo que se ofrece en
-   * mano— se sigue cargando en una mesa como cualquier otro. Lo unico que lo
-   * saca de aca es quedarse sin stock (`available`) o apagar su categoria.
+   * No mira `publicMenu` —ni el del producto ni el de la categoria—, que es
+   * cosa de la vitrina de la web: lo que se saco de la carta publica, sea un
+   * producto suelto o una seccion entera, se sigue cargando en una mesa como
+   * cualquier otra cosa. Lo unico que lo saca de aca es quedarse sin stock
+   * (`available`) o apagar su categoria (`active`).
    */
   return prisma.menuCategory.findMany({
     where: { active: true },

@@ -32,6 +32,7 @@ export default async function EditarCategoriaPage({
           imageUrl: category.imageUrl,
           icon: category.icon,
           active: category.active,
+          publicMenu: category.publicMenu,
           station: category.station,
         }}
       />

@@ -125,6 +125,9 @@ export const menuCategorySchema = z.object({
   imageUrl: optionalUrl,
   icon: trimmed.max(40).optional().or(z.literal("")),
   active: z.coerce.boolean().default(true),
+  // Si la seccion sale en la carta publica de la web. Apagada, sigue en la
+  // carta del QR de la mesa y en el POS (ver MenuCategory.publicMenu).
+  publicMenu: z.coerce.boolean().default(true),
   station: z.enum(["BARRA", "COCINA"]).default("COCINA"),
 });
 
