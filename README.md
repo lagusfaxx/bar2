@@ -542,6 +542,15 @@ la de barra y la de cocina, cada mitad resuelve una ranura distinta, la
 segunda condición no se cumple y las comandas vuelven a salir por separado en
 su estación. No hay nada que desactivar.
 
+**Y se puede apagar a mano.** Con `PRINT_BATCH=0` cada comanda vuelve a salir
+en su propio papel, con la pausa de `PRINT_GAP_MS` entre una y otra: es el
+comportamiento anterior, tal cual. Sirve donde la garzona prefiere el papel por
+estación y su tiempo para retirarlo, antes que una tira larga que hay que
+partir. Ojo con el efecto de lado: **con el agrupamiento encendido la pausa casi
+no se ve**, porque las dos comandas de un envío pasan a ser un solo papel y
+entre un envío y el siguiente suelen correr minutos. Si actualizaste el agente y
+sentiste que "se perdieron los 3 segundos", es esto y no una falla.
+
 #### Con una sola impresora
 
 Es el caso más común al empezar: una térmica colgada del USB del PC de la
@@ -594,6 +603,7 @@ en medio de él.
 | `PRINTER_COCINA` / `PRINTER_BARRA` / `PRINTER_CAJA` | Opcionales, para cuando cada destino tenga la suya. |
 | `PRINT_POLL_MS` | Cada cuánto consulta la cola. Por defecto 4000. |
 | `PRINT_GAP_MS` | Pausa entre dos papeles seguidos de la misma impresora. Por defecto 3000. |
+| `PRINT_BATCH` | En `0` desactiva el agrupamiento: cada comanda sale en su propio papel, con la pausa entre medio. Por defecto encendido. |
 | `PRINT_WIDTH` | Ancho del papel en caracteres: 48 para 80 mm, 32 para 58 mm. |
 | `PRINT_TIP_PERCENT` | Propina sugerida que se imprime en el papel del cliente. Por defecto 10. En `0` no se imprime. |
 
