@@ -39,7 +39,7 @@ cambiar un texto, subir un afiche o publicar un show.
 | Portada | `/` | Hero a pantalla completa (con variante vertical para el teléfono), próximo show, cartelera, nosotros, carta destacada, BarzuCard, galería y ubicación. |
 | Cartelera | `/eventos` | Destacados, calendario mensual navegable, vista alternativa en lista y agenda completa. |
 | Evento | `/eventos/[slug]` | Afiche, ficha (fecha, puertas, entrada, capacidad), descripción, galería, compartir, calificaciones y eventos relacionados. |
-| Carta | `/carta` | La carta completa del local. Navegación pegajosa por categorías; en móvil cada categoría se pliega para que la página no se haga interminable. |
+| Carta | `/carta` | La carta completa del local, sin precios. Navegación pegajosa por categorías; en móvil cada categoría se pliega para que la página no se haga interminable. Los productos marcados como no públicos en el panel no salen aquí: siguen en la carta del QR de la mesa (`/carta/mesa`) y en el POS. |
 | Nosotros | `/nosotros` | Historia, concepto, horarios y galería. |
 | Galería | `/galeria` | Mosaico tipo masonry con filtros y visor a pantalla completa. |
 | Ubicación | `/ubicacion` | Mapa centrado en el local, cómo llegar y datos de contacto. |
@@ -56,7 +56,10 @@ demoras, ventas, ocupación y avisos de lo que hay que ir a resolver. Ver
 - **Cartelera**: alta, edición, borrado, publicar/despublicar, destacar, precio
   o entrada libre, afiche, SEO por evento y cierre de calificaciones.
 - **Carta**: categorías y productos con reordenamiento, disponibilidad,
-  destacados, imágenes y etiquetas.
+  destacados, imágenes y etiquetas. Cada producto decide además si sale en la
+  carta pública de la web: apagarlo lo deja fuera de `/carta` y de la portada
+  sin tocar la carta de la mesa (`/carta/mesa`) ni el POS, para lo que se vende
+  pero no se anuncia.
 - **Galería**: subida con optimización automática, orden, destacados y
   asociación a un evento.
 - **Promociones**: beneficios de la BarzuCard con todas sus reglas de canje.
@@ -245,7 +248,7 @@ src/
 | `User` | Cuentas del panel. Roles `ADMIN`, `EDITOR` y `STAFF`. |
 | `Event` | Cartelera: fecha, puertas, entrada libre o con precio, afiche, SEO. |
 | `EventRating` | Calificaciones del público, moderadas antes de publicarse. |
-| `MenuCategory` / `MenuProduct` | Carta, con orden, disponibilidad, precio promocional y estación de impresión. |
+| `MenuCategory` / `MenuProduct` | Carta, con orden, disponibilidad, visibilidad en la carta pública (`publicMenu`), precio promocional y estación de impresión. |
 | `GalleryImage` | Galería, opcionalmente asociada a un evento. |
 | `Media` | Registro de todo lo subido desde el CMS. |
 | `Member` | Socios de la BarzuCard. |

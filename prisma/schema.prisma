@@ -202,6 +202,18 @@ model MenuProduct {
   position  Int      @default(0)
   tags      String[] @default([]) // ej: "vegano", "picante", "sin gluten"
 
+  // Si sale o no en la carta publica de la web (/carta y la portada).
+  //
+  // Hay productos que existen y se venden pero no se anuncian en la vitrina:
+  // el combo del personal, la botella cara que se ofrece en mano, lo que solo
+  // se hace por encargo. Apagando esto el producto desaparece de la web —no se
+  // esconde con CSS: no sale del servidor— y sigue entero donde se necesita:
+  // la carta del QR de la mesa (/carta/mesa) y el POS de los garzones.
+  //
+  // Es distinto de `available`, que es el stock: lo agotado no se vende en
+  // ningun lado.
+  publicMenu Boolean @default(true)
+
   // Estacion propia, para los productos que no siguen a su categoria (un postre
   // helado que arma la barra, un cafe que sale de cocina). Vacio = la categoria.
   station Station?

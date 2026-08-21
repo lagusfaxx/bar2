@@ -221,6 +221,7 @@ export async function saveMenuProduct(
     imageUrl: input.imageUrl || null,
     available: input.available,
     featured: input.featured,
+    publicMenu: input.publicMenu,
     station: input.station || null,
     promoPriceCents,
     promoLabel: promoPriceCents !== null ? input.promoLabel || null : null,
@@ -274,7 +275,7 @@ export async function deleteMenuProduct(id: string) {
 
 export async function toggleMenuProduct(
   id: string,
-  field: "available" | "featured",
+  field: "available" | "featured" | "publicMenu",
   value: boolean,
 ) {
   await requireCmsUser();

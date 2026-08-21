@@ -116,6 +116,14 @@ export type PosMenuCategory = {
  * venza un cache.
  */
 async function loadMenuRows() {
+  /*
+   * El POS ve todo lo que se vende.
+   *
+   * No mira `publicMenu`, que es cosa de la vitrina de la web: un producto
+   * sacado de la carta publica —el combo del personal, lo que se ofrece en
+   * mano— se sigue cargando en una mesa como cualquier otro. Lo unico que lo
+   * saca de aca es quedarse sin stock (`available`) o apagar su categoria.
+   */
   return prisma.menuCategory.findMany({
     where: { active: true },
     orderBy: { position: "asc" },

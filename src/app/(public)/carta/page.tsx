@@ -30,9 +30,13 @@ export async function generateMetadata(): Promise<Metadata> {
  * de la mesa (/carta/mesa, el QR que esta sobre cada mesa). Los precios no se
  * "esconden" con CSS: no salen del servidor, asi que no estan en el HTML ni en
  * los datos estructurados que lee Google.
+ *
+ * Lo mismo vale para los productos apagados en el panel: la carta se pide en
+ * ambito "publica" y esos no vienen en la respuesta. En la carta de la mesa y
+ * en el POS siguen estando.
  */
 export default async function CartaPage() {
-  const [menu, settings] = await Promise.all([getMenu(), getSettings()]);
+  const [menu, settings] = await Promise.all([getMenu("publica"), getSettings()]);
 
   // Datos estructurados sin `offers`: un `Menu` de schema.org no obliga a
   // declarar precios, y ponerlos aqui seria filtrar por la puerta de atras
