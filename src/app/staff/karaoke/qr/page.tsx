@@ -12,11 +12,18 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Karaoke · Códigos de las mesas" };
 
 /**
- * Los QR para pegar en las mesas.
+ * Los QR de karaoke, sueltos.
  *
- * Se imprime una vez por temporada y se recorta. Cada codigo lleva el numero
- * de su mesa puesto, asi que el cliente que lo escanea no tiene que elegirla
- * de una lista —y sala sabe desde donde vino el pedido sin preguntar—.
+ * Ya no es la hoja que se pega en las mesas: para eso esta la de
+ * /admin/carta/qr, donde cada mesa lleva un solo codigo que abre la carta y
+ * ademas trae su numero puesto para el karaoke. Dos pegatinas sobre la misma
+ * mesa eran dos cosas que se despegan y se manchan, y obligaban al cliente a
+ * elegir cual escanear antes de saber que habia detras de cada una.
+ *
+ * Esta queda para lo que no es una mesa: el cartel de la barra, el de la
+ * entrada, la noche de karaoke en un salon prestado. Cada codigo sigue
+ * llevando el numero de su mesa, asi que quien lo escanea no tiene que
+ * elegirla de una lista.
  *
  * La hoja esta pensada para papel: fondo blanco y tinta negra, sin el tema
  * oscuro del resto del panel, que en una impresora seria un derroche de toner
@@ -54,7 +61,13 @@ export default async function KaraokeQrPage() {
         <div className="min-w-0 flex-1">
           <h1 className="font-display text-xl">Códigos de karaoke</h1>
           <p className="text-xs text-neutral-600">
-            Uno por mesa. Imprime, recorta y pégalos en cada mesa.
+            Para las mesas no hace falta esta hoja: el{" "}
+            <Link href="/admin/carta/qr" className="underline">
+              QR de las mesas
+            </Link>{" "}
+            ya abre la carta y deja pedir canción con el número puesto. Esta
+            sirve para carteles sueltos —la barra, la entrada, un salón
+            prestado—.
           </p>
         </div>
       </header>

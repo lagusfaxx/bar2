@@ -46,16 +46,34 @@ export async function voucherQrDataUrl(token: string) {
 }
 
 /**
- * QR de la carta con precios, el que va sobre la mesa.
+ * El QR de la mesa: la carta y el numero, en un solo codigo.
+ *
+ * Antes eran dos pegatinas por mesa —una con la carta, otra con el karaoke— y
+ * en una mesa de bar eso son dos cosas que se despegan, se manchan y se pegan
+ * torcidas. Ademas obligaban al cliente a elegir cual escanear antes de saber
+ * que hay detras de cada una.
+ *
+ * Ahora es uno solo y lleva el numero de mesa puesto (`?mesa=`), asi que abre
+ * la carta con precios y de paso deja el karaoke a un toque, ya sabiendo desde
+ * donde piden. El numero no autoriza nada —solo dice desde donde se escanea—
+ * asi que no necesita ser un token secreto.
  *
  * La carta de la web no lleva precios —la puede abrir cualquiera, incluida la
- * competencia—, asi que el precio se muestra solo en /carta/mesa y a esa
- * direccion se llega escaneando. Es la misma para todas las mesas: no dice
- * quien pide ni desde donde, solo abre la carta, asi que se imprime una vez y
- * sirve para todo el salon. Negro sobre blanco porque se imprime y se plastifica.
+ * competencia—, y por eso el precio vive solo en /carta/mesa: no es un secreto
+ * criptografico, es la misma discrecion de una carta impresa que esta sobre la
+ * mesa y no en la vitrina.
+ *
+ * Sin numero de mesa sigue sirviendo: abre la misma carta, sin el karaoke
+ * prellenado. Es lo que se imprime cuando todavia no hay mesas cargadas en el
+ * panel. Negro sobre blanco porque se imprime y se plastifica.
  */
-export async function menuQrDataUrl() {
-  return QRCode.toDataURL(absoluteUrl("/carta/mesa"), {
+export async function menuQrDataUrl(tableNumber?: number | null) {
+  const destino =
+    typeof tableNumber === "number" && Number.isFinite(tableNumber)
+      ? `/carta/mesa?mesa=${tableNumber}`
+      : "/carta/mesa";
+
+  return QRCode.toDataURL(absoluteUrl(destino), {
     errorCorrectionLevel: "M",
     margin: 1,
     width: 480,

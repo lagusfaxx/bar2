@@ -275,7 +275,8 @@ mostrarlas y al cargarlas desde el panel.
 **Públicas** — `/`, `/eventos`, `/eventos/[slug]`, `/carta`, `/nosotros`,
 `/galeria`, `/ubicacion`, `/contacto`, `/legales`, `/barzucard`,
 `/barzucard/registro`, `/barzucard/ingresar`, `/barzucard/promociones`,
-`/karaoke` (el QR de las mesas; sin indexar), `/sitemap.xml`, `/robots.txt`.
+`/karaoke` (a donde lleva el QR de las mesas; sin indexar), `/sitemap.xml`,
+`/robots.txt`.
 
 **Socio** (requiere sesión) — `/barzucard/tarjeta`, `/barzucard/tarjeta/imprimir`,
 `/barzucard/canje/[codigo]`.
@@ -681,7 +682,8 @@ se abre el karaoke al empezar la noche y se cierra al terminar.
 | `/karaoke` | El cliente | Lo que abre el QR de la mesa: busca, elige y su canción queda en la cola con el número de turno a la vista. |
 | `/staff/karaoke/pantalla` | La TV del local | Reproduce el turno actual, arranca solo cuando alguien se anota y pasa al siguiente cuando el video termina. |
 | `/staff/karaoke` | El encargado, en su teléfono | La baranda, no el motor: reordenar, sacar un turno, podar el catálogo, cargar la canción de quien no tiene teléfono y abrir o cerrar la noche. |
-| `/staff/karaoke/qr` | La impresora | Un QR por mesa, listo para recortar y pegar. |
+| `/admin/carta/qr` | La impresora | **El QR de las mesas**: uno por mesa, con su número puesto. Abre la carta con precios y deja pedir canción desde ahí. Es el único que se pega en la mesa. |
+| `/staff/karaoke/qr` | La impresora | QR de karaoke sueltos, sin carta, para carteles que no son una mesa (la barra, la entrada, un salón prestado). |
 
 ### Qué reemplaza al criterio de una persona
 
@@ -743,7 +745,9 @@ ese navegador también lo rompe.
 1. **Configura `YOUTUBE_API_KEY`** (Google Cloud → habilitar *YouTube Data API
    v3* → crear credencial de tipo clave). Sin ella las mesas solo pueden elegir
    del catálogo que el local ya tenga.
-2. **Imprime los QR** desde `/staff/karaoke/qr` y pégalos en las mesas.
+2. **Imprime los QR** desde `/admin/carta/qr` y pégalos en las mesas: ese
+   mismo código abre la carta con precios y el karaoke con el número de mesa
+   ya puesto, así que basta una pegatina por mesa.
 3. **Deja la TV** en `/staff/karaoke/pantalla`, con sesión iniciada, en el
    navegador que tenga la cuenta de YouTube del local.
 4. **Abre el karaoke** desde `/staff/karaoke` cuando arranque la noche. Es lo
