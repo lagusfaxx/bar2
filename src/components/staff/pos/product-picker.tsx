@@ -16,6 +16,7 @@ import { useMemo, useState, useTransition } from "react";
 import { addItem } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
+import { useTecladoPropio } from "@/components/staff/use-pointer";
 import { formatPrice } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
 import type { PosMenuCategory, PosMenuProduct } from "@/lib/pos";
@@ -84,6 +85,10 @@ export function ProductPicker({
   const [query, setQuery] = useState("");
   const [categoriaId, setCategoriaId] = useState<string | null>(null);
   const [tecleando, setTecleando] = useState(false);
+
+  /* Solo el mostrador necesita que la app le ponga el teclado. En un telefono
+     el del sistema es mejor y ya aparece solo (ver `use-pointer`). */
+  const tecladoPropio = useTecladoPropio();
   const [pending, startTransition] = useTransition();
   const [added, setAdded] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -255,27 +260,51 @@ export function ProductPicker({
         </div>
 
         {/*
-          El campo de busqueda no es un campo: es un boton.
+          Buscar, con el teclado que corresponda a este aparato.
 
-          En el mostrador no hay teclado que enfocar, asi que tocar aca abre el
-          nuestro (ver `keyboard.tsx`) en vez de esperar uno que no va a venir.
-          Muestra lo escrito y trae su propia X para vaciarlo, que es lo que se
-          quiere cuando la busqueda no dio con nada.
+          En el telefono es un campo normal: se toca, sube el teclado del
+          sistema —el que el garzon usa todo el dia, que corrige y predice— y
+          se escribe. En el mostrador no hay ninguno que subir, asi que ahi el
+          campo es un boton que abre el nuestro (ver `keyboard.tsx`).
+
+          Los dos muestran lo escrito y traen la X al lado para vaciarlo, que
+          es lo que se quiere cuando la busqueda no dio con nada.
         */}
         <div className="mt-2 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setTecleando(true)}
-            className={[
-              "flex h-12 min-w-0 flex-1 items-center gap-2 border px-3 text-left",
-              tecleando ? "border-crimson bg-ink" : "border-line bg-ink",
-            ].join(" ")}
-          >
-            <Search className="size-4 shrink-0 text-muted" aria-hidden />
-            <span className={query ? "truncate text-bone" : "truncate text-muted"}>
-              {query || "Buscar un producto"}
-            </span>
-          </button>
+          {tecladoPropio ? (
+            <button
+              type="button"
+              onClick={() => setTecleando(true)}
+              className={[
+                "flex h-12 min-w-0 flex-1 items-center gap-2 border px-3 text-left",
+                tecleando ? "border-crimson bg-ink" : "border-line bg-ink",
+              ].join(" ")}
+            >
+              <Search className="size-4 shrink-0 text-muted" aria-hidden />
+              <span
+                className={query ? "truncate text-bone" : "truncate text-muted"}
+              >
+                {query || "Buscar un producto"}
+              </span>
+            </button>
+          ) : (
+            <div className="relative min-w-0 flex-1">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+                aria-hidden
+              />
+              <input
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Buscar un producto"
+                aria-label="Buscar producto"
+                autoComplete="off"
+                enterKeyHint="search"
+                className="h-12 w-full border border-line bg-ink pl-10 pr-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
+              />
+            </div>
+          )}
 
           {buscando && (
             <button
@@ -393,10 +422,11 @@ export function ProductPicker({
       {/*
         El pie tiene un solo trabajo por vez.
 
-        Con el teclado abierto, es el teclado: nada mas compite por el pulgar.
-        Cerrado, es donde termina de tomarse el pedido.
+        Con nuestro teclado abierto, es el teclado: nada mas compite por el
+        pulgar. Cerrado —o en un telefono, donde el teclado lo pone el
+        sistema— es donde termina de tomarse el pedido.
       */}
-      {tecleando ? (
+      {tecladoPropio && tecleando ? (
         <Keyboard
           onKey={(char) => setQuery((current) => (current + char).slice(0, 40))}
           onBackspace={() => setQuery((current) => current.slice(0, -1))}

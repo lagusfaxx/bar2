@@ -40,6 +40,7 @@ import { NoteSheet } from "@/components/staff/pos/note-sheet";
 import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
 import { useLiveRefresh } from "@/components/staff/use-live-refresh";
+import { useTecladoPropio } from "@/components/staff/use-pointer";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type {
@@ -1064,6 +1065,10 @@ function DinerForm({
   const [label, setLabel] = useState("");
   const [pending, startTransition] = useTransition();
 
+  /* El mostrador no levanta el teclado del sistema; el telefono si, y ahi el
+     suyo es mejor que el nuestro (ver `use-pointer`). */
+  const tecladoPropio = useTecladoPropio();
+
   const submit = () => {
     const formData = new FormData();
     formData.set("sessionId", sessionId);
@@ -1086,24 +1091,30 @@ function DinerForm({
           Sirve para separar su consumo y cobrarle aparte. Descríbela por la
           ropa o el lugar en la mesa; no hace falta preguntarle el nombre.
         </span>
-        {/* Solo lectura y con el teclado de la app debajo: en la pantalla del
-            mostrador no hay ninguno del sistema que aparezca al enfocar. */}
+        {/* En el mostrador es de solo lectura y se escribe con el teclado de
+            abajo, porque ahi no hay ninguno del sistema que aparezca al
+            enfocar. En un telefono es un campo normal. */}
         <input
           type="text"
           value={label}
-          readOnly
+          readOnly={tecladoPropio}
+          autoFocus={!tecladoPropio}
+          onChange={(event) => setLabel(event.target.value)}
+          maxLength={40}
           placeholder="Polera azul, pelo largo…"
           className="mt-2 h-12 w-full border border-line bg-ink px-3 text-bone placeholder:text-muted focus:border-crimson focus:outline-none"
         />
       </label>
 
-      <div className="mt-3">
-        <Keyboard
-          onKey={(char) => setLabel((actual) => (actual + char).slice(0, 40))}
-          onBackspace={() => setLabel((actual) => actual.slice(0, -1))}
-          onClear={() => setLabel("")}
-        />
-      </div>
+      {tecladoPropio && (
+        <div className="mt-3">
+          <Keyboard
+            onKey={(char) => setLabel((actual) => (actual + char).slice(0, 40))}
+            onBackspace={() => setLabel((actual) => actual.slice(0, -1))}
+            onClear={() => setLabel("")}
+          />
+        </div>
+      )}
 
       <div className="mt-3 flex gap-2">
         <button
