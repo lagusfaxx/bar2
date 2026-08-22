@@ -261,11 +261,11 @@ src/
 | `SocialLink` / `OpeningHour` | Redes y horarios. |
 | `ContactMessage` | Mensajes del formulario. |
 | `PosTable` | Mesas del salón. |
-| `TableSession` | Un turno de mesa: desde que se sientan hasta que se van. |
+| `TableSession` | Un turno de mesa: desde que se sientan hasta que se van. Sin mesa (`kind = DIRECTA`) es una venta de mostrador: nace cobrada y cerrada. |
 | `Diner` | Un comensal, identificado por cómo se ve ("polera azul"). |
 | `OrderItem` | Una línea de la cuenta, con copia del nombre y el precio del momento. |
 | `OrderTicket` | Una comanda: su estado de impresión y el de preparación en la pantalla de la estación. |
-| `Payment` | Un cobro: de un comensal o de la mesa entera. |
+| `Payment` | Un cobro: de un comensal, de la mesa entera o de una venta directa. |
 | `AuditLog` | Historial de cambios del panel. |
 
 Los precios se guardan en **centésimos** (`Int`) para no arrastrar errores de
@@ -392,6 +392,38 @@ cada $1.000** de consumo y recalcula el nivel del socio.
 
 No hay campo de propina: la deja el cliente en la terminal de cobro.
 
+### Cobro directo (venta de mostrador)
+
+La otra mitad de la noche no pasa por ninguna mesa: alguien se acerca a la
+barra, pide una cerveza y la paga al tiro. Esa venta antes no se registraba en
+ninguna parte —entraba la plata y el consumo no quedaba anotado—, así que el
+cierre de caja y el ranking de lo más vendido iban cortos todos los días.
+
+La casilla dorada **"Cobro directo"**, primera entre las mesas de
+`/staff/pos`, abre esa venta:
+
+1. Se tocan los productos en la misma carta del POS, con los mismos precios y
+   promociones. El pedido se va armando a la vista, y se corrige con `+` / `−`.
+2. **Cobrar**: se pide el **nombre del cliente** —es como se le entrega y como
+   lo reclama después; se puede dejar vacío si el pedido se entrega en el
+   acto— y con qué paga (efectivo por defecto).
+3. Sale el **comprobante** por la impresora. Si el pedido lleva algo de
+   cocina, sale **además la comanda de cocina** y aparece en su pantalla con
+   el nombre del cliente en lugar del número de mesa. Lo que prepara la barra
+   no genera comanda: la sirve el mismo que está cobrando.
+4. Termina en la pantalla del comprobante, con **"Otra venta"** a un toque:
+   detrás siempre viene otro.
+
+No hay cuenta que quede abierta: todo —líneas, cobro y papeles— ocurre en una
+sola operación, así que una venta a medias no deja nada que cerrar ni anular.
+Estas ventas **no aplican BarzuCard**: los beneficios se piden en la mesa, con
+la tarjeta presentada al principio.
+
+En **Caja** (`/admin/caja`) aparecen con su propia cifra —*Cobro directo*— y en
+la tabla de cobros del día bajo *Origen*, junto al nombre del cliente. Cuentan
+igual que cualquier venta en el total, en las formas de pago y en lo más
+vendido; no cuentan como mesa atendida, porque no ocupan ninguna.
+
 ### Pensado para un local lleno
 
 - **Los de siempre.** Lo primero que se ve al cargar un pedido son los doce
@@ -496,6 +528,11 @@ Xprinter y similares), por USB o por red, y un equipo encendido en el local —
 el PC de la pantalla táctil, un PC de caja o una Raspberry Pi con Node 18+.
 
 #### Qué se imprime
+
+Un **cobro directo** saca el comprobante, y la comanda de cocina solo si el
+pedido lleva algo que preparar ahí (ver [Cobro directo](#cobro-directo-venta-de-mostrador)).
+El papel se encabeza con **VENTA DIRECTA** y el nombre del cliente en vez del
+número de mesa.
 
 Cada envío de una mesa saca **una comanda por estación**: una con los
 bebestibles para la barra y otra con los alimentos para la cocina. Si la mesa

@@ -9,6 +9,7 @@ import type { Station } from "@/generated/prisma/enums";
 import { requireStaff } from "@/lib/auth";
 import { formError, formSuccess, type FormState } from "@/lib/form-state";
 import {
+  generateDirectSaleCode,
   generatePaymentCode,
   generateSessionCode,
   lineTotal,
@@ -26,6 +27,7 @@ import {
   fieldErrors,
   posCardSchema,
   posDinerSchema,
+  posDirectSaleSchema,
   posItemSchema,
   posOpenTableSchema,
   posPaymentSchema,
@@ -1075,4 +1077,202 @@ export async function payAccount(
       : `Cobrado · ${code}`,
     { code, totalCents, discountCents: beneficioCents },
   );
+}
+
+// --- Venta directa de mostrador ----------------------------------------------
+
+/**
+ * Cobro directo: se pide, se paga y se entrega, sin mesa de por medio.
+ *
+ * Es la otra mitad de la noche —la cerveza que alguien viene a buscar a la
+ * barra— y hasta ahora no se registraba en ninguna parte: entraba la plata y
+ * el consumo no quedaba anotado, asi que el cierre de caja y el ranking de lo
+ * que mas se vende iban cortos todos los dias. Aca esa venta queda igual de
+ * anotada que la de una mesa: mismas lineas, mismo cobro, mismo comprobante.
+ *
+ * Todo pasa en una sola operacion —cuenta, lineas, cobro y papeles— porque en
+ * el mostrador no hay nada que quede abierto esperando: si algo falla, no se
+ * cobro y no queda una cuenta huerfana dando vueltas.
+ *
+ * Los precios NO vienen del cliente. Llegan el producto y cuantos lleva, y el
+ * resto se relee de la carta: es la misma regla que en la mesa y la unica
+ * forma de que una pantalla vieja no cobre el precio del mes pasado.
+ */
+export async function directSale(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireStaff();
+
+  const parsed = posDirectSaleSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Revisa la venta.", fieldErrors(parsed.error));
+  }
+
+  const { customer, method, lines } = parsed.data;
+
+  // Lo pedido, junto: dos toques al mismo producto son una linea de dos.
+  const cantidades = new Map<string, number>();
+
+  for (const line of lines) {
+    cantidades.set(
+      line.productId,
+      (cantidades.get(line.productId) ?? 0) + line.quantity,
+    );
+  }
+
+  const productos = await prisma.menuProduct.findMany({
+    where: { id: { in: [...cantidades.keys()] }, available: true },
+    include: {
+      category: { select: { id: true, station: true, active: true } },
+    },
+  });
+
+  const disponibles = productos.filter((product) => product.category.active);
+
+  if (disponibles.length !== cantidades.size) {
+    return formError(
+      "Hay algo del pedido que ya no está en la carta. Vuelve a cargarlo.",
+    );
+  }
+
+  const now = new Date();
+
+  const items = disponibles.map((product) => {
+    const priced = priceFor(product, now);
+
+    return {
+      productId: product.id,
+      name: product.name,
+      unitPriceCents: priced.unitPriceCents,
+      discountCents: priced.discountCents,
+      discountLabel: priced.discountLabel,
+      quantity: cantidades.get(product.id)!,
+      station: stationFor(product),
+    };
+  });
+
+  const subtotalCents = items.reduce(
+    (total, item) => total + item.unitPriceCents * item.quantity,
+    0,
+  );
+  const discountCents = items.reduce(
+    (total, item) => total + item.discountCents * item.quantity,
+    0,
+  );
+  const totalCents = items.reduce((total, item) => total + lineTotal(item), 0);
+
+  /*
+   * El papel que se imprime.
+   *
+   * El comprobante del cobro sale siempre: es lo que se le pasa al cliente y lo
+   * que despues cuadra la caja. La comanda, en cambio, solo si hay algo que
+   * preparar en la cocina: la barra es quien esta vendiendo —sirve el trago con
+   * la mano que no cobra— y mandarle un papel de lo que acaba de servir es
+   * ruido en su pantalla y papel gastado. Si el pedido lleva comida, la cocina
+   * si necesita enterarse, y ahi salen las dos cosas de una vez.
+   */
+  const paraCocina = items.filter((item) => item.station === "COCINA");
+
+  const code = generatePaymentCode();
+  const sessionCode = generateDirectSaleCode();
+
+  await prisma.$transaction(async (tx) => {
+    const session = await tx.tableSession.create({
+      data: {
+        kind: "DIRECTA",
+        // Nace y muere aca: no hay nada que quede abierto en el mostrador.
+        status: "CLOSED",
+        closedAt: now,
+        code: sessionCode,
+        guests: 1,
+        openedById: user.userId,
+      },
+      select: { id: true },
+    });
+
+    /*
+     * El nombre del cliente viaja como comensal.
+     *
+     * No es un rodeo: es exactamente lo que un comensal significa aca —a quien
+     * se le entrega y a quien se le cobra— y por venir por ese camino sale solo
+     * en la comanda de cocina, en el comprobante y en el cierre de caja, sin
+     * tener que ensenarle a cada pantalla un campo nuevo.
+     */
+    const diner = customer
+      ? await tx.diner.create({
+          data: { sessionId: session.id, label: customer },
+          select: { id: true },
+        })
+      : null;
+
+    const payment = await tx.payment.create({
+      data: {
+        sessionId: session.id,
+        dinerId: diner?.id ?? null,
+        code,
+        subtotalCents,
+        discountCents,
+        totalCents,
+        method,
+        cashierId: user.userId,
+      },
+      select: { id: true },
+    });
+
+    const ticket =
+      paraCocina.length > 0
+        ? await tx.orderTicket.create({
+            data: {
+              sessionId: session.id,
+              number: await siguienteNumero(tx),
+              station: "COCINA",
+              createdById: user.userId,
+            },
+            select: { id: true },
+          })
+        : null;
+
+    for (const item of items) {
+      await tx.orderItem.create({
+        data: {
+          sessionId: session.id,
+          dinerId: diner?.id ?? null,
+          productId: item.productId,
+          name: item.name,
+          unitPriceCents: item.unitPriceCents,
+          discountCents: item.discountCents,
+          discountLabel: item.discountLabel,
+          quantity: item.quantity,
+          station: item.station,
+          // Ya entregado y ya cobrado: no hay estado intermedio que esperar.
+          status: "SENT",
+          ticketId: item.station === "COCINA" ? ticket?.id : null,
+          paymentId: payment.id,
+          createdById: user.userId,
+        },
+      });
+    }
+
+    await tx.orderTicket.create({
+      data: {
+        sessionId: session.id,
+        number: await siguienteNumero(tx),
+        kind: "COBRO",
+        paymentId: payment.id,
+        createdById: user.userId,
+      },
+    });
+  });
+
+  revalidatePath("/staff/pos");
+  if (paraCocina.length > 0) revalidatePath("/staff/cocina");
+
+  return formSuccess(`Cobrado · ${code}`, {
+    code,
+    totalCents,
+    discountCents,
+    cocina: paraCocina.length > 0,
+  });
 }

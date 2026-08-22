@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 
-import type { Station, TicketKind } from "@/generated/prisma/enums";
+import type { SessionKind, Station, TicketKind } from "@/generated/prisma/enums";
 import { checkEligibility } from "@/lib/barzucard";
 import { prisma } from "@/lib/prisma";
 import {
@@ -296,8 +296,11 @@ export async function getFrequentProducts(
 export type BoardTicket = {
   id: string;
   number: number;
-  tableNumber: number;
+  /** Vacio en las ventas de mostrador: no salieron de ninguna mesa. */
+  tableNumber: number | null;
   tableName: string | null;
+  /** A quien se le entrega, cuando no hay numero de mesa que cantar. */
+  customer: string | null;
   createdAt: string;
   items: Array<{
     id: string;
@@ -338,7 +341,11 @@ export async function getStationBoard(
     orderBy: { createdAt: "asc" },
     include: {
       session: {
-        select: { table: { select: { number: true, name: true } } },
+        select: {
+          kind: true,
+          table: { select: { number: true, name: true } },
+          diners: { orderBy: { position: "asc" }, take: 1, select: { label: true } },
+        },
       },
       items: {
         where: { status: { not: "CANCELLED" } },
@@ -354,8 +361,14 @@ export async function getStationBoard(
     .map((ticket) => ({
       id: ticket.id,
       number: ticket.number,
-      tableNumber: ticket.session.table.number,
-      tableName: ticket.session.table.name,
+      tableNumber: ticket.session.table?.number ?? null,
+      tableName: ticket.session.table?.name ?? null,
+      // En una venta de mostrador el pedido se entrega por nombre: el que dio
+      // el cliente al pagar, que es el unico comensal de esa cuenta.
+      customer:
+        ticket.session.kind === "DIRECTA"
+          ? (ticket.session.diners[0]?.label ?? null)
+          : null,
       createdAt: ticket.createdAt.toISOString(),
       items: ticket.items.map((item) => ({
         id: item.id,
@@ -522,7 +535,9 @@ export type SessionDetail = {
   guests: number;
   note: string | null;
   openedAt: string;
-  table: { id: string; number: number; name: string | null };
+  /** Vacia en las ventas de mostrador. */
+  table: { id: string; number: number; name: string | null } | null;
+  kind: SessionKind;
   /** Sin tarjeta no hay beneficios: es la condicion de todo el programa. */
   card: SessionCard | null;
   diners: Array<{ id: string; label: string; color: string | null }>;
@@ -681,6 +696,7 @@ export async function getSessionDetail(
     note: session.note,
     openedAt: session.openedAt.toISOString(),
     table: session.table,
+    kind: session.kind,
     card: session.card
       ? {
           id: session.card.id,
@@ -955,6 +971,11 @@ function readable(length: number) {
 /** Nombre del turno de mesa: "M4-K7P2". Se canta entre garzones. */
 export function generateSessionCode(tableNumber: number) {
   return `M${tableNumber}-${readable(4)}`;
+}
+
+/** Nombre de una venta de mostrador: "VD-K7P2". No hay mesa que nombrar. */
+export function generateDirectSaleCode() {
+  return `VD-${readable(4)}`;
 }
 
 /** Comprobante del cobro: "BZC-4K7P2M". */

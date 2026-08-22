@@ -271,16 +271,32 @@ function lineaDeCorte() {
  * que la garzona no puede verificar de otra forma: que no se dejo la otra
  * mitad en la bandeja.
  */
+/**
+ * Como se encabeza el papel: "MESA 4" o "VENTA DIRECTA".
+ *
+ * El servidor manda `table` en null cuando el cobro no paso por ninguna mesa
+ * —alguien pidio en la barra y pago al tiro—, y el papel no puede inventarse
+ * un numero: quien lo lee tiene que saber que no hay mesa donde ir a dejarlo.
+ */
+function origen(ticket) {
+  return ticket.table ? `MESA ${ticket.table.number}` : "VENTA DIRECTA";
+}
+
 function cuerpoComanda(ticket, parte = 1, total = 1) {
   const parts = [];
 
   parts.push(...encabezado(ticket.station));
 
   parts.push(CMD.alignCenter, CMD.doubleOn, CMD.boldOn);
-  parts.push(text(`MESA ${ticket.table.number}`));
+  parts.push(text(origen(ticket)));
   parts.push(CMD.doubleOff, CMD.boldOff);
 
-  if (ticket.table.name) parts.push(text(ticket.table.name));
+  /* De una venta de mostrador lo que hay que leer en grande es el nombre: es
+     como se entrega el pedido cuando no hay mesa donde dejarlo. */
+  if (ticket.table?.name) parts.push(text(ticket.table.name));
+  else if (!ticket.table && ticket.customer) {
+    parts.push(CMD.boldOn, text(ticket.customer), CMD.boldOff);
+  }
 
   // Solo cuando el papel viene partido: en una comanda sola seria una linea de
   // ruido que hay que leer para descartar.
@@ -426,12 +442,21 @@ function renderCobro(ticket) {
   parts.push(...encabezado("COBRO"));
 
   parts.push(CMD.alignCenter, CMD.boldOn);
-  parts.push(text(`MESA ${ticket.table.number}`));
+  parts.push(text(origen(ticket)));
   parts.push(CMD.boldOff);
 
   // Cobrar a una persona no cierra la mesa: hay que poder distinguir su papel
-  // del de los demas comensales de la misma mesa.
-  parts.push(text(pago.dinerLabel ? `Cuenta de ${pago.dinerLabel}` : "Cuenta completa"));
+  // del de los demas comensales de la misma mesa. En una venta de mostrador no
+  // hay mesa que repartir: lo que va es el nombre de quien se lo lleva.
+  parts.push(
+    text(
+      pago.dinerLabel
+        ? ticket.table
+          ? `Cuenta de ${pago.dinerLabel}`
+          : `Para ${pago.dinerLabel}`
+        : "Cuenta completa",
+    ),
+  );
 
   const fecha = new Date(pago.paidAt).toLocaleString("es-CL", {
     day: "2-digit",
@@ -714,7 +739,7 @@ async function tick() {
 
       for (const papel of papeles) await acusar(papel.id, true);
 
-      console.log(`✓ ${numeros} ${destino} · mesa ${papeles[0].table.number}`);
+      console.log(`✓ ${numeros} ${destino} · ${origen(papeles[0]).toLowerCase()}`);
     } catch (error) {
       console.error(`✗ ${numeros} ${destino}: ${error.message}`);
 

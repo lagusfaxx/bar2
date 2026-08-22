@@ -54,7 +54,11 @@ export async function GET(request: Request) {
         select: {
           code: true,
           guests: true,
+          kind: true,
           table: { select: { number: true, name: true } },
+          // La venta de mostrador se entrega por nombre y no por mesa: es el
+          // unico comensal de esa cuenta.
+          diners: { orderBy: { position: "asc" }, take: 1, select: { label: true } },
         },
       },
       // Quien la mando. Con una sola impresora se juntan en la bandeja los
@@ -126,10 +130,21 @@ export async function GET(request: Request) {
         batchId: ticket.batchId,
         waiter: ticket.createdBy?.name ?? null,
         createdAt: ticket.createdAt.toISOString(),
-        table: {
-          number: ticket.session.table.number,
-          name: ticket.session.table.name,
-        },
+        /*
+         * De donde salio el papel.
+         *
+         * Vacia en las ventas de mostrador, que no pasan por ninguna mesa. El
+         * agente de impresion las encabeza con lo que si sirve ahi —"VENTA
+         * DIRECTA" y el nombre del cliente— en vez de inventar un numero.
+         */
+        table: ticket.session.table
+          ? {
+              number: ticket.session.table.number,
+              name: ticket.session.table.name,
+            }
+          : null,
+        direct: ticket.session.kind === "DIRECTA",
+        customer: ticket.session.diners[0]?.label ?? null,
         sessionCode: ticket.session.code,
         items: ticket.items
           .filter((item) => item.status !== "CANCELLED")

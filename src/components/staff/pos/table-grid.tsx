@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2, Plus, Printer, Send, Users } from "lucide-react";
+import { Loader2, Plus, Printer, Receipt, Send, Users } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -51,11 +52,25 @@ export function TableGrid({
    */
   useLiveRefresh(5_000, { kind: "sala" }, version);
 
+  /*
+   * La sala sin mesas todavia cobra.
+   *
+   * Un local que arranca sin mesas cargadas igual vende en la barra desde la
+   * primera noche, asi que el cobro directo no puede quedar detras de un
+   * aviso de configuracion.
+   */
   if (tables.length === 0) {
     return (
-      <p className="border border-line bg-ink-soft p-6 text-sm text-muted">
-        No hay mesas cargadas. Créalas en el panel, en <strong>Sala → Mesas</strong>.
-      </p>
+      <>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+          <CobroDirecto />
+        </div>
+
+        <p className="mt-3 border border-line bg-ink-soft p-6 text-sm text-muted">
+          No hay mesas cargadas. Créalas en el panel, en{" "}
+          <strong>Sala → Mesas</strong>.
+        </p>
+      </>
     );
   }
 
@@ -64,6 +79,10 @@ export function TableGrid({
       <PorImprimir tables={tables} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+        {/* Primera casilla, antes que la mesa 1: la venta de mostrador ocurre
+            todo el tiempo y con las manos ocupadas. */}
+        <CobroDirecto />
+
         {tables.map((table) => {
           const ocupada = table.session !== null;
 
@@ -154,6 +173,31 @@ export function TableGrid({
         <OpenTableSheet table={opening} onClose={() => setOpening(null)} />
       )}
     </>
+  );
+}
+
+/**
+ * La casilla del cobro directo.
+ *
+ * Vive entre las mesas y no en un menu porque compite con ellas: cuando
+ * alguien se acerca a la barra a pedir una cerveza, el garzon esta mirando
+ * esta pantalla y tiene que resolverlo en el mismo toque con el que abriria
+ * una mesa. Se distingue por el color —es lo unico dorado de la sala— para
+ * que no se confunda con una mesa libre.
+ */
+function CobroDirecto() {
+  return (
+    <Link
+      href="/staff/pos/directo"
+      className="flex min-h-28 flex-col justify-between border border-gilt/50 bg-gilt/10 p-3 text-left transition-colors hover:border-gilt"
+    >
+      <Receipt className="size-6 text-gilt-soft" aria-hidden />
+
+      <span className="mt-2 block">
+        <span className="block text-sm font-medium text-bone">Cobro directo</span>
+        <span className="block text-xs text-muted">Se pide y se paga al tiro</span>
+      </span>
+    </Link>
   );
 }
 

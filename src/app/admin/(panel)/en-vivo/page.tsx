@@ -18,7 +18,7 @@ import {
   StatCard,
 } from "@/components/admin/ui";
 import { getLiveService, type Alert, type LiveService } from "@/lib/dashboard";
-import { formatPrice, formatTime } from "@/lib/format";
+import { formatPrice, formatTime, originLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -391,7 +391,11 @@ function Waiting({ pending }: { pending: LiveService["kitchen"]["pending"] }) {
             >
               <span className="min-w-0">
                 <span className="block text-bone">
-                  Mesa {ticket.tableNumber}
+                  {originLabel(
+                    ticket.tableNumber === null
+                      ? null
+                      : { number: ticket.tableNumber },
+                  )}
                   <span className="ml-2 text-xs text-muted">
                     #{ticket.number} ·{" "}
                     {ticket.station === "BARRA" ? "barra" : "cocina"}

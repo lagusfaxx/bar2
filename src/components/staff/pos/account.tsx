@@ -41,7 +41,7 @@ import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
 import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { useTecladoPropio } from "@/components/staff/use-pointer";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, originLabel } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type {
   AccountItem,
@@ -220,8 +220,8 @@ export function Account({
 
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-xl text-bone">
-              Mesa {session.table.number}
-              {session.table.name && (
+              {originLabel(session.table)}
+              {session.table?.name && (
                 <span className="ml-2 text-sm text-muted">
                   {session.table.name}
                 </span>
@@ -939,7 +939,7 @@ export function Account({
 
       {closing && (
         <ConfirmSheet
-          title={`¿Cerrar la mesa ${session.table.number}?`}
+          title={`¿Cerrar ${originLabel(session.table).toLowerCase()}?`}
           detail={
             sinConsumo
               ? "No se cargó ningún producto, así que no queda nada por cobrar. La mesa vuelve a quedar libre."

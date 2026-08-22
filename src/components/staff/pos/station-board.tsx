@@ -209,7 +209,12 @@ function TicketCard({
     <article className={`flex flex-col border ${marco}`}>
       <div className="flex items-baseline justify-between gap-3 border-b border-line/60 px-3 py-2">
         <p className={`font-display text-bone ${tipografia.cabecera}`}>
-          Mesa {ticket.tableNumber}
+          {/* La venta de mostrador no tiene mesa: se entrega por el nombre
+              que dio el cliente al pagar, que es lo que se canta al dejarla
+              en la barra. */}
+          {ticket.tableNumber === null
+            ? (ticket.customer ?? "Cobro directo")
+            : `Mesa ${ticket.tableNumber}`}
           <span className="ml-2 text-sm text-muted">#{ticket.number}</span>
         </p>
 
