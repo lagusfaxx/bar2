@@ -1,6 +1,7 @@
 "use client";
 
 import { Beer, Loader2, Plus, Printer, Send, Users, Zap } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -183,9 +184,10 @@ export function TableGrid({
  * Las dos formas de vender de pie estan como dos botones distintos, y cual usar
  * lo decide el cliente, no el garzon:
  *
- * - **Venta rápida** es para el que pide, paga y se va. Un toque y ya se esta
- *   cargando: no pregunta cuantos son ni como se llaman, porque son datos que
- *   nadie va a leer nunca en una cuenta que dura un minuto.
+ * - **Cobro directo** es para el que pide, paga y se va: se cargan los
+ *   productos, se cobra y se entrega, sin cuenta de por medio (ver
+ *   `direct-sale.tsx`). No pregunta cuantos son: en una venta que dura un
+ *   minuto es un dato que nadie va a leer nunca.
  * - **Abrir cuenta** es para el que se queda. Ahi si hace falta un nombre —"la
  *   de la polera azul"—, que es lo que reemplaza al numero de mesa cuando hay
  *   diez cuentas abiertas contra la barra.
@@ -199,33 +201,6 @@ function DePie({
   onAbrir: () => void;
   onEntrar: (sessionId: string) => void;
 }) {
-  const router = useRouter();
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-
-  /**
-   * Venta al paso: se abre sin preguntar nada y se entra directo a la carta.
-   *
-   * Es el camino corto entero —un toque desde la sala hasta estar cargando
-   * productos— y por eso no lleva hoja intermedia. La cuenta se cierra sola al
-   * cobrarla (ver `payAccount`), asi que tampoco deja nada que ordenar despues.
-   */
-  const ventaRapida = () => {
-    startTransition(async () => {
-      const result = await openWalkIn(IDLE, new FormData());
-
-      if (result.status === "error") {
-        setError(result.message ?? "No se pudo abrir la venta.");
-        return;
-      }
-
-      setError(null);
-      if (result.data?.sessionId) {
-        router.push(`/staff/pos/${result.data.sessionId}?nueva=1`);
-      }
-    });
-  };
-
   return (
     <section className="mb-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -235,19 +210,23 @@ function DePie({
         </h2>
 
         <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={ventaRapida}
-            disabled={pending}
-            className="flex h-12 items-center gap-2 bg-gilt px-4 text-sm font-medium text-ink disabled:opacity-60"
+          {/*
+            La venta al paso no abre ninguna cuenta.
+
+            Antes abria una de pie sin nombre y dejaba al garzon en la pantalla
+            de la cuenta, que es la de quien se queda: comensales, BarzuCard,
+            comandas. Para el que pide una cerveza y paga, eso es una cuenta que
+            nace para durar un minuto y una pantalla que ofrece diez cosas que
+            no se van a usar. La pantalla del cobro directo hace ese camino
+            entero —cargar, cobrar, entregar— sin nada abierto en el medio.
+          */}
+          <Link
+            href="/staff/pos/directo"
+            className="flex h-12 items-center gap-2 bg-gilt px-4 text-sm font-medium text-ink"
           >
-            {pending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-            ) : (
-              <Zap className="size-4" aria-hidden />
-            )}
-            Venta rápida
-          </button>
+            <Zap className="size-4" aria-hidden />
+            Cobro directo
+          </Link>
 
           <button
             type="button"
@@ -260,17 +239,11 @@ function DePie({
         </div>
       </div>
 
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-crimson-bright">
-          {error}
-        </p>
-      )}
-
       {walkIns.length === 0 ? (
         <p className="mt-2 text-xs text-muted">
-          Nadie con cuenta abierta en la barra. <strong>Venta rápida</strong> cobra
-          y se cierra sola; <strong>Abrir cuenta</strong> la deja andando con un
-          nombre.
+          Nadie con cuenta abierta en la barra. <strong>Cobro directo</strong> es
+          para el que pide y paga al tiro; <strong>Abrir cuenta</strong> la deja
+          andando con un nombre.
         </p>
       ) : (
         <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">

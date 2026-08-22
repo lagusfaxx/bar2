@@ -416,7 +416,9 @@ export async function getLiveService(): Promise<LiveService> {
       tables,
       open: abiertas.length,
       guests: abiertas.reduce((total, session) => total + session.guests, 0),
-      served: sessions.length,
+      // Cuentas atendidas: mesas y gente de pie. La venta directa no entra,
+      // porque no ocupa nada ni se atiende: se cobra y se entrega.
+      served: sessions.filter((session) => session.kind !== "DIRECTA").length,
     },
 
     kitchen: {

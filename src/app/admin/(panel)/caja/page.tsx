@@ -96,6 +96,14 @@ export default async function CashPage() {
     });
   }
 
+  /* Lo que entro por el mostrador, aparte. Es la pregunta que no se podia
+     responder antes de que existiera: cuanto de la noche se vendio sin mesa. */
+  const directos = payments.filter((payment) => payment.session.kind === "DIRECTA");
+  const directoCents = directos.reduce(
+    (total, payment) => total + payment.totalCents,
+    0,
+  );
+
   const porEstacion = { BARRA: 0, COCINA: 0 };
   const porProducto = new Map<string, { quantity: number; cents: number }>();
 
@@ -127,7 +135,7 @@ export default async function CashPage() {
         description="Lo que se cobró hoy, desde la medianoche, y cómo pagó cada cliente."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
           label="Vendido hoy"
           value={formatPrice(totalCents)}
@@ -143,6 +151,12 @@ export default async function CashPage() {
           label="Cocina"
           value={formatPrice(porEstacion.COCINA)}
           icon={<Utensils className="size-4" aria-hidden />}
+        />
+        <StatCard
+          label="Cobro directo"
+          value={formatPrice(directoCents)}
+          hint={`${directos.length} venta(s) de mostrador`}
+          icon={<Receipt className="size-4" aria-hidden />}
         />
         <StatCard
           label="En promociones"
@@ -241,7 +255,7 @@ export default async function CashPage() {
                 <tr>
                   <Th>Hora</Th>
                   <Th>Comprobante</Th>
-                  <Th>Mesa</Th>
+                  <Th>Origen</Th>
                   <Th>Cuenta</Th>
                   <Th>Forma</Th>
                   <Th>Cobró</Th>
@@ -258,7 +272,10 @@ export default async function CashPage() {
                       </span>
                     </Td>
                     <Td>{sessionTitle(payment.session)}</Td>
-                    <Td>{payment.diner?.label ?? "Mesa completa"}</Td>
+                    <Td>
+                      {payment.diner?.label ??
+                        (payment.session.table ? "Mesa completa" : "Cuenta completa")}
+                    </Td>
                     <Td>{METHOD_LABELS[payment.method] ?? payment.method}</Td>
                     <Td>{payment.cashier?.name ?? "—"}</Td>
                     <Td className="text-right font-display text-bone">

@@ -311,9 +311,10 @@ export async function getFrequentProducts(
 export type BoardTicket = {
   id: string;
   number: number;
-  /** Como se llama la cuenta: "Mesa 4" o "Polera azul". Es el titulo grande. */
+  /** Como se llama la cuenta: "Mesa 4", "Polera azul" o el nombre de quien
+      vino al mostrador. Es el titulo grande. */
   title: string;
-  /** Vacio en las cuentas de pie: no hay mesa que numerar. */
+  /** Vacio en las cuentas de pie y en las ventas directas: no hay mesa. */
   tableNumber: number | null;
   tableName: string | null;
   createdAt: string;
@@ -419,7 +420,13 @@ export type NameableSession = {
  */
 export function sessionTitle(session: NameableSession): string {
   if (session.table) return `Mesa ${session.table.number}`;
-  return session.label?.trim() || "De pie";
+
+  const nombre = session.label?.trim();
+  if (nombre) return nombre;
+
+  // Sin nombre no son lo mismo: una es alguien parado en la barra que sigue
+  // pidiendo, y la otra una venta que ya se cobro y se entrego.
+  return session.kind === "DIRECTA" ? "Cobro directo" : "De pie";
 }
 
 // --- Mesas -------------------------------------------------------------------
@@ -636,7 +643,7 @@ export type SessionDetail = {
   guests: number;
   note: string | null;
   openedAt: string;
-  /** Vacia en las cuentas de pie. */
+  /** Vacia en las cuentas de pie y en las ventas directas. */
   table: { id: string; number: number; name: string | null } | null;
   /** Sin tarjeta no hay beneficios: es la condicion de todo el programa. */
   card: SessionCard | null;
@@ -1106,6 +1113,11 @@ export function generateSessionCode(tableNumber: number) {
  */
 export function generateWalkInCode() {
   return `P-${readable(4)}`;
+}
+
+/** Nombre de una venta de mostrador: "VD-K7P2". No hay mesa que nombrar. */
+export function generateDirectSaleCode() {
+  return `VD-${readable(4)}`;
 }
 
 /** Comprobante del cobro: "BZC-4K7P2M". */

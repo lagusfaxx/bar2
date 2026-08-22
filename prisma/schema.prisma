@@ -993,10 +993,17 @@ enum TableSessionStatus {
  * anotarse —toda cuenta colgaba de una mesa, y una mesa no admite dos turnos a
  * la vez— asi que la barra terminaba usando una mesa de mentira para todos o
  * llevando las rondas de memoria.
+ *
+ * DIRECTA es el otro extremo de esa misma barra: la venta que se pide, se paga
+ * y se entrega en el mismo toque. Se distingue de una cuenta de pie sin nombre
+ * porque no llega a existir como cuenta —nace cobrada y cerrada, sin pasar por
+ * la pantalla de la cuenta— y porque el cierre de caja necesita poder decir
+ * cuanto de la noche entro asi.
  */
 enum SessionKind {
   MESA // gente sentada, con su numero de mesa
   PIE // gente en la barra: sin mesa y varias a la vez
+  DIRECTA // se pidio, se pago y se entrego en el momento
 }
 
 /**
@@ -1010,7 +1017,8 @@ enum SessionKind {
  */
 model TableSession {
   id      String    @id @default(cuid())
-  // Vacio en las cuentas de pie: no hay mesa a la que pertenezcan.
+  // Vacio en las cuentas de pie y en las ventas directas: no hay mesa a la que
+  // pertenezcan.
   tableId String?
   table   PosTable? @relation(fields: [tableId], references: [id], onDelete: Restrict)
 
@@ -1021,11 +1029,15 @@ model TableSession {
    *
    * Cumple el papel que en una mesa cumple el numero. Es opcional porque la
    * venta al paso —piden, pagan y se van— no alcanza a necesitar nombre: se
-   * abre, se cobra y se cierra sin que nadie tenga que describir a nadie.
+   * abre, se cobra y se cierra sin que nadie tenga que describir a nadie. En
+   * una venta directa es el nombre que dio el cliente al pagar, que es como se
+   * le entrega el pedido.
    */
   label String?
 
   // Correlativo legible del turno, para nombrarlo en voz alta: "M4-0312".
+  // En las ventas directas es "VD-0312", que es lo que se dicta por el
+  // comprobante cuando alguien vuelve a preguntar por su compra.
   code   String             @unique
   status TableSessionStatus @default(OPEN)
 

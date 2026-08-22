@@ -465,9 +465,17 @@ function renderCobro(ticket) {
   parts.push(text((ticket.title || `MESA ${ticket.table.number}`).toUpperCase()));
   parts.push(CMD.boldOff);
 
-  // Cobrar a una persona no cierra la mesa: hay que poder distinguir su papel
-  // del de los demas comensales de la misma mesa.
-  parts.push(text(pago.dinerLabel ? `Cuenta de ${pago.dinerLabel}` : "Cuenta completa"));
+  /*
+   * De quien es este cobro dentro de la cuenta.
+   *
+   * Cobrar a una persona no cierra la mesa: hay que poder distinguir su papel
+   * del de los demas comensales de la misma mesa. En una venta de mostrador no
+   * hay nada que repartir —se cobro todo de una— y el nombre de quien se lo
+   * lleva ya va arriba, en el titulo: repetir "Cuenta completa" seria un
+   * renglon que no dice nada.
+   */
+  if (pago.dinerLabel) parts.push(text(`Cuenta de ${pago.dinerLabel}`));
+  else if (ticket.table.number > 0) parts.push(text("Cuenta completa"));
 
   const fecha = new Date(pago.paidAt).toLocaleString("es-CL", {
     day: "2-digit",

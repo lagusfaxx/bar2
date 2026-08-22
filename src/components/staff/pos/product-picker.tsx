@@ -53,6 +53,11 @@ import { rankBySearch } from "@/lib/search";
  *   columna a la derecha, siempre a la vista junto a la cuenta. En un POS de
  *   mostrador abrir y cerrar una ventana por cada producto es el gesto que mas
  *   se repite en toda la noche, y ahi sobra el espacio para evitarlo.
+ *
+ * Tambien sirve para el cobro directo, donde todavia no hay cuenta donde
+ * guardar nada: con `onPick` cada toque se lo queda quien la usa (ver
+ * `direct-sale.tsx`) en vez de viajar al servidor. Es la misma carta, la misma
+ * busqueda y los mismos frecuentes, sin una segunda lista que mantener.
  */
 export function ProductPicker({
   sessionId,
@@ -66,8 +71,10 @@ export function ProductPicker({
   destino = "a la cocina",
   onSend,
   sending = false,
+  onPick,
 }: {
-  sessionId: string;
+  /** La cuenta donde cae lo tocado. Vacia en el cobro directo (ver `onPick`). */
+  sessionId?: string;
   dinerId: string | null;
   dinerLabel: string;
   menu: PosMenuCategory[];
@@ -81,6 +88,13 @@ export function ProductPicker({
   /** Manda el pedido y devuelve a la cuenta. Solo en el telefono. */
   onSend?: () => void;
   sending?: boolean;
+  /**
+   * Se queda con lo tocado en vez de cargarlo a una cuenta.
+   * Es lo que usa el cobro directo, donde no hay cuenta abierta todavia: quien
+   * la usa arma el pedido y lo cobra entero de una sola vez. Con esto puesto,
+   * el pie de la carta queda para el que la muestra.
+   */
+  onPick?: (product: PosMenuProduct, option?: string) => void;
 }) {
   const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
@@ -175,8 +189,21 @@ export function ProductPicker({
    */
   const cargar = useCallback(
     (product: PosMenuProduct, option?: string) => {
+      /* Sin cuenta donde guardarlo: se lo lleva quien la muestra y el toque no
+         cuesta ningun viaje al servidor. La pregunta del producto ya se
+         respondio arriba, asi que la respuesta viaja igual que a una cuenta. */
+      if (onPick) {
+        onPick(product, option);
+        setPreguntando(null);
+        setAdded((current) => ({
+          ...current,
+          [product.id]: (current[product.id] ?? 0) + 1,
+        }));
+        return;
+      }
+
       const formData = new FormData();
-      formData.set("sessionId", sessionId);
+      formData.set("sessionId", sessionId ?? "");
       formData.set("productId", product.id);
       formData.set("quantity", "1");
       if (dinerId) formData.set("dinerId", dinerId);
@@ -201,7 +228,7 @@ export function ProductPicker({
         }));
       });
     },
-    [sessionId, dinerId, startTransition],
+    [sessionId, dinerId, onPick, startTransition],
   );
 
   /**
@@ -476,7 +503,7 @@ export function ProductPicker({
           onDone={() => setTecleando(false)}
           doneLabel="Listo"
         />
-      ) : (
+      ) : onPick ? null : (
         <footer className="shrink-0 border-t border-line bg-ink-soft px-3 py-3 pb-safe">
           {/* Atajo a la nota de lo ultimo cargado: es cuando el garzon todavia
               tiene el "sin lechuga" fresco en la cabeza. */}

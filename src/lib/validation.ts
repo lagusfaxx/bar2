@@ -406,6 +406,43 @@ export const posPaymentSchema = z.object({
   method: z.enum(["EFECTIVO", "DEBITO", "CREDITO", "TRANSFERENCIA", "OTRO"]),
 });
 
+/**
+ * Venta directa de mostrador: lo que se lleva y como se paga.
+ *
+ * Las lineas viajan como JSON en un solo campo porque se cobran juntas, en una
+ * sola operacion: no hay cuenta abierta donde ir dejandolas. Del cliente llega
+ * solo el producto y cuanto lleva; el precio y el descuento los pone el
+ * servidor leyendo la carta, que es la unica lista de precios que existe.
+ */
+export const posDirectSaleSchema = z.object({
+  /** Como se le canta el pedido: "Juan", "el de la parka". */
+  customer: trimmed.max(40).optional().or(z.literal("")),
+  method: z.enum(["EFECTIVO", "DEBITO", "CREDITO", "TRANSFERENCIA", "OTRO"]),
+  lines: z
+    .string()
+    .transform((raw, ctx) => {
+      try {
+        return JSON.parse(raw) as unknown;
+      } catch {
+        ctx.addIssue({ code: "custom", message: "No se pudo leer el pedido." });
+        return z.NEVER;
+      }
+    })
+    .pipe(
+      z
+        .array(
+          z.object({
+            productId: trimmed.min(1),
+            quantity: z.coerce.number().int().min(1).max(99),
+            /** La respuesta a lo que pregunta el producto: "Sprite", "Con gas". */
+            variant: trimmed.max(40).optional(),
+          }),
+        )
+        .min(1, "Agrega al menos un producto")
+        .max(60, "Demasiadas líneas para una venta directa"),
+    ),
+});
+
 /** Tarjeta presentada en la mesa: numero tipeado, QR escaneado o codigo. */
 export const posCardSchema = z.object({
   sessionId: trimmed.min(1),
