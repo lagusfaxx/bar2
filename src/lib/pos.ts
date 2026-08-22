@@ -704,6 +704,9 @@ export async function getSessionDetail(
         include: { promotion: true },
       },
       payments: {
+        // Un cobro anulado no es un cobro: sus lineas volvieron a quedar
+        // pendientes y la cuenta tiene que verse como antes de cobrarlo.
+        where: { voidedAt: null },
         orderBy: { paidAt: "desc" },
         include: { diner: { select: { label: true } } },
       },

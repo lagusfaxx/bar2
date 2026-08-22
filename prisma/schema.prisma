@@ -39,6 +39,7 @@ model User {
   tickets        OrderTicket[]  @relation("TicketCreatedBy")
   closedDays     ClosedDay[]    @relation("ClosedDayCreatedBy")
   payments       Payment[]      @relation("PaymentCashier")
+  voidedPayments Payment[]      @relation("PaymentVoidedBy")
   karaokeEntries KaraokeEntry[] @relation("KaraokeQueuedBy")
   contactReplies ContactReply[] @relation("ContactReplyAuthor")
 
@@ -1330,11 +1331,32 @@ model Payment {
 
   paidAt DateTime @default(now())
 
+  /**
+   * Anulacion: el cobro que no fue.
+   *
+   * Pasa todas las noches por dos motivos distintos y el remedio es el mismo:
+   * la prueba que alguien hizo con el POS antes de abrir, y el cobro que salio
+   * mal —la mesa equivocada, el metodo equivocado—. Sin esto, las dos quedaban
+   * sumando en el cierre del dia y la unica salida era entrar a la base.
+   *
+   * Se anula, no se borra: un cobro que desaparece sin dejar rastro es
+   * exactamente lo que hay que poder auditar despues. Anulado, sale de todas
+   * las cifras —total, formas de pago, lo mas vendido— y queda listado aparte
+   * con quien lo anulo y por que. Lo que se cobro vuelve a quedar pendiente en
+   * su cuenta, para poder cobrarlo bien.
+   */
+  voidedAt   DateTime?
+  voidReason String?
+
+  voidedById String?
+  voidedBy   User?   @relation("PaymentVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+
   items   OrderItem[]
   tickets OrderTicket[]
 
   @@index([sessionId])
-  @@index([paidAt])
+  // El cierre del dia pide los cobros de la jornada y separa los anulados.
+  @@index([paidAt, voidedAt])
   @@index([cardId])
   @@map("pos_payments")
 }

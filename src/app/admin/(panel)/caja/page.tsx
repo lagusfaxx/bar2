@@ -1,5 +1,6 @@
-import { Banknote, Receipt, Utensils, Wine } from "lucide-react";
+import { Ban, Banknote, Receipt, Utensils, Wine } from "lucide-react";
 
+import { PaymentVoid } from "@/components/admin/payment-void";
 import {
   AdminHeader,
   EmptyState,
@@ -10,6 +11,7 @@ import {
   Td,
   Th,
 } from "@/components/admin/ui";
+import { getPanelSession } from "@/lib/auth";
 import { formatPrice, formatTime } from "@/lib/format";
 import { lineTotal, sessionTitle } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
@@ -36,7 +38,8 @@ export default async function CashPage() {
   const desde = new Date();
   desde.setHours(0, 0, 0, 0);
 
-  const [payments, items, abiertas] = await Promise.all([
+  const [session, todos, items, abiertas] = await Promise.all([
+    getPanelSession(),
     prisma.payment.findMany({
       where: { paidAt: { gte: desde } },
       orderBy: { paidAt: "desc" },
@@ -50,12 +53,15 @@ export default async function CashPage() {
         },
         diner: { select: { label: true } },
         cashier: { select: { name: true } },
+        voidedBy: { select: { name: true } },
       },
     }),
     prisma.orderItem.findMany({
       where: {
         status: { not: "CANCELLED" },
-        payment: { paidAt: { gte: desde } },
+        // Lo cobrado y no anulado: un cobro anulado suelta sus lineas, asi que
+        // esto ya las deja fuera, y el filtro lo dice en voz alta.
+        payment: { paidAt: { gte: desde }, voidedAt: null },
       },
       select: {
         name: true,
@@ -79,6 +85,19 @@ export default async function CashPage() {
       },
     }),
   ]);
+
+  /*
+   * Lo anulado no es plata.
+   *
+   * Sale de todas las cifras del dia —total, formas de pago, mostrador, lo mas
+   * vendido— y se lista aparte al final, que es donde tiene que estar: no se
+   * borro nada, pero tampoco se cobro (ver `voidPayment`).
+   */
+  const payments = todos.filter((payment) => payment.voidedAt === null);
+  const anulados = todos.filter((payment) => payment.voidedAt !== null);
+
+  /** Deshacer plata cobrada es cosa del administrador, y solo desde aca. */
+  const puedeAnular = session?.role === "ADMIN";
 
   const totalCents = payments.reduce((total, payment) => total + payment.totalCents, 0);
   const descuentoCents = payments.reduce(
@@ -260,6 +279,7 @@ export default async function CashPage() {
                   <Th>Forma</Th>
                   <Th>Cobró</Th>
                   <Th className="text-right">Total</Th>
+                  {puedeAnular && <Th className="text-right">Anular</Th>}
                 </tr>
               </thead>
               <tbody>
@@ -281,6 +301,17 @@ export default async function CashPage() {
                     <Td className="text-right font-display text-bone">
                       {formatPrice(payment.totalCents)}
                     </Td>
+                    {puedeAnular && (
+                      <Td className="text-right">
+                        <div className="flex justify-end">
+                          <PaymentVoid
+                            paymentId={payment.id}
+                            code={payment.code}
+                            total={formatPrice(payment.totalCents)}
+                          />
+                        </div>
+                      </Td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -288,6 +319,48 @@ export default async function CashPage() {
           </TableWrap>
         )}
       </Panel>
+
+      {anulados.length > 0 && (
+        <Panel
+          className="mt-6"
+          title="Anulados hoy"
+          description="No suman en ninguna cifra del día. Quedan aquí con el motivo y quién los anuló."
+        >
+          <TableWrap>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Hora</Th>
+                  <Th>Comprobante</Th>
+                  <Th>Origen</Th>
+                  <Th>Motivo</Th>
+                  <Th>Anuló</Th>
+                  <Th className="text-right">Era</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {anulados.map((payment) => (
+                  <tr key={payment.id} className="text-muted">
+                    <Td>{formatTime(payment.paidAt)}</Td>
+                    <Td>
+                      <span className="flex items-center gap-1.5 font-mono text-xs">
+                        <Ban className="size-3.5 shrink-0 text-crimson" aria-hidden />
+                        <span className="line-through">{payment.code}</span>
+                      </span>
+                    </Td>
+                    <Td>{sessionTitle(payment.session)}</Td>
+                    <Td>{payment.voidReason ?? "—"}</Td>
+                    <Td>{payment.voidedBy?.name ?? "—"}</Td>
+                    <Td className="text-right line-through">
+                      {formatPrice(payment.totalCents)}
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableWrap>
+        </Panel>
+      )}
     </>
   );
 }
