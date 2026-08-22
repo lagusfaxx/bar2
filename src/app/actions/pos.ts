@@ -1369,16 +1369,24 @@ export async function directSale(
   const totalCents = items.reduce((total, item) => total + lineTotal(item), 0);
 
   /*
-   * El papel que se imprime.
+   * Los papeles que salen, y en que orden.
    *
-   * El comprobante del cobro sale siempre: es lo que se le pasa al cliente y lo
-   * que despues cuadra la caja. La comanda, en cambio, solo si hay algo que
-   * preparar en la cocina: la barra es quien esta vendiendo —sirve el trago con
-   * la mano que no cobra— y mandarle un papel de lo que acaba de servir es
-   * ruido en su pantalla y papel gastado. Si el pedido lleva comida, la cocina
-   * si necesita enterarse, y ahi salen las dos cosas de una vez.
+   * Una comanda por estacion —lo que prepara la cocina y lo que prepara la
+   * barra— y al final el comprobante del cobro. Igual que una mesa, con una
+   * diferencia: no comparten envio. Con una sola impresora, dos comandas del
+   * mismo envio salen pegadas en una sola tira para que el garzon haga un solo
+   * viaje (ver `sendOrder`), y eso aca no sirve: quien cobra esta parado frente
+   * al cliente y los papeles no van todos al mismo lado —uno a la cocina, uno a
+   * la barra y uno a la mano del cliente—. Separados, el agente deja su pausa
+   * entre uno y otro (PRINT_GAP_MS, tres segundos) y hay tiempo de retirar cada
+   * papel antes de que salga el siguiente.
+   *
+   * El orden es el del recorrido: primero lo que hay que ir a encargar —cocina,
+   * que es lo que mas tarda, y barra— y al final lo del cliente.
    */
-  const paraCocina = items.filter((item) => item.station === "COCINA");
+  const estaciones = (["COCINA", "BARRA"] as const).filter((station) =>
+    items.some((item) => item.station === station),
+  );
 
   const code = generatePaymentCode();
   const sessionCode = generateDirectSaleCode();
@@ -1419,18 +1427,21 @@ export async function directSale(
       select: { id: true },
     });
 
-    const ticket =
-      paraCocina.length > 0
-        ? await tx.orderTicket.create({
-            data: {
-              sessionId: session.id,
-              number: await siguienteNumero(tx),
-              station: "COCINA",
-              createdById: user.userId,
-            },
-            select: { id: true },
-          })
-        : null;
+    const tickets = new Map<Station, string>();
+
+    for (const station of estaciones) {
+      const ticket = await tx.orderTicket.create({
+        data: {
+          sessionId: session.id,
+          number: await siguienteNumero(tx),
+          station,
+          createdById: user.userId,
+        },
+        select: { id: true },
+      });
+
+      tickets.set(station, ticket.id);
+    }
 
     for (const item of items) {
       await tx.orderItem.create({
@@ -1446,7 +1457,7 @@ export async function directSale(
           station: item.station,
           // Ya entregado y ya cobrado: no hay estado intermedio que esperar.
           status: "SENT",
-          ticketId: item.station === "COCINA" ? ticket?.id : null,
+          ticketId: tickets.get(item.station) ?? null,
           paymentId: payment.id,
           createdById: user.userId,
         },
@@ -1465,12 +1476,15 @@ export async function directSale(
   });
 
   revalidatePath("/staff/pos");
-  if (paraCocina.length > 0) revalidatePath("/staff/cocina");
+  if (estaciones.includes("COCINA")) revalidatePath("/staff/cocina");
+  if (estaciones.includes("BARRA")) revalidatePath("/staff/barra");
 
   return formSuccess(`Cobrado · ${code}`, {
     code,
     totalCents,
     discountCents,
-    cocina: paraCocina.length > 0,
+    // Lo que va a salir por la impresora, en el orden en que sale: quien cobra
+    // tiene que saber cuantos papeles esperar antes de soltar la caja.
+    papeles: [...estaciones, "COBRO"],
   });
 }

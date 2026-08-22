@@ -126,7 +126,8 @@ export async function getLiveService(): Promise<LiveService> {
   const [payments, items, sessions, pendingTickets, servedTickets, failedPrints, tables] =
     await Promise.all([
       prisma.payment.findMany({
-        where: { paidAt: { gte: since } },
+        // Sin los anulados: no entraron a la caja (ver `voidPayment`).
+        where: { paidAt: { gte: since }, voidedAt: null },
         select: {
           totalCents: true,
           discountCents: true,

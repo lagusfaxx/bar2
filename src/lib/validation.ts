@@ -443,6 +443,20 @@ export const posDirectSaleSchema = z.object({
     ),
 });
 
+/**
+ * Anulacion de un cobro.
+ *
+ * El motivo es obligatorio y corto: sin el, un mes despues nadie sabe si ese
+ * cobro anulado fue una prueba o la vuelta de un cliente enojado, que es toda
+ * la razon por la que se guarda en vez de borrarse.
+ */
+export const posVoidPaymentSchema = z.object({
+  paymentId: trimmed.min(1),
+  reason: trimmed
+    .min(3, "Escribe por qué se anula")
+    .max(140, "Demasiado largo para un motivo"),
+});
+
 /** Tarjeta presentada en la mesa: numero tipeado, QR escaneado o codigo. */
 export const posCardSchema = z.object({
   sessionId: trimmed.min(1),

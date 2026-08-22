@@ -6,9 +6,9 @@ import {
   Loader2,
   Minus,
   Plus,
+  Printer,
   Receipt,
   Trash2,
-  Utensils,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -29,6 +29,13 @@ const METHODS = [
   { value: "CREDITO", label: "Crédito" },
   { value: "TRANSFERENCIA", label: "Transferencia" },
 ] as const;
+
+/** "Cocina, barra y comprobante": como se lee una lista corta en voz alta. */
+function listar(nombres: string[]) {
+  if (nombres.length < 2) return nombres.join("");
+
+  return `${nombres.slice(0, -1).join(", ").toLowerCase()} y ${nombres[nombres.length - 1]!.toLowerCase()}`;
+}
 
 type Line = PosMenuProduct & {
   quantity: number;
@@ -118,9 +125,19 @@ export function DirectSale({
 
   const unidades = lines.reduce((total, line) => total + line.quantity, 0);
 
-  /* Lo que va a preparar la cocina. Se mira aca solo para avisarlo antes de
-     cobrar: quien cobra tiene que saber que ademas va a salir una comanda. */
-  const conCocina = lines.some((line) => line.station === "COCINA");
+  /*
+   * Los papeles que va a sacar la impresora, en el orden en que salen.
+   *
+   * Se calcula aca solo para avisarlo: quien cobra esta parado frente al
+   * cliente y tiene que saber cuantos papeles esperar antes de soltar la caja.
+   * Con una sola impresora salen de a uno, con unos segundos entre medio, y
+   * cada uno va a un lado distinto —cocina, barra y la mano del cliente—.
+   */
+  const papeles = [
+    ...(lines.some((line) => line.station === "COCINA") ? ["Cocina"] : []),
+    ...(lines.some((line) => line.station === "BARRA") ? ["Barra"] : []),
+    "Comprobante",
+  ];
 
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
@@ -216,7 +233,7 @@ export function DirectSale({
         <CobroSheet
           lines={lines}
           totalCents={totalCents}
-          conCocina={conCocina}
+          papeles={papeles}
           onClose={() => setCobrando(false)}
           onDone={() => {
             setLines([]);
@@ -327,13 +344,14 @@ function Pedido({
 function CobroSheet({
   lines,
   totalCents,
-  conCocina,
+  papeles,
   onClose,
   onDone,
 }: {
   lines: Line[];
   totalCents: number;
-  conCocina: boolean;
+  /** Los papeles que va a sacar la impresora, en orden. */
+  papeles: string[];
   onClose: () => void;
   onDone: () => void;
 }) {
@@ -399,10 +417,13 @@ function CobroSheet({
 
             <p className="mt-2 text-sm text-muted">N° de comprobante: {receipt}</p>
 
+            {/* Lo que hay que ir a retirar. Salen de a uno por la misma
+                ranura, con unos segundos entre medio: sin decirlo, el garzon
+                se lleva el primero y deja los otros ahi. */}
             <p className="mt-3 text-sm text-muted">
-              {state.data?.cocina
-                ? "Sale el comprobante y la comanda de cocina."
-                : "Sale el comprobante por la impresora."}
+              {papeles.length === 1
+                ? "Sale el comprobante por la impresora."
+                : `Salen ${papeles.length} papeles, uno tras otro: ${listar(papeles)}.`}
             </p>
 
             {/* Lo que sigue casi siempre es la venta del que viene atras. */}
@@ -446,10 +467,10 @@ function CobroSheet({
               </button>
             </div>
 
-            {conCocina && (
+            {papeles.length > 1 && (
               <p className="mt-3 flex items-center gap-2 border border-gilt/40 px-3 py-2 text-sm text-gilt-soft">
-                <Utensils className="size-4 shrink-0" aria-hidden />
-                Lleva comida: además del comprobante sale la comanda de cocina.
+                <Printer className="size-4 shrink-0" aria-hidden />
+                Van a salir {papeles.length} papeles: {listar(papeles)}.
               </p>
             )}
 

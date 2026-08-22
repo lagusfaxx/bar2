@@ -265,7 +265,7 @@ src/
 | `Diner` | Un comensal, identificado por cómo se ve ("polera azul"). |
 | `OrderItem` | Una línea de la cuenta, con copia del nombre y el precio del momento. |
 | `OrderTicket` | Una comanda: su estado de impresión y el de preparación en la pantalla de la estación. |
-| `Payment` | Un cobro: de un comensal, de la mesa entera o de una venta directa. |
+| `Payment` | Un cobro: de un comensal, de la mesa entera o de una venta directa. Anulado (`voidedAt`), no suma en ninguna cifra. |
 | `AuditLog` | Historial de cambios del panel. |
 
 Los precios se guardan en **centésimos** (`Int`) para no arrastrar errores de
@@ -407,10 +407,13 @@ El botón dorado **"Cobro directo"**, en la sección *De pie* de `/staff/pos`
 2. **Cobrar**: se pide el **nombre del cliente** —es como se le entrega y como
    lo reclama después; se puede dejar vacío si el pedido se entrega en el
    acto— y con qué paga (efectivo por defecto).
-3. Sale el **comprobante** por la impresora. Si el pedido lleva algo de
-   cocina, sale **además la comanda de cocina** y aparece en su pantalla con
-   el nombre del cliente en lugar del número de mesa. Lo que prepara la barra
-   no genera comanda: la sirve el mismo que está cobrando.
+3. Salen los papeles: **una comanda por estación** —cocina y/o barra, según lo
+   que se haya vendido— y al final el **comprobante**. Aparecen también en las
+   pantallas de cocina y barra, con el nombre del cliente en lugar del número
+   de mesa. Con una sola impresora salen **de a uno, separados por la pausa de
+   `PRINT_GAP_MS`** (tres segundos), porque cada uno va a un lado distinto: a
+   la cocina, a la barra y a la mano del cliente. La pantalla avisa cuántos
+   papeles esperar antes de cobrar y al terminar.
 4. Termina en la pantalla del comprobante, con **"Otra venta"** a un toque:
    detrás siempre viene otro.
 
@@ -460,6 +463,33 @@ quita con `?zonamuerta=0`.
 Es una medida **de ese monitor**, no del sitio, y por eso vive en el equipo y
 no en los ajustes del panel: los teléfonos de los garzones no tienen nada que
 compensar y no se ven afectados.
+
+### Anular un cobro (pruebas y errores)
+
+Dos cosas pasan de verdad y hasta ahora sólo se arreglaban entrando a la base:
+la prueba que alguien hace con el POS antes de abrir, y el cobro que sale mal
+—la mesa equivocada, el método equivocado—. Las dos quedaban sumando en el
+cierre del día.
+
+En **Caja** (`/admin/caja`), cada cobro del día trae un botón **Anular**, que
+pide un motivo obligatorio. Sólo lo ve y lo puede usar un usuario **ADMIN**: el
+garzón no deshace plata cobrada.
+
+Se **anula, no se borra**. Un cobro que desaparece sin dejar rastro es
+justamente lo que hay que poder auditar después, así que queda listado abajo en
+**Anulados hoy** —con el motivo, quién lo anuló y cuánto era— y en el historial
+del panel. Lo que sí desaparece es de las cifras: total del día, formas de pago,
+cobro directo, lo más vendido y el panel En vivo.
+
+Qué pasa con lo que se había cobrado, según de dónde venía:
+
+| Origen | Qué queda |
+| --- | --- |
+| Mesa o cuenta de pie | El consumo **vuelve a quedar pendiente** y la cuenta se reabre si se había cerrado con ese cobro, para poder cobrarlo bien. Los beneficios de BarzuCard vuelven a estar en juego. |
+| Cobro directo | Se anula la venta entera: sus líneas quedan canceladas y no cuentan en lo más vendido. Sus comandas dejan de esperar en las pantallas de cocina y barra. |
+
+Para un **pedido** de prueba que todavía no se cobró no hace falta nada de esto:
+se anulan las líneas desde la cuenta en el POS y la mesa se cierra vacía.
 
 ### La gente de pie
 
@@ -601,10 +631,11 @@ el PC de la pantalla táctil, un PC de caja o una Raspberry Pi con Node 18+.
 
 #### Qué se imprime
 
-Un **cobro directo** saca el comprobante, y la comanda de cocina solo si el
-pedido lleva algo que preparar ahí (ver [Cobro directo](#cobro-directo-venta-de-mostrador)).
-El papel se encabeza con **VENTA DIRECTA** y el nombre del cliente en vez del
-número de mesa.
+Un **cobro directo** saca una comanda por estación y después el comprobante
+(ver [Cobro directo](#cobro-directo-venta-de-mostrador)). A diferencia de un
+envío de mesa, **no se agrupan en una sola tira**: cada papel va a un lado
+distinto, así que salen separados por la pausa de `PRINT_GAP_MS`. Se encabezan
+con el nombre del cliente en vez del número de mesa.
 
 Cada envío de una mesa saca **una comanda por estación**: una con los
 bebestibles para la barra y otra con los alimentos para la cocina. Si la mesa
