@@ -11,7 +11,7 @@ import {
   Th,
 } from "@/components/admin/ui";
 import { formatPrice, formatTime } from "@/lib/format";
-import { lineTotal } from "@/lib/pos";
+import { lineTotal, sessionTitle } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +41,13 @@ export default async function CashPage() {
       where: { paidAt: { gte: desde } },
       orderBy: { paidAt: "desc" },
       include: {
-        session: { select: { table: { select: { number: true } } } },
+        session: {
+          select: {
+            kind: true,
+            label: true,
+            table: { select: { number: true, name: true } },
+          },
+        },
         diner: { select: { label: true } },
         cashier: { select: { name: true } },
       },
@@ -63,7 +69,9 @@ export default async function CashPage() {
       where: { status: "OPEN" },
       orderBy: { openedAt: "asc" },
       include: {
-        table: { select: { number: true } },
+        // `kind` y `label` vienen solos: en un `include` los campos propios
+        // ya estan. Solo la mesa hay que pedirla, y puede no haber (cuenta de pie).
+        table: { select: { number: true, name: true } },
         items: {
           where: { status: { not: "CANCELLED" }, paymentId: null },
           select: { unitPriceCents: true, discountCents: true, quantity: true },
@@ -158,7 +166,7 @@ export default async function CashPage() {
                 className="border border-line px-3 py-2 text-sm"
               >
                 <span className="font-display text-bone">
-                  Mesa {session.table.number}
+                  {sessionTitle(session)}
                 </span>
                 <span className="ml-2 text-muted">
                   {formatPrice(
@@ -249,7 +257,7 @@ export default async function CashPage() {
                         {payment.code}
                       </span>
                     </Td>
-                    <Td>{payment.session.table.number}</Td>
+                    <Td>{sessionTitle(payment.session)}</Td>
                     <Td>{payment.diner?.label ?? "Mesa completa"}</Td>
                     <Td>{METHOD_LABELS[payment.method] ?? payment.method}</Td>
                     <Td>{payment.cashier?.name ?? "—"}</Td>

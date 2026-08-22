@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 
-import { STATION_LABELS } from "@/lib/pos";
+import { sessionTitle, STATION_LABELS } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -54,6 +54,8 @@ export async function GET(request: Request) {
         select: {
           code: true,
           guests: true,
+          kind: true,
+          label: true,
           table: { select: { number: true, name: true } },
         },
       },
@@ -126,9 +128,27 @@ export async function GET(request: Request) {
         batchId: ticket.batchId,
         waiter: ticket.createdBy?.name ?? null,
         createdAt: ticket.createdAt.toISOString(),
+
+        /*
+         * De quien es el papel, en dos formas.
+         *
+         * `title` es la buena: "Mesa 4" o "Polera azul", ya resuelta aca. La
+         * usa el agente al dia.
+         *
+         * `table` se sigue mandando —con la mesa cero cuando la cuenta es de
+         * pie— por una razon concreta: el agente corre en un PC del local y se
+         * actualiza a mano, asi que en cualquier momento puede haber uno viejo
+         * dando vueltas. Uno viejo lee `table.number` sin preguntar; si le
+         * llegara vacio, la comanda reventaria al imprimirse y se reintentaria
+         * hasta quedar FALLIDA, o sea que la barra nunca veria el pedido. Asi
+         * imprime "MESA 0" con el nombre debajo: feo, pero sale y se entiende.
+         */
+        title: sessionTitle(ticket.session),
         table: {
-          number: ticket.session.table.number,
-          name: ticket.session.table.name,
+          number: ticket.session.table?.number ?? 0,
+          name: ticket.session.table
+            ? ticket.session.table.name
+            : sessionTitle(ticket.session),
         },
         sessionCode: ticket.session.code,
         items: ticket.items
@@ -136,6 +156,9 @@ export async function GET(request: Request) {
           .map((item) => ({
             quantity: item.quantity,
             name: item.name,
+            // Lo elegido al pedirlo: la barra no puede servir "Promo con
+            // bebida" sin saber cual.
+            variant: item.variant,
             note: item.note,
             // El comensal va impreso: la barra arma el pedido separado y el
             // garzon sabe delante de quien dejar cada trago.

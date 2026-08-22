@@ -2,7 +2,12 @@ import "server-only";
 
 import { randomInt } from "node:crypto";
 
-import type { Station, TicketKind } from "@/generated/prisma/enums";
+import type { Prisma } from "@/generated/prisma/client";
+import type {
+  SessionKind,
+  Station,
+  TicketKind,
+} from "@/generated/prisma/enums";
 import { checkEligibility } from "@/lib/barzucard";
 import { prisma } from "@/lib/prisma";
 import {
@@ -97,7 +102,37 @@ export type PosMenuProduct = {
   unitPriceCents: number;
   discountCents: number;
   discountLabel: string | null;
+  /** Lo que hay que preguntar antes de cargarlo: "Sabor". Vacio = nada. */
+  optionLabel: string | null;
+  /** Las respuestas posibles: ["Coca-Cola", "Sprite"]. Vacio = se carga directo. */
+  options: string[];
 };
+
+/**
+ * Una fila de la carta, como la usa el garzon.
+ *
+ * Existe porque la arman dos listas distintas —la carta por categorias y los
+ * frecuentes— y un campo que se agregue en una sola de las dos es un producto
+ * que en la portada no pregunta el sabor y dentro de su categoria si.
+ */
+function toPosProduct(
+  product: MenuRows[number]["products"][number],
+  category: { station: Station },
+  now: Date,
+): PosMenuProduct {
+  const priced = priceFor(product, now);
+
+  return {
+    id: product.id,
+    name: product.name,
+    station: product.station ?? category.station,
+    unitPriceCents: priced.unitPriceCents,
+    discountCents: priced.discountCents,
+    discountLabel: priced.discountLabel,
+    optionLabel: product.options.length > 0 ? (product.optionLabel?.trim() || "Elige") : null,
+    options: product.options,
+  };
+}
 
 export type PosMenuCategory = {
   id: string;
@@ -191,18 +226,9 @@ export async function getPosMenu(now = new Date()): Promise<PosMenuCategory[]> {
       id: category.id,
       name: category.name,
       station: category.station,
-      products: category.products.map((product) => {
-        const priced = priceFor(product, now);
-
-        return {
-          id: product.id,
-          name: product.name,
-          station: product.station ?? category.station,
-          unitPriceCents: priced.unitPriceCents,
-          discountCents: priced.discountCents,
-          discountLabel: priced.discountLabel,
-        };
-      }),
+      products: category.products.map((product) =>
+        toPosProduct(product, category, now),
+      ),
     }))
     .filter((category) => category.products.length > 0);
 }
@@ -277,18 +303,7 @@ export async function getFrequentProducts(
   return ids
     .map((id) => porId.get(id))
     .filter((fila): fila is NonNullable<typeof fila> => !!fila)
-    .map(({ product, category }) => {
-      const priced = priceFor(product, now);
-
-      return {
-        id: product.id,
-        name: product.name,
-        station: product.station ?? category.station,
-        unitPriceCents: priced.unitPriceCents,
-        discountCents: priced.discountCents,
-        discountLabel: priced.discountLabel,
-      };
-    });
+    .map(({ product, category }) => toPosProduct(product, category, now));
 }
 
 // --- Pantallas de cocina y barra ---------------------------------------------
@@ -296,13 +311,18 @@ export async function getFrequentProducts(
 export type BoardTicket = {
   id: string;
   number: number;
-  tableNumber: number;
+  /** Como se llama la cuenta: "Mesa 4" o "Polera azul". Es el titulo grande. */
+  title: string;
+  /** Vacio en las cuentas de pie: no hay mesa que numerar. */
+  tableNumber: number | null;
   tableName: string | null;
   createdAt: string;
   items: Array<{
     id: string;
     quantity: number;
     name: string;
+    /** Lo elegido al pedirlo: "Sprite", "Con gas". */
+    variant: string | null;
     note: string | null;
     diner: string | null;
   }>;
@@ -338,7 +358,11 @@ export async function getStationBoard(
     orderBy: { createdAt: "asc" },
     include: {
       session: {
-        select: { table: { select: { number: true, name: true } } },
+        select: {
+          kind: true,
+          label: true,
+          table: { select: { number: true, name: true } },
+        },
       },
       items: {
         where: { status: { not: "CANCELLED" } },
@@ -354,20 +378,67 @@ export async function getStationBoard(
     .map((ticket) => ({
       id: ticket.id,
       number: ticket.number,
-      tableNumber: ticket.session.table.number,
-      tableName: ticket.session.table.name,
+      title: sessionTitle(ticket.session),
+      tableNumber: ticket.session.table?.number ?? null,
+      tableName: ticket.session.table?.name ?? null,
       createdAt: ticket.createdAt.toISOString(),
       items: ticket.items.map((item) => ({
         id: item.id,
         quantity: item.quantity,
         name: item.name,
+        // Lo elegido va pegado al nombre: es parte de que hay que preparar, no
+        // un comentario. "Sprite" bajo "Promo pizza + bebida".
+        variant: item.variant,
         note: item.note,
         diner: item.diner?.label ?? null,
       })),
     }));
 }
 
+// --- Como se nombra una cuenta -----------------------------------------------
+
+/** Lo minimo para poder nombrar una cuenta: de que tipo es y de donde cuelga. */
+export type NameableSession = {
+  kind: SessionKind;
+  label: string | null;
+  table: { number: number; name: string | null } | null;
+};
+
+/**
+ * Como se nombra una cuenta en voz alta, en pantalla y en el papel.
+ *
+ * Una mesa se nombra por su numero, que es lo que todo el mundo canta. Una
+ * cuenta de pie no tiene numero, asi que se nombra por como se ve quien la
+ * tiene —"Polera azul"—, que es la misma convencion que ya usan los comensales
+ * dentro de una mesa (ver el modelo `Diner`). Y la venta al paso no alcanza a
+ * necesitar nombre: existe los treinta segundos que se tarda en cobrarla.
+ *
+ * Vive en una sola funcion porque lo usan la pantalla de sala, la de cocina, la
+ * de barra y la cola de impresion: cuatro lugares donde una cuenta sin mesa no
+ * puede aparecer como "Mesa undefined".
+ */
+export function sessionTitle(session: NameableSession): string {
+  if (session.table) return `Mesa ${session.table.number}`;
+  return session.label?.trim() || "De pie";
+}
+
 // --- Mesas -------------------------------------------------------------------
+
+/** El estado de una cuenta abierta, se juegue en una mesa o de pie. */
+export type SessionSummary = {
+  id: string;
+  code: string;
+  openedAt: string;
+  guests: number;
+  diners: number;
+  /** Lineas cargadas que todavia no salieron en ninguna comanda. */
+  draftItems: number;
+  /** A donde iria ese pedido si se mandara ahora. Vacio si no hay nada. */
+  draftStations: Station[];
+  /** Comandas que siguen en la estacion, esperando que alguien las retire. */
+  pendingTickets: number;
+  pendingCents: number;
+};
 
 export type TableOverview = {
   id: string;
@@ -375,21 +446,71 @@ export type TableOverview = {
   name: string | null;
   zone: string | null;
   seats: number;
-  session: {
-    id: string;
-    code: string;
-    openedAt: string;
-    guests: number;
-    diners: number;
-    /** Lineas cargadas que todavia no salieron en ninguna comanda. */
-    draftItems: number;
-    /** A donde iria ese pedido si se mandara ahora. Vacio si no hay nada. */
-    draftStations: Station[];
-    /** Comandas que siguen en la estacion, esperando que alguien las retire. */
-    pendingTickets: number;
-    pendingCents: number;
-  } | null;
+  session: SessionSummary | null;
 };
+
+/**
+ * Una cuenta de pie, tal como se ve en la pantalla de sala.
+ *
+ * No es una mesa y por eso no entra en la rejilla: no tiene numero fijo ni
+ * lugar en el plano del local. Se lista aparte, por antiguedad, que es el unico
+ * orden que sirve cuando son diez y todas se llaman por como se ve la gente.
+ */
+export type WalkInOverview = {
+  /** Como se la nombra: "Polera azul", o "De pie" mientras no tenga nombre. */
+  title: string;
+  session: SessionSummary;
+};
+
+/**
+ * Lo que hay que traer de una cuenta abierta para resumirla en la pantalla.
+ *
+ * Lo comparten las mesas y las cuentas de pie: son la misma cuenta y tienen que
+ * mostrar los mismos avisos —cuanto se debe, cuanto falta por mandar, que
+ * comanda sigue esperando en la estacion—. Con dos consultas escritas por
+ * separado, el dia que se agregue un aviso aparece en la rejilla y no en la
+ * barra, o al reves.
+ */
+const RESUMEN_DE_CUENTA = {
+  diners: { select: { id: true } },
+  items: {
+    where: { status: { not: "CANCELLED" } },
+    select: {
+      status: true,
+      station: true,
+      paymentId: true,
+      unitPriceCents: true,
+      discountCents: true,
+      quantity: true,
+    },
+  },
+  tickets: {
+    where: { kind: "COMANDA", prep: "PENDIENTE" },
+    select: { id: true },
+  },
+} satisfies Prisma.TableSessionInclude;
+
+type FilaDeCuenta = Prisma.TableSessionGetPayload<{
+  include: typeof RESUMEN_DE_CUENTA;
+}>;
+
+function toSessionSummary(session: FilaDeCuenta): SessionSummary {
+  const draft = session.items.filter((item) => item.status === "DRAFT");
+
+  return {
+    id: session.id,
+    code: session.code,
+    openedAt: session.openedAt.toISOString(),
+    guests: session.guests,
+    diners: session.diners.length,
+    draftItems: draft.length,
+    draftStations: [...new Set(draft.map((item) => item.station))],
+    pendingTickets: session.tickets.length,
+    pendingCents: session.items
+      .filter((item) => item.paymentId === null)
+      .reduce((total, item) => total + lineTotal(item), 0),
+  };
+}
 
 /** Estado de todas las mesas activas: lo primero que ve el garzon al entrar. */
 export async function getTablesOverview(): Promise<TableOverview[]> {
@@ -398,27 +519,12 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
     orderBy: [{ position: "asc" }, { number: "asc" }],
     include: {
       sessions: {
-        where: { status: "OPEN" },
+        // Solo las de mesa: una cuenta de pie no cuelga de ninguna, pero el
+        // filtro se deja escrito igual para que la rejilla no dependa de eso.
+        where: { status: "OPEN", kind: "MESA" },
         orderBy: { openedAt: "desc" },
         take: 1,
-        include: {
-          diners: { select: { id: true } },
-          items: {
-            where: { status: { not: "CANCELLED" } },
-            select: {
-              status: true,
-              station: true,
-              paymentId: true,
-              unitPriceCents: true,
-              discountCents: true,
-              quantity: true,
-            },
-          },
-          tickets: {
-            where: { kind: "COMANDA", prep: "PENDIENTE" },
-            select: { id: true },
-          },
-        },
+        include: RESUMEN_DE_CUENTA,
       },
     },
   });
@@ -432,30 +538,33 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
       name: table.name,
       zone: table.zone,
       seats: table.seats,
-      session: session
-        ? {
-            id: session.id,
-            code: session.code,
-            openedAt: session.openedAt.toISOString(),
-            guests: session.guests,
-            diners: session.diners.length,
-            draftItems: session.items.filter((item) => item.status === "DRAFT")
-              .length,
-            draftStations: [
-              ...new Set(
-                session.items
-                  .filter((item) => item.status === "DRAFT")
-                  .map((item) => item.station),
-              ),
-            ],
-            pendingTickets: session.tickets.length,
-            pendingCents: session.items
-              .filter((item) => item.paymentId === null)
-              .reduce((total, item) => total + lineTotal(item), 0),
-          }
-        : null,
+      session: session ? toSessionSummary(session) : null,
     };
   });
+}
+
+/**
+ * Las cuentas de pie abiertas, de la mas vieja a la mas nueva.
+ *
+ * Al reves que las mesas: ahi el orden es el plano del local y aca es el
+ * tiempo, porque es lo unico que distingue a diez cuentas que se llaman todas
+ * por una prenda de ropa. La que lleva mas rato abierta es, casi siempre, la
+ * que hay que ir a cobrar.
+ *
+ * Las ventas al paso no alcanzan a aparecer: se cobran y se cierran solas en el
+ * mismo minuto en que se abren (ver `payAccount`).
+ */
+export async function getWalkInSessions(): Promise<WalkInOverview[]> {
+  const sessions = await prisma.tableSession.findMany({
+    where: { status: "OPEN", kind: "PIE" },
+    orderBy: { openedAt: "asc" },
+    include: RESUMEN_DE_CUENTA,
+  });
+
+  return sessions.map((session) => ({
+    title: sessionTitle({ kind: session.kind, label: session.label, table: null }),
+    session: toSessionSummary(session),
+  }));
 }
 
 // --- Cuenta ------------------------------------------------------------------
@@ -463,6 +572,8 @@ export async function getTablesOverview(): Promise<TableOverview[]> {
 export type AccountItem = {
   id: string;
   name: string;
+  /** Lo elegido al pedirlo: "Sprite", "Con gas". */
+  variant: string | null;
   note: string | null;
   quantity: number;
   unitPriceCents: number;
@@ -519,10 +630,14 @@ export type SessionDetail = {
   id: string;
   code: string;
   status: "OPEN" | "CLOSED";
+  kind: SessionKind;
+  /** "Mesa 4" o "Polera azul": lo que va grande arriba de la cuenta. */
+  title: string;
   guests: number;
   note: string | null;
   openedAt: string;
-  table: { id: string; number: number; name: string | null };
+  /** Vacia en las cuentas de pie. */
+  table: { id: string; number: number; name: string | null } | null;
   /** Sin tarjeta no hay beneficios: es la condicion de todo el programa. */
   card: SessionCard | null;
   diners: Array<{ id: string; label: string; color: string | null }>;
@@ -594,6 +709,7 @@ export async function getSessionDetail(
   const toAccountItem = (item: (typeof session.items)[number]): AccountItem => ({
     id: item.id,
     name: item.name,
+    variant: item.variant,
     note: item.note,
     quantity: item.quantity,
     unitPriceCents: item.unitPriceCents,
@@ -677,6 +793,8 @@ export async function getSessionDetail(
     id: session.id,
     code: session.code,
     status: session.status,
+    kind: session.kind,
+    title: sessionTitle(session),
     guests: session.guests,
     note: session.note,
     openedAt: session.openedAt.toISOString(),
@@ -764,6 +882,16 @@ export type PromotionOffer = {
    * lo agrega solo y sale la comanda. No es un impedimento.
    */
   addsProduct: boolean;
+  /**
+   * Lo que hay que preguntar antes de regalar el producto de la cortesia.
+   *
+   * Una promocion que regala una bebida tiene el mismo problema que venderla:
+   * hay que saber cual. Va aca —y no se resuelve al aplicar— para que la
+   * garzona elija en la misma hoja donde toca el beneficio, sin que la
+   * aplicacion falle primero para pedirselo despues.
+   */
+  optionLabel: string | null;
+  options: string[];
 };
 
 const TYPE_SHORT: Record<string, string> = {
@@ -822,7 +950,8 @@ export async function getPromotionOffersByTab(
       where: { active: true },
       orderBy: { position: "asc" },
       include: {
-        product: { select: { name: true } },
+        // Con sus opciones: una cortesia de bebida tiene que preguntar cual.
+        product: { select: { name: true, optionLabel: true, options: true } },
         category: { select: { name: true } },
       },
     }),
@@ -926,6 +1055,17 @@ export async function getPromotionOffersByTab(
                 : null,
           applied,
           addsProduct,
+          /*
+           * Solo cuando la cortesia va a agregar el producto.
+           *
+           * Si el producto ya esta en la cuenta no se crea ninguna linea nueva
+           * —el beneficio descuenta sobre la que existe— y ahi no hay nada que
+           * preguntar: el sabor se eligio cuando se cargo.
+           */
+          optionLabel: addsProduct
+            ? promotion.product?.optionLabel?.trim() || null
+            : null,
+          options: addsProduct ? (promotion.product?.options ?? []) : [],
         };
       }),
     );
@@ -955,6 +1095,17 @@ function readable(length: number) {
 /** Nombre del turno de mesa: "M4-K7P2". Se canta entre garzones. */
 export function generateSessionCode(tableNumber: number) {
   return `M${tableNumber}-${readable(4)}`;
+}
+
+/**
+ * Nombre de una cuenta de pie: "P-K7P2".
+ *
+ * La P reemplaza al numero de mesa por lo mismo que existe el codigo: se dicta
+ * en voz alta, y "pe ka siete pe dos" se distingue de una mesa sin que nadie
+ * tenga que explicar cual es cual.
+ */
+export function generateWalkInCode() {
+  return `P-${readable(4)}`;
 }
 
 /** Comprobante del cobro: "BZC-4K7P2M". */

@@ -146,7 +146,10 @@ function Totals({ tickets }: { tickets: BoardTicket[] }) {
 
   for (const ticket of tickets) {
     for (const item of ticket.items) {
-      totals.set(item.name, (totals.get(item.name) ?? 0) + item.quantity);
+      // Con el sabor incluido: "10 bebidas" no le sirve a nadie en la barra;
+      // "8 Coca-Cola, 2 Sprite" es lo que hay que sacar del refrigerador.
+      const clave = item.variant ? `${item.name} · ${item.variant}` : item.name;
+      totals.set(clave, (totals.get(clave) ?? 0) + item.quantity);
     }
   }
 
@@ -237,6 +240,11 @@ function TicketCard({
             >
               <span className="text-crimson-bright">{item.quantity}×</span>{" "}
               {item.name}
+              {/* Del mismo tamano que el producto, no como una nota al pie: sin
+                  esto, "Promo con bebida" llega a la barra sin decir cual. */}
+              {item.variant && (
+                <span className="text-gilt-soft"> · {item.variant}</span>
+              )}
             </p>
 
             {/* La nota va destacada: es lo que se pasa por alto y vuelve el plato. */}

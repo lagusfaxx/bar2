@@ -144,6 +144,15 @@ export const menuProductSchema = z.object({
   // carta del QR de la mesa y en el POS (ver MenuProduct.publicMenu).
   publicMenu: z.coerce.boolean().default(true),
   tags: trimmed.max(200).optional().or(z.literal("")),
+  /**
+   * Lo que el POS pregunta al cargar este producto.
+   *
+   * `optionLabel` es la pregunta ("Sabor") y `options` las respuestas separadas
+   * por comas. Las dos vacias = no se pregunta nada, que es el caso de casi
+   * toda la carta.
+   */
+  optionLabel: trimmed.max(40).optional().or(z.literal("")),
+  options: trimmed.max(400).optional().or(z.literal("")),
   // Vacio = el producto sigue la impresora de su categoria.
   station: z.enum(["BARRA", "COCINA"]).optional().or(z.literal("")),
   promoPrice: trimmed.max(20).optional().or(z.literal("")),
@@ -365,6 +374,29 @@ export const posItemSchema = z.object({
   dinerId: trimmed.max(40).optional().or(z.literal("")),
   quantity: z.coerce.number().int().min(1).max(99).default(1),
   note: trimmed.max(140).optional().or(z.literal("")),
+  /**
+   * La respuesta a lo que el producto pregunta: "Sprite", "Con gas".
+   *
+   * Aca solo se comprueba que sea texto corto. Que sea UNA de las opciones que
+   * el producto ofrece se valida en el servidor contra la carta, que es el
+   * unico lugar donde esa lista existe de verdad.
+   */
+  variant: trimmed.max(60).optional().or(z.literal("")),
+});
+
+/**
+ * Una cuenta para gente que no se sienta.
+ *
+ * Sin `tableId`: es lo que la distingue de abrir una mesa. Y sin etiqueta
+ * obligatoria, porque hay dos usos y uno de ellos no alcanza a necesitarla:
+ * la venta al paso —piden, pagan y se van— se abre y se cierra en el mismo
+ * minuto, y obligar ahi a describir al cliente seria pedir un dato que nadie
+ * va a leer nunca.
+ */
+export const posWalkInSchema = z.object({
+  label: trimmed.max(40).optional().or(z.literal("")),
+  guests: z.coerce.number().int().min(1, "Al menos una persona").max(40).default(1),
+  note: trimmed.max(200).optional().or(z.literal("")),
 });
 
 export const posPaymentSchema = z.object({
@@ -386,6 +418,14 @@ export const posPromotionSchema = z.object({
   promotionId: trimmed.min(1),
   /** Vacio = a la cuenta compartida de la mesa. */
   dinerId: trimmed.max(40).optional().or(z.literal("")),
+  /**
+   * Para las cortesias cuyo producto pregunta algo.
+   *
+   * Una promocion que regala una bebida tiene el mismo problema que venderla:
+   * hay que saber cual. Se elige al aplicar el beneficio y viaja hasta la linea
+   * de cortesia que se crea sola.
+   */
+  variant: trimmed.max(60).optional().or(z.literal("")),
 });
 
 export const posTableSchema = z.object({
