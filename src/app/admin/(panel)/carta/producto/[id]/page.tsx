@@ -45,6 +45,8 @@ export default async function EditarProductoPage({
           featured: product.featured,
           publicMenu: product.publicMenu,
           tags: product.tags,
+          optionLabel: product.optionLabel,
+          options: product.options,
           station: product.station ?? "",
           promoPrice:
             product.promoPriceCents !== null

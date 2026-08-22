@@ -1,0 +1,16 @@
+-- La venta de mostrador, registrada.
+--
+-- La migracion anterior le dio a una cuenta la posibilidad de no tener mesa,
+-- que es lo que necesitaba la gente de pie en la barra. Esta agrega el otro
+-- extremo de esa misma barra: la venta que se pide, se paga y se entrega en el
+-- mismo toque, sin llegar a existir como cuenta abierta.
+--
+-- Es un tercer valor y no una cuenta de pie sin nombre porque el cierre de caja
+-- tiene que poder responder cuanto de la noche entro por mostrador: sin la
+-- distincion, esa venta queda mezclada con las rondas de quien se queda parado
+-- en la barra toda la noche.
+--
+-- Postgres 12+ acepta agregar un valor a un enum dentro de la transaccion de la
+-- migracion mientras no se lo use ahi mismo, que es el caso: aca no se escribe
+-- ninguna fila.
+ALTER TYPE "SessionKind" ADD VALUE 'DIRECTA';

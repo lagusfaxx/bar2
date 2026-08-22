@@ -41,7 +41,7 @@ import { PaySheet } from "@/components/staff/pos/pay-sheet";
 import { ProductPicker } from "@/components/staff/pos/product-picker";
 import { useLiveRefresh } from "@/components/staff/use-live-refresh";
 import { useTecladoPropio } from "@/components/staff/use-pointer";
-import { formatPrice, originLabel } from "@/lib/format";
+import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type {
   AccountItem,
@@ -219,8 +219,11 @@ export function Account({
           </Link>
 
           <div className="min-w-0 flex-1">
+            {/* "Mesa 4" o "Polera azul": lo resuelve el servidor, porque lo
+                mismo tiene que decir el papel de la comanda y la pantalla de
+                barra (ver `sessionTitle`). */}
             <h1 className="font-display text-xl text-bone">
-              {originLabel(session.table)}
+              {session.title}
               {session.table?.name && (
                 <span className="ml-2 text-sm text-muted">
                   {session.table.name}
@@ -457,6 +460,12 @@ export function Account({
                           <p className="text-bone">
                             <span className="text-muted">{item.quantity}×</span>{" "}
                             {item.name}
+                            {/* Lo elegido va pegado al nombre y no entre los
+                                avisos de abajo: es parte de que se vendio, y
+                                asi se lee "Promo con bebida · Sprite" de una. */}
+                            {item.variant && (
+                              <span className="text-gilt-soft"> · {item.variant}</span>
+                            )}
                           </p>
 
                           <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs">
@@ -939,13 +948,17 @@ export function Account({
 
       {closing && (
         <ConfirmSheet
-          title={`¿Cerrar ${originLabel(session.table).toLowerCase()}?`}
+          title={
+            session.table
+              ? `¿Cerrar la mesa ${session.table.number}?`
+              : `¿Cerrar la cuenta de ${session.title}?`
+          }
           detail={
             sinConsumo
               ? "No se cargó ningún producto, así que no queda nada por cobrar. La mesa vuelve a quedar libre."
               : "Queda libre para los próximos clientes y ya no se le puede agregar nada. Está todo pagado."
           }
-          confirmLabel="Sí, cerrar la mesa"
+          confirmLabel={session.table ? "Sí, cerrar la mesa" : "Sí, cerrar la cuenta"}
           onConfirm={() => run(() => closeTable(session.id))}
           onClose={() => setClosing(false)}
         />

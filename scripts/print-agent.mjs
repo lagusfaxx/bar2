@@ -271,31 +271,28 @@ function lineaDeCorte() {
  * que la garzona no puede verificar de otra forma: que no se dejo la otra
  * mitad en la bandeja.
  */
-/**
- * Como se encabeza el papel: "MESA 4" o "VENTA DIRECTA".
- *
- * El servidor manda `table` en null cuando el cobro no paso por ninguna mesa
- * —alguien pidio en la barra y pago al tiro—, y el papel no puede inventarse
- * un numero: quien lo lee tiene que saber que no hay mesa donde ir a dejarlo.
- */
-function origen(ticket) {
-  return ticket.table ? `MESA ${ticket.table.number}` : "VENTA DIRECTA";
-}
-
 function cuerpoComanda(ticket, parte = 1, total = 1) {
   const parts = [];
 
   parts.push(...encabezado(ticket.station));
 
+  /*
+   * De quien es la comanda, en grande.
+   *
+   * `title` lo resuelve el servidor y dice "Mesa 4" o "Polera azul", segun la
+   * cuenta sea de una mesa o de alguien que esta de pie en la barra. El
+   * `MESA ${...}` de respaldo es para el servidor viejo que todavia no manda
+   * `title`: sin el, el dia que se actualiza uno solo de los dos lados el
+   * papel sale encabezado "undefined".
+   */
   parts.push(CMD.alignCenter, CMD.doubleOn, CMD.boldOn);
-  parts.push(text(origen(ticket)));
+  parts.push(text((ticket.title || `MESA ${ticket.table.number}`).toUpperCase()));
   parts.push(CMD.doubleOff, CMD.boldOff);
 
-  /* De una venta de mostrador lo que hay que leer en grande es el nombre: es
-     como se entrega el pedido cuando no hay mesa donde dejarlo. */
-  if (ticket.table?.name) parts.push(text(ticket.table.name));
-  else if (!ticket.table && ticket.customer) {
-    parts.push(CMD.boldOn, text(ticket.customer), CMD.boldOff);
+  // El nombre de la mesa, cuando lo tiene ("Terraza 2"). En una cuenta de pie
+  // el servidor manda aca el mismo titulo, y repetirlo no aporta nada.
+  if (ticket.table.name && ticket.table.name !== ticket.title) {
+    parts.push(text(ticket.table.name));
   }
 
   // Solo cuando el papel viene partido: en una comanda sola seria una linea de
@@ -347,6 +344,27 @@ function cuerpoComanda(ticket, parte = 1, total = 1) {
 
       for (const extra of lineas.slice(1)) {
         parts.push(text(`${" ".repeat(prefijo.length)}${extra}`));
+      }
+
+      /*
+       * Lo elegido al pedirlo: el sabor de la bebida, si el agua es con gas.
+       *
+       * Va del mismo tamano que el producto y no como la nota, porque no es lo
+       * mismo: la nota es un pedido del cliente y esto es que hay que servir.
+       * "Promo con bebida" impreso solo obliga a la barra a salir a preguntar,
+       * que es exactamente el viaje que este renglon evita.
+       *
+       * Debajo y con sangria en vez de pegado al nombre: asi entra completo en
+       * los 80mm sin competir con el producto por el mismo renglon.
+       */
+      if (item.variant) {
+        for (const linea of wrap(`> ${item.variant}`, CONFIG.width - prefijo.length)) {
+          parts.push(
+            CMD.doubleOn,
+            text(`${" ".repeat(prefijo.length)}${linea}`),
+            CMD.doubleOff,
+          );
+        }
       }
 
       if (item.note) {
@@ -441,22 +459,23 @@ function renderCobro(ticket) {
 
   parts.push(...encabezado("COBRO"));
 
+  // Igual que en la comanda: "Mesa 4" o "Polera azul", con el respaldo para el
+  // servidor que todavia no manda `title`.
   parts.push(CMD.alignCenter, CMD.boldOn);
-  parts.push(text(origen(ticket)));
+  parts.push(text((ticket.title || `MESA ${ticket.table.number}`).toUpperCase()));
   parts.push(CMD.boldOff);
 
-  // Cobrar a una persona no cierra la mesa: hay que poder distinguir su papel
-  // del de los demas comensales de la misma mesa. En una venta de mostrador no
-  // hay mesa que repartir: lo que va es el nombre de quien se lo lleva.
-  parts.push(
-    text(
-      pago.dinerLabel
-        ? ticket.table
-          ? `Cuenta de ${pago.dinerLabel}`
-          : `Para ${pago.dinerLabel}`
-        : "Cuenta completa",
-    ),
-  );
+  /*
+   * De quien es este cobro dentro de la cuenta.
+   *
+   * Cobrar a una persona no cierra la mesa: hay que poder distinguir su papel
+   * del de los demas comensales de la misma mesa. En una venta de mostrador no
+   * hay nada que repartir —se cobro todo de una— y el nombre de quien se lo
+   * lleva ya va arriba, en el titulo: repetir "Cuenta completa" seria un
+   * renglon que no dice nada.
+   */
+  if (pago.dinerLabel) parts.push(text(`Cuenta de ${pago.dinerLabel}`));
+  else if (ticket.table.number > 0) parts.push(text("Cuenta completa"));
 
   const fecha = new Date(pago.paidAt).toLocaleString("es-CL", {
     day: "2-digit",
@@ -739,7 +758,7 @@ async function tick() {
 
       for (const papel of papeles) await acusar(papel.id, true);
 
-      console.log(`✓ ${numeros} ${destino} · ${origen(papeles[0]).toLowerCase()}`);
+      console.log(`✓ ${numeros} ${destino} · ${papeles[0].title ?? `mesa ${papeles[0].table.number}`}`);
     } catch (error) {
       console.error(`✗ ${numeros} ${destino}: ${error.message}`);
 
@@ -758,6 +777,7 @@ async function tick() {
  */
 const BASE_PRUEBA = {
   createdAt: new Date().toISOString(),
+  title: "Mesa 1",
   table: { number: 1, name: "Prueba de impresion" },
   sessionCode: "M1-TEST",
   waiter: "Prueba",
@@ -792,6 +812,15 @@ const TEST_TICKETS = [
     batchId: "envio-de-prueba",
     items: [
       { quantity: 3, name: "Cerveza de barril rubia 500cc", note: null, diner: "Poleron gris" },
+      // Con lo elegido al pedirlo: es lo que la barra no puede adivinar.
+      {
+        quantity: 1,
+        name: "Promo pizza + bebida",
+        variant: "Sprite",
+        note: null,
+        diner: "Poleron gris",
+      },
+      { quantity: 1, name: "Agua mineral 500cc", variant: "Con gas", note: null, diner: null },
       { quantity: 1, name: "Pisco sour clasico", note: "sin azucar", diner: null },
     ],
   },

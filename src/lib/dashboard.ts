@@ -1,8 +1,8 @@
 import "server-only";
 
 import type { Station } from "@/generated/prisma/enums";
-import { originLabel, zonedHour, zonedStartOfHour } from "@/lib/format";
-import { lineTotal } from "@/lib/pos";
+import { zonedHour, zonedStartOfHour } from "@/lib/format";
+import { lineTotal, sessionTitle } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
 
 /**
@@ -94,7 +94,8 @@ export type LiveService = {
       id: string;
       number: number;
       station: Station;
-      tableNumber: number | null;
+      /** "Mesa 4" o "Polera azul": de quien es la comanda que espera. */
+      title: string;
       minutes: number;
       items: number;
     }>;
@@ -153,10 +154,13 @@ export async function getLiveService(): Promise<LiveService> {
         select: {
           id: true,
           status: true,
-          kind: true,
           openedAt: true,
           guests: true,
-          table: { select: { number: true } },
+          // Con `kind` y `label`, porque una cuenta de pie no tiene mesa y los
+          // avisos hay que poder nombrarlos igual (ver `sessionTitle`).
+          kind: true,
+          label: true,
+          table: { select: { number: true, name: true } },
           items: {
             where: { status: { not: "CANCELLED" } },
             select: {
@@ -179,7 +183,13 @@ export async function getLiveService(): Promise<LiveService> {
           number: true,
           station: true,
           createdAt: true,
-          session: { select: { table: { select: { number: true } } } },
+          session: {
+            select: {
+              kind: true,
+              label: true,
+              table: { select: { number: true, name: true } },
+            },
+          },
           _count: { select: { items: true } },
         },
       }),
@@ -290,7 +300,7 @@ export async function getLiveService(): Promise<LiveService> {
     id: ticket.id,
     number: ticket.number,
     station: ticket.station!,
-    tableNumber: ticket.session.table?.number ?? null,
+    title: sessionTitle(ticket.session),
     minutes: minutesSince(ticket.createdAt),
     items: ticket._count.items,
   }));
@@ -319,7 +329,7 @@ export async function getLiveService(): Promise<LiveService> {
     alerts.push({
       id: `comanda-${ticket.id}`,
       level: ticket.minutes >= DEMORA_GRAVE_MIN ? "grave" : "aviso",
-      title: `${originLabel(ticket.tableNumber === null ? null : { number: ticket.tableNumber })} espera hace ${ticket.minutes} min`,
+      title: `${ticket.title} espera hace ${ticket.minutes} min`,
       detail: `Comanda #${ticket.number} en ${ticket.station === "BARRA" ? "barra" : "cocina"}, ${ticket.items} producto(s) sin retirar.`,
       href: ticket.station === "BARRA" ? "/staff/barra" : "/staff/cocina",
     });
@@ -336,7 +346,7 @@ export async function getLiveService(): Promise<LiveService> {
       alerts.push({
         id: `sin-pedir-${session.id}`,
         level: "aviso",
-        title: `${originLabel(session.table)} lleva ${minutos} min sin pedir nada`,
+        title: `${sessionTitle(session)} lleva ${minutos} min sin pedir nada`,
         detail: "Se abrió y no tiene ni un producto cargado.",
         href: `/staff/pos/${session.id}`,
       });
@@ -353,7 +363,7 @@ export async function getLiveService(): Promise<LiveService> {
       alerts.push({
         id: `sin-enviar-${session.id}`,
         level: "grave",
-        title: `${originLabel(session.table)}: ${sinEnviar} producto(s) sin mandar`,
+        title: `${sessionTitle(session)}: ${sinEnviar} producto(s) sin mandar`,
         detail: "Están cargados hace rato y la estación todavía no los vio.",
         href: `/staff/pos/${session.id}`,
       });
@@ -363,7 +373,7 @@ export async function getLiveService(): Promise<LiveService> {
       alerts.push({
         id: `mesa-larga-${session.id}`,
         level: "aviso",
-        title: `${originLabel(session.table)} abierta hace ${Math.floor(minutos / 60)} h ${minutos % 60} min`,
+        title: `${sessionTitle(session)} abierta hace ${Math.floor(minutos / 60)} h ${minutos % 60} min`,
         detail: "Sigue con consumo sin cobrar.",
         href: `/staff/pos/${session.id}`,
       });
@@ -406,9 +416,9 @@ export async function getLiveService(): Promise<LiveService> {
       tables,
       open: abiertas.length,
       guests: abiertas.reduce((total, session) => total + session.guests, 0),
-      // Mesas, no ventas: lo de mostrador no ocupa ninguna y contarlo aca
-      // inflaria la unica cifra que dice que tan llena estuvo la sala.
-      served: sessions.filter((session) => session.kind === "MESA").length,
+      // Cuentas atendidas: mesas y gente de pie. La venta directa no entra,
+      // porque no ocupa nada ni se atiende: se cobra y se entrega.
+      served: sessions.filter((session) => session.kind !== "DIRECTA").length,
     },
 
     kitchen: {

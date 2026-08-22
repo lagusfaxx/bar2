@@ -16,6 +16,7 @@ import { memo, useCallback, useMemo, useState, useTransition } from "react";
 import { addItem } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
 import { NoteSheet } from "@/components/staff/pos/note-sheet";
+import { OptionSheet } from "@/components/staff/pos/option-sheet";
 import { useTecladoPropio } from "@/components/staff/use-pointer";
 import { formatPrice } from "@/lib/format";
 import { IDLE } from "@/lib/form-state";
@@ -93,7 +94,7 @@ export function ProductPicker({
    * la usa arma el pedido y lo cobra entero de una sola vez. Con esto puesto,
    * el pie de la carta queda para el que la muestra.
    */
-  onPick?: (productId: string, name: string) => void;
+  onPick?: (product: PosMenuProduct, option?: string) => void;
 }) {
   const enPanel = variant === "panel";
   const [query, setQuery] = useState("");
@@ -110,6 +111,9 @@ export function ProductPicker({
   /** Ultima linea cargada, para poder ponerle una nota sin ir a buscarla. */
   const [last, setLast] = useState<{ id: string; name: string } | null>(null);
   const [noting, setNoting] = useState(false);
+
+  /** El producto que pregunta algo antes de cargarse. Ver `OptionSheet`. */
+  const [preguntando, setPreguntando] = useState<PosMenuProduct | null>(null);
 
   /** Cuantas lineas se cargaron desde que se abrio la lista. */
   const totalAdded = useMemo(
@@ -183,44 +187,70 @@ export function ProductPicker({
    * nueva: con doscientos productos, esa sola diferencia obliga a rehacer la
    * rejilla entera por cada letra escrita.
    */
-  const add = useCallback(
-    (productId: string, name: string) => {
+  const cargar = useCallback(
+    (product: PosMenuProduct, option?: string) => {
       /* Sin cuenta donde guardarlo: se lo lleva quien la muestra y el toque no
-         cuesta ningun viaje al servidor. */
+         cuesta ningun viaje al servidor. La pregunta del producto ya se
+         respondio arriba, asi que la respuesta viaja igual que a una cuenta. */
       if (onPick) {
-        onPick(productId, name);
+        onPick(product, option);
+        setPreguntando(null);
         setAdded((current) => ({
           ...current,
-          [productId]: (current[productId] ?? 0) + 1,
+          [product.id]: (current[product.id] ?? 0) + 1,
         }));
         return;
       }
 
       const formData = new FormData();
       formData.set("sessionId", sessionId ?? "");
-      formData.set("productId", productId);
+      formData.set("productId", product.id);
       formData.set("quantity", "1");
       if (dinerId) formData.set("dinerId", dinerId);
+      if (option) formData.set("variant", option);
 
       startTransition(async () => {
         const result = await addItem(IDLE, formData);
 
         if (result.status === "error") {
-          setError(result.message ?? `No se pudo cargar ${name}.`);
+          setError(result.message ?? `No se pudo cargar ${product.name}.`);
           return;
         }
 
         setError(null);
-        setLast({ id: String(result.data?.itemId ?? ""), name });
+        setLast({ id: String(result.data?.itemId ?? ""), name: product.name });
+        setPreguntando(null);
 
         // Contador efimero: confirma el toque sin tener que mirar la cuenta.
         setAdded((current) => ({
           ...current,
-          [productId]: (current[productId] ?? 0) + 1,
+          [product.id]: (current[product.id] ?? 0) + 1,
         }));
       });
     },
     [sessionId, dinerId, onPick, startTransition],
+  );
+
+  /**
+   * Un toque en un producto.
+   *
+   * El camino corto es el de siempre y sigue siendo un solo toque. Solo cuando
+   * el producto trae algo que preguntar —el sabor de la bebida, si el agua es
+   * con gas— se abre la hoja, y ahi la respuesta es el segundo toque.
+   *
+   * Que la pregunta la traiga el producto y no una pantalla aparte es lo que
+   * deja el resto de la carta intacto: el 95% de la noche esto no aparece.
+   */
+  const add = useCallback(
+    (product: PosMenuProduct) => {
+      if (product.options.length > 0) {
+        setPreguntando(product);
+        return;
+      }
+
+      cargar(product);
+    },
+    [cargar],
   );
 
   /** Abre una categoria. Estable, por lo mismo que `add`. */
@@ -533,6 +563,16 @@ export function ProductPicker({
         </footer>
       )}
 
+      {preguntando && (
+        <OptionSheet
+          product={preguntando}
+          dinerLabel={dinerLabel}
+          pending={pending}
+          onPick={(option) => cargar(preguntando, option)}
+          onClose={() => setPreguntando(null)}
+        />
+      )}
+
       {noting && last?.id && (
         <NoteSheet
           itemId={last.id}
@@ -600,7 +640,7 @@ const ProductTile = memo(function ProductTile({
   hint?: string;
   count: number;
   disabled: boolean;
-  onAdd: (productId: string, name: string) => void;
+  onAdd: (product: PosMenuProduct) => void;
 }) {
   const final = product.unitPriceCents - product.discountCents;
 
@@ -608,7 +648,7 @@ const ProductTile = memo(function ProductTile({
     <button
       type="button"
       disabled={disabled}
-      onClick={() => onAdd(product.id, product.name)}
+      onClick={() => onAdd(product)}
       className="relative flex min-h-24 w-full flex-col justify-between border border-line bg-ink p-3 text-left transition-colors hover:border-crimson active:border-crimson disabled:opacity-60"
     >
       <span className="block text-sm leading-tight text-bone">{product.name}</span>

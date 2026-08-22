@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useState, useTransition } from "react";
 
 import { directSale } from "@/app/actions/pos";
 import { Keyboard } from "@/components/staff/pos/keyboard";
@@ -30,7 +30,13 @@ const METHODS = [
   { value: "TRANSFERENCIA", label: "Transferencia" },
 ] as const;
 
-type Line = PosMenuProduct & { quantity: number };
+type Line = PosMenuProduct & {
+  quantity: number;
+  /** La respuesta a lo que pregunta el producto: "Sprite", "Con gas". */
+  variant: string | null;
+  /** Producto y respuesta: dos sabores del mismo combo son dos lineas. */
+  key: string;
+};
 
 /**
  * Cobro directo: lo que se pide y se paga en el mismo momento.
@@ -63,47 +69,37 @@ export function DirectSale({
   const [cobrando, setCobrando] = useState(false);
   const [verPedido, setVerPedido] = useState(false);
 
-  /** La carta aplanada: de un id de producto a lo que hay que cobrar por el. */
-  const porId = useMemo(
-    () =>
-      new Map(
-        menu.flatMap((categoria) =>
-          categoria.products.map((product) => [product.id, product] as const),
-        ),
-      ),
-    [menu],
-  );
-
   /* Estable entre dibujados: la rejilla de la carta esta memorizada y una
      funcion nueva por cada toque la obligaria a rehacerse entera. */
-  const pick = useCallback(
-    (productId: string) => {
-      const product = porId.get(productId);
-      if (!product) return;
+  const pick = useCallback((product: PosMenuProduct, option?: string) => {
+    const variant = option?.trim() || null;
+    const key = `${product.id}|${variant ?? ""}`;
 
-      setLines((current) => {
-        const existente = current.find((line) => line.id === productId);
+    setLines((current) => {
+      const existente = current.find((line) => line.key === key);
 
-        // El mismo producto tocado dos veces es una linea de dos, no dos
-        // lineas: es como se lee un pedido de mostrador y como se cuenta.
-        if (existente) {
-          return current.map((line) =>
-            line.id === productId
-              ? { ...line, quantity: Math.min(99, line.quantity + 1) }
-              : line,
-          );
-        }
+      /*
+       * El mismo producto tocado dos veces es una linea de dos, no dos lineas:
+       * es como se lee un pedido de mostrador y como se cuenta. Salvo que las
+       * respuestas difieran —una Fanta y una Sprite—, que son dos cosas
+       * distintas de preparar.
+       */
+      if (existente) {
+        return current.map((line) =>
+          line.key === key
+            ? { ...line, quantity: Math.min(99, line.quantity + 1) }
+            : line,
+        );
+      }
 
-        return [...current, { ...product, quantity: 1 }];
-      });
-    },
-    [porId],
-  );
+      return [...current, { ...product, quantity: 1, variant, key }];
+    });
+  }, []);
 
-  const cambiarCantidad = (productId: string, delta: number) => {
+  const cambiarCantidad = (key: string, delta: number) => {
     setLines((current) =>
       current.flatMap((line) => {
-        if (line.id !== productId) return [line];
+        if (line.key !== key) return [line];
 
         const quantity = line.quantity + delta;
         // Bajar de uno es quitarlo: nadie quiere una linea de cero productos.
@@ -112,8 +108,8 @@ export function DirectSale({
     );
   };
 
-  const quitar = (productId: string) =>
-    setLines((current) => current.filter((line) => line.id !== productId));
+  const quitar = (key: string) =>
+    setLines((current) => current.filter((line) => line.key !== key));
 
   const totalCents = lines.reduce(
     (total, line) => total + (line.unitPriceCents - line.discountCents) * line.quantity,
@@ -241,9 +237,9 @@ function Pedido({
   onRemove,
 }: {
   lines: Line[];
-  onLess: (productId: string) => void;
-  onMore: (productId: string) => void;
-  onRemove: (productId: string) => void;
+  onLess: (key: string) => void;
+  onMore: (key: string) => void;
+  onRemove: (key: string) => void;
 }) {
   if (lines.length === 0) {
     return (
@@ -256,9 +252,16 @@ function Pedido({
   return (
     <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto overscroll-contain">
       {lines.map((line) => (
-        <li key={line.id} className="flex items-center gap-2 px-3 py-2">
+        <li key={line.key} className="flex items-center gap-2 px-3 py-2">
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm text-bone">{line.name}</p>
+            <p className="truncate text-sm text-bone">
+              {line.name}
+              {/* Lo elegido va pegado al nombre: es parte de lo que hay que
+                  servir, no una nota al pie. */}
+              {line.variant && (
+                <span className="text-gilt-soft"> · {line.variant}</span>
+              )}
+            </p>
             <p className="text-xs text-muted">
               {formatPrice(
                 (line.unitPriceCents - line.discountCents) * line.quantity,
@@ -274,7 +277,7 @@ function Pedido({
 
           <button
             type="button"
-            onClick={() => onLess(line.id)}
+            onClick={() => onLess(line.key)}
             className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
             aria-label={`Quitar uno de ${line.name}`}
           >
@@ -290,7 +293,7 @@ function Pedido({
 
           <button
             type="button"
-            onClick={() => onMore(line.id)}
+            onClick={() => onMore(line.key)}
             className="flex size-11 shrink-0 items-center justify-center border border-line text-bone"
             aria-label={`Agregar uno de ${line.name}`}
           >
@@ -299,7 +302,7 @@ function Pedido({
 
           <button
             type="button"
-            onClick={() => onRemove(line.id)}
+            onClick={() => onRemove(line.key)}
             className="flex size-11 shrink-0 items-center justify-center border border-line text-muted"
             aria-label={`Sacar ${line.name} del pedido`}
           >
@@ -352,7 +355,11 @@ function CobroSheet({
     formData.set(
       "lines",
       JSON.stringify(
-        lines.map((line) => ({ productId: line.id, quantity: line.quantity })),
+        lines.map((line) => ({
+          productId: line.id,
+          quantity: line.quantity,
+          ...(line.variant ? { variant: line.variant } : {}),
+        })),
       ),
     );
 

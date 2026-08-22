@@ -12,6 +12,7 @@ import {
   generateDirectSaleCode,
   generatePaymentCode,
   generateSessionCode,
+  generateWalkInCode,
   lineTotal,
   priceFor,
   stationFor,
@@ -32,6 +33,7 @@ import {
   posOpenTableSchema,
   posPaymentSchema,
   posPromotionSchema,
+  posWalkInSchema,
 } from "@/lib/validation";
 
 /**
@@ -96,6 +98,58 @@ export async function openTable(
   return formSuccess(`Mesa ${table.number} abierta.`, { sessionId: session.id });
 }
 
+/**
+ * Abre una cuenta para gente que no se sienta.
+ *
+ * Es la misma cuenta de una mesa sin la mesa: mismas lineas, mismas comandas,
+ * mismo cobro, mismos beneficios de BarzuCard. Lo unico que cambia es que no
+ * cuelga de ningun numero, y por eso pueden convivir veinte a la vez —que es
+ * justamente lo que una mesa tiene prohibido—.
+ *
+ * Sirve para los dos usos de la barra con una sola pieza:
+ *
+ * - **Venta al paso**: sin etiqueta. Se abre, se carga, se cobra y se cierra
+ *   sola (ver `payAccount`). Nunca llega a aparecer en la pantalla de sala.
+ * - **Cuenta de pie**: con etiqueta. Queda listada como una mesa mas hasta que
+ *   la persona se va, y se cobra cuando pide la cuenta.
+ *
+ * La diferencia entre las dos la hace el garzon escribiendo o no un nombre, y
+ * nada mas: no hay dos flujos que aprender ni una decision que tomar antes de
+ * empezar a cargar, que es lo que importa con gente esperando de pie.
+ */
+export async function openWalkIn(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const user = await requireStaff();
+
+  const parsed = posWalkInSchema.safeParse(Object.fromEntries(formData));
+
+  if (!parsed.success) {
+    return formError("Revisa los datos de la cuenta.", fieldErrors(parsed.error));
+  }
+
+  const { label, guests, note } = parsed.data;
+
+  const session = await prisma.tableSession.create({
+    data: {
+      kind: "PIE",
+      label: label || null,
+      code: generateWalkInCode(),
+      guests,
+      note: note || null,
+      openedById: user.userId,
+    },
+    select: { id: true },
+  });
+
+  refresh(session.id);
+
+  return formSuccess(label ? `Cuenta de ${label} abierta.` : "Cuenta de pie abierta.", {
+    sessionId: session.id,
+  });
+}
+
 export async function closeTable(sessionId: string): Promise<FormState> {
   await requireStaff();
 
@@ -109,8 +163,11 @@ export async function closeTable(sessionId: string): Promise<FormState> {
     },
   });
 
+  // Como nombrar lo que se esta cerrando: una cuenta de pie no es "la mesa".
+  const que = session?.kind === "PIE" ? "La cuenta" : "La mesa";
+
   if (!session) return formError("La mesa no existe.");
-  if (session.status === "CLOSED") return formSuccess("La mesa ya estaba cerrada.");
+  if (session.status === "CLOSED") return formSuccess(`${que} ya estaba cerrada.`);
 
   // Cerrar con consumo sin cobrar es como perder la cuenta: se bloquea.
   if (session.items.length > 0) {
@@ -142,7 +199,7 @@ export async function closeTable(sessionId: string): Promise<FormState> {
   revalidatePath("/staff/cocina");
   revalidatePath("/staff/barra");
 
-  return formSuccess("Mesa cerrada.");
+  return formSuccess(session.kind === "PIE" ? "Cuenta cerrada." : "Mesa cerrada.");
 }
 
 // --- Comensales --------------------------------------------------------------
@@ -212,6 +269,61 @@ export async function removeDiner(dinerId: string): Promise<FormState> {
 
 // --- Productos ---------------------------------------------------------------
 
+/**
+ * La cortesia de una promocion se quedo sin elegir.
+ *
+ * Existe como error y no como retorno porque tiene que cortar la transaccion
+ * del canje: ver `applyPromotion`.
+ */
+class CortesiaSinElegir extends Error {}
+
+/**
+ * Comprueba lo elegido contra lo que el producto ofrece.
+ *
+ * Se valida aca y no en el esquema del formulario porque la lista de respuestas
+ * vive en la carta, y la carta cambia: el garzon puede tener la pantalla
+ * abierta desde antes de que alguien sacara "Fanta" de las opciones.
+ *
+ * Devuelve el texto a guardar, o un error para mostrar tal cual.
+ *
+ * Que sea obligatorio cuando el producto pregunta algo es el punto entero de
+ * esto: una promo con bebida sin bebida elegida es una comanda que la barra no
+ * puede preparar y que termina en alguien caminando de vuelta a preguntar.
+ */
+function resolveVariant(
+  product: { name: string; optionLabel: string | null; options: string[] },
+  elegido: string | undefined,
+): { ok: true; variant: string | null } | { ok: false; error: string } {
+  const pregunta = product.optionLabel?.trim() || "una opción";
+
+  if (product.options.length === 0) {
+    // Un producto que no pregunta nada no puede llegar con respuesta: seria una
+    // opcion que se quito de la carta y quedo viajando en una pantalla abierta.
+    return { ok: true, variant: null };
+  }
+
+  const limpio = elegido?.trim();
+
+  if (!limpio) {
+    return { ok: false, error: `Elige ${pregunta.toLowerCase()} para ${product.name}.` };
+  }
+
+  // Comparacion tolerante a mayusculas y espacios, pero se guarda la forma
+  // exacta de la carta: asi la barra lee siempre "Coca-Cola" y no "coca cola".
+  const exacto = product.options.find(
+    (opcion) => opcion.trim().toLowerCase() === limpio.toLowerCase(),
+  );
+
+  if (!exacto) {
+    return {
+      ok: false,
+      error: `"${limpio}" ya no es una opción de ${product.name}. Vuelve a elegir.`,
+    };
+  }
+
+  return { ok: true, variant: exacto };
+}
+
 export async function addItem(
   _prev: FormState,
   formData: FormData,
@@ -224,7 +336,7 @@ export async function addItem(
     return formError("Revisa el producto.", fieldErrors(parsed.error));
   }
 
-  const { sessionId, productId, dinerId, quantity, note } = parsed.data;
+  const { sessionId, productId, dinerId, quantity, note, variant } = parsed.data;
 
   const [session, product] = await Promise.all([
     prisma.tableSession.findUnique({
@@ -242,6 +354,9 @@ export async function addItem(
   if (!product) return formError("Ese producto ya no está en la carta.");
   if (!product.available) return formError(`${product.name} está agotado.`);
 
+  const elegido = resolveVariant(product, variant);
+  if (!elegido.ok) return formError(elegido.error);
+
   const priced = priceFor(product);
 
   const created = await prisma.orderItem.create({
@@ -255,6 +370,7 @@ export async function addItem(
       discountCents: priced.discountCents,
       discountLabel: priced.discountLabel,
       quantity,
+      variant: elegido.variant,
       note: note || null,
       station: stationFor(product),
       createdById: user.userId,
@@ -266,10 +382,12 @@ export async function addItem(
 
   // Se devuelve la linea recien creada para poder ofrecer "agregar nota" sin
   // tener que buscarla en la cuenta.
-  return formSuccess(`${quantity} × ${product.name}`, {
-    itemId: created.id,
-    name: product.name,
-  });
+  return formSuccess(
+    elegido.variant
+      ? `${quantity} × ${product.name} · ${elegido.variant}`
+      : `${quantity} × ${product.name}`,
+    { itemId: created.id, name: product.name },
+  );
 }
 
 export async function setItemQuantity(
@@ -741,7 +859,7 @@ export async function applyPromotion(
 
   if (!parsed.success) return formError("No se pudo aplicar el beneficio.");
 
-  const { sessionId, promotionId, dinerId } = parsed.data;
+  const { sessionId, promotionId, dinerId, variant } = parsed.data;
 
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
@@ -798,6 +916,7 @@ export async function applyPromotion(
 
   const receiptCode = generateReceiptCode();
 
+  try {
   const resultado = await prisma.$transaction(async (tx) => {
     let agregado: string | null = null;
 
@@ -829,6 +948,18 @@ export async function applyPromotion(
         if (producto) {
           const precio = priceFor(producto);
 
+          /*
+           * Una cortesia que regala una bebida tiene que decir cual.
+           *
+           * Es el mismo problema que venderla, y por eso se resuelve con la
+           * misma funcion: la promocion "un pisco sour de cortesia" no le
+           * sirve a la barra si el producto pregunta el sabor y nadie
+           * contesto. La eleccion la hace la garzona al aplicar el beneficio,
+           * en la misma hoja donde lo elige.
+           */
+          const elegido = resolveVariant(producto, variant);
+          if (!elegido.ok) throw new CortesiaSinElegir(elegido.error);
+
           await tx.orderItem.create({
             data: {
               sessionId,
@@ -839,6 +970,7 @@ export async function applyPromotion(
               discountCents: precio.discountCents,
               discountLabel: precio.discountLabel,
               quantity: 1,
+              variant: elegido.variant,
               station: stationFor(producto),
               courtesy: true,
               note: promotion.title,
@@ -846,7 +978,9 @@ export async function applyPromotion(
             },
           });
 
-          agregado = producto.name;
+          agregado = elegido.variant
+            ? `${producto.name} · ${elegido.variant}`
+            : producto.name;
         }
       }
     }
@@ -880,6 +1014,18 @@ export async function applyPromotion(
       : `${promotion.title} aplicada`,
     { receiptCode, ...resultado },
   );
+  } catch (error) {
+    /*
+     * Falta elegir el sabor de la cortesia.
+     *
+     * Se lanza desde dentro de la transaccion para que no quede a medias —sin
+     * esto, el canje quedaria registrado y consumido y la linea de cortesia
+     * no—, y se atrapa aca para devolverlo como lo que es: algo que la garzona
+     * puede arreglar en el toque siguiente, no un error del sistema.
+     */
+    if (error instanceof CortesiaSinElegir) return formError(error.message);
+    throw error;
+  }
 }
 
 /** Deshace un beneficio aplicado en la mesa. */
@@ -930,7 +1076,7 @@ export async function payAccount(
 
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
-    select: { id: true, status: true, cardId: true },
+    select: { id: true, status: true, cardId: true, kind: true, label: true },
   });
 
   if (!session) return formError("La mesa no existe.");
@@ -1069,13 +1215,55 @@ export async function payAccount(
 
   });
 
+  /*
+   * Una cuenta de pie pagada entera se cierra sola.
+   *
+   * Una mesa sigue abierta despues de cobrar porque la gente sigue sentada y
+   * casi siempre pide otra vuelta. De pie es al reves: se paga y se camina. Si
+   * quedaran abiertas, la barra terminaria la noche con cuarenta cuentas en
+   * cero que alguien tendria que ir cerrando a mano una por una —y entre ellas,
+   * las de verdad—.
+   *
+   * Solo cuando no queda NADA sin cobrar en toda la cuenta: cobrarle a uno de
+   * un grupo que sigue tomando no la cierra.
+   *
+   * La venta al paso termina aca sin haber existido para nadie mas: se abrio,
+   * se cargo y se cerro en el mismo minuto.
+   */
+  let cerrada = false;
+
+  if (session.kind === "PIE") {
+    const pendientes = await prisma.orderItem.count({
+      where: { sessionId, status: { not: "CANCELLED" }, paymentId: null },
+    });
+
+    if (pendientes === 0) {
+      await prisma.$transaction([
+        prisma.tableSession.update({
+          where: { id: sessionId },
+          data: { status: "CLOSED", closedAt: new Date() },
+        }),
+        // Lo mismo que al cerrar una mesa: no dejar comandas envejeciendo en la
+        // pantalla de una estacion cuando ya no hay a quien entregarselas.
+        prisma.orderTicket.updateMany({
+          where: { sessionId, kind: "COMANDA", prep: "PENDIENTE" },
+          data: { prep: "RETIRADA", pickedUpAt: new Date() },
+        }),
+      ]);
+
+      cerrada = true;
+      revalidatePath("/staff/cocina");
+      revalidatePath("/staff/barra");
+    }
+  }
+
   refresh(sessionId);
 
   return formSuccess(
     beneficioCents > 0
       ? `Cobrado · ${code} · BarzuCard descontó ${Math.round(beneficioCents / 100).toLocaleString("es-CL")}`
       : `Cobrado · ${code}`,
-    { code, totalCents, discountCents: beneficioCents },
+    { code, totalCents, discountCents: beneficioCents, closed: cerrada },
   );
 }
 
@@ -1112,26 +1300,41 @@ export async function directSale(
 
   const { customer, method, lines } = parsed.data;
 
-  // Lo pedido, junto: dos toques al mismo producto son una linea de dos.
-  const cantidades = new Map<string, number>();
+  /*
+   * Lo pedido, junto.
+   *
+   * Dos toques al mismo producto son una linea de dos, salvo que lleven
+   * respuestas distintas: una Fanta y una Sprite son la misma promo y dos
+   * lineas, porque la barra tiene que preparar cada una.
+   */
+  const cantidades = new Map<string, { productId: string; variant: string | null; quantity: number }>();
 
   for (const line of lines) {
-    cantidades.set(
-      line.productId,
-      (cantidades.get(line.productId) ?? 0) + line.quantity,
-    );
+    const variant = line.variant?.trim() || null;
+    const clave = `${line.productId}|${variant ?? ""}`;
+    const actual = cantidades.get(clave);
+
+    if (actual) actual.quantity += line.quantity;
+    else cantidades.set(clave, { productId: line.productId, variant, quantity: line.quantity });
   }
 
+  const pedidos = [...cantidades.values()];
+  const productIds = [...new Set(pedidos.map((pedido) => pedido.productId))];
+
   const productos = await prisma.menuProduct.findMany({
-    where: { id: { in: [...cantidades.keys()] }, available: true },
+    where: { id: { in: productIds }, available: true },
     include: {
       category: { select: { id: true, station: true, active: true } },
     },
   });
 
-  const disponibles = productos.filter((product) => product.category.active);
+  const porId = new Map(
+    productos
+      .filter((product) => product.category.active)
+      .map((product) => [product.id, product] as const),
+  );
 
-  if (disponibles.length !== cantidades.size) {
+  if (porId.size !== productIds.length) {
     return formError(
       "Hay algo del pedido que ya no está en la carta. Vuelve a cargarlo.",
     );
@@ -1139,7 +1342,8 @@ export async function directSale(
 
   const now = new Date();
 
-  const items = disponibles.map((product) => {
+  const items = pedidos.map((pedido) => {
+    const product = porId.get(pedido.productId)!;
     const priced = priceFor(product, now);
 
     return {
@@ -1148,7 +1352,8 @@ export async function directSale(
       unitPriceCents: priced.unitPriceCents,
       discountCents: priced.discountCents,
       discountLabel: priced.discountLabel,
-      quantity: cantidades.get(product.id)!,
+      quantity: pedido.quantity,
+      variant: pedido.variant,
       station: stationFor(product),
     };
   });
@@ -1182,6 +1387,15 @@ export async function directSale(
     const session = await tx.tableSession.create({
       data: {
         kind: "DIRECTA",
+        /*
+         * El nombre del cliente es el nombre de la cuenta.
+         *
+         * Es el mismo campo con el que se reconoce a una cuenta de pie —ahi
+         * "Polera azul", aca "Juan"— y por eso sale solo donde ya se lee: el
+         * titulo de la comanda, el papel del cobro y el cierre de caja. Vacio,
+         * la venta se llama "Cobro directo" (ver `sessionTitle`).
+         */
+        label: customer || null,
         // Nace y muere aca: no hay nada que quede abierto en el mostrador.
         status: "CLOSED",
         closedAt: now,
@@ -1192,25 +1406,9 @@ export async function directSale(
       select: { id: true },
     });
 
-    /*
-     * El nombre del cliente viaja como comensal.
-     *
-     * No es un rodeo: es exactamente lo que un comensal significa aca —a quien
-     * se le entrega y a quien se le cobra— y por venir por ese camino sale solo
-     * en la comanda de cocina, en el comprobante y en el cierre de caja, sin
-     * tener que ensenarle a cada pantalla un campo nuevo.
-     */
-    const diner = customer
-      ? await tx.diner.create({
-          data: { sessionId: session.id, label: customer },
-          select: { id: true },
-        })
-      : null;
-
     const payment = await tx.payment.create({
       data: {
         sessionId: session.id,
-        dinerId: diner?.id ?? null,
         code,
         subtotalCents,
         discountCents,
@@ -1238,9 +1436,9 @@ export async function directSale(
       await tx.orderItem.create({
         data: {
           sessionId: session.id,
-          dinerId: diner?.id ?? null,
           productId: item.productId,
           name: item.name,
+          variant: item.variant,
           unitPriceCents: item.unitPriceCents,
           discountCents: item.discountCents,
           discountLabel: item.discountLabel,

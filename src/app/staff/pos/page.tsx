@@ -7,7 +7,7 @@ import { Logo } from "@/components/brand/logo";
 import { TableGrid } from "@/components/staff/pos/table-grid";
 import { getPanelSession } from "@/lib/auth";
 import { getSettings } from "@/lib/content";
-import { getTablesOverview } from "@/lib/pos";
+import { getTablesOverview, getWalkInSessions } from "@/lib/pos";
 import { posVersion } from "@/lib/pos-version";
 
 /** Sala: el estado de las mesas cambia cada minuto, nunca se cachea. */
@@ -22,9 +22,11 @@ export default async function PosPage() {
 
   if (!session) redirect("/staff/login?volver=/staff/pos");
 
-  const [settings, tables, version] = await Promise.all([
+  const [settings, tables, walkIns, version] = await Promise.all([
     getSettings(),
     getTablesOverview(),
+    // Las cuentas de quien no se sento. Van arriba de la rejilla: no son mesas.
+    getWalkInSessions(),
     // Marca del estado de la sala: la pantalla la usa para preguntar si algo
     // cambio antes de volver a pedirla entera (ver lib/pos-version.ts).
     posVersion({ kind: "sala" }),
@@ -91,13 +93,14 @@ export default async function PosPage() {
         se quiere en una pantalla fija: la sala tiene que verse entera de una.
       */}
       <main className="mx-auto w-full min-h-0 max-w-2xl flex-1 overflow-y-auto overscroll-contain px-4 py-6 pb-safe lg:max-w-none lg:px-6">
-        <h1 className="font-display text-2xl text-bone">Mesas</h1>
+        <h1 className="font-display text-2xl text-bone">Sala</h1>
         <p className="mt-2 text-sm text-muted">
-          Toca una mesa roja para ver su cuenta. Toca una gris para abrirla.
+          Toca una mesa roja para ver su cuenta. Toca una gris para abrirla. La
+          gente de pie va arriba, en la barra.
         </p>
 
         <div className="mt-6">
-          <TableGrid tables={tables} version={version} />
+          <TableGrid tables={tables} walkIns={walkIns} version={version} />
         </div>
       </main>
     </>

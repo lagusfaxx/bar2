@@ -130,6 +130,8 @@ export type ProductValues = {
   featured?: boolean;
   publicMenu?: boolean;
   tags?: string[];
+  optionLabel?: string | null;
+  options?: string[];
   station?: "BARRA" | "COCINA" | "";
   promoPrice?: string;
   promoLabel?: string | null;
@@ -207,6 +209,39 @@ export function MenuProductForm({
               placeholder="vegano, sin gluten"
               hint="Separadas por comas."
               error={state.errors?.tags}
+            />
+          </div>
+
+          {/*
+            Lo que el garzón tiene que preguntar antes de cargarlo.
+
+            Es para los productos que no se pueden mandar a la barra sin un dato
+            más: la promo que viene con bebida no dice cuál, el agua no dice si
+            es con gas. Con esto cargado, el POS muestra las opciones en botones
+            grandes y la elegida sale impresa en la comanda; sin esto, el
+            producto se carga de un toque como el resto de la carta.
+
+            Una sola pregunta por producto: sabor y tamaño y punto de cocción a
+            la vez es un árbol de decisiones en una pantalla táctil con gente
+            esperando, y para eso conviene que sean dos productos distintos.
+          */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field
+              label="Pregunta al pedirlo"
+              name="optionLabel"
+              defaultValue={product?.optionLabel ?? ""}
+              placeholder="Sabor"
+              hint="Vacío = no se pregunta nada."
+              error={state.errors?.optionLabel}
+            />
+
+            <Field
+              label="Opciones"
+              name="options"
+              defaultValue={product?.options?.join(", ") ?? ""}
+              placeholder="Coca-Cola, Sprite, Fanta"
+              hint="Separadas por comas. Salen como botones en el POS."
+              error={state.errors?.options}
             />
           </div>
 

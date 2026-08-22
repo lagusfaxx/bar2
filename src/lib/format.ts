@@ -112,24 +112,6 @@ export function zonedStartOfHour(reference: Date, hour: number, daysAgo = 0) {
 }
 
 /** Precios se guardan en centesimos para evitar errores de coma flotante. */
-/**
- * De donde salio una cuenta: "Mesa 4" o "Cobro directo".
- *
- * Desde que existe la venta de mostrador no toda cuenta tiene mesa, y cada
- * pantalla que muestra un cobro o una comanda tenia que resolver por su lado
- * que escribir cuando no la hay. Esta es esa unica respuesta, para que la
- * cocina, el cierre de caja y el papel impreso la nombren igual.
- */
-export function originLabel(
-  table: { number: number } | null | undefined,
-  /** A nombre de quien, cuando no hay numero de mesa que cantar. */
-  customer?: string | null,
-) {
-  if (table) return `Mesa ${table.number}`;
-
-  return customer ? `Directo · ${customer}` : "Cobro directo";
-}
-
 export function formatPrice(cents: number | null | undefined) {
   if (cents == null) return "";
 
