@@ -244,6 +244,26 @@ export async function saveMenuProduct(
           .map((tag) => tag.trim())
           .filter(Boolean)
       : [],
+    optionLabel: input.optionLabel || null,
+    /*
+     * Las respuestas, sin repetidas.
+     *
+     * Dos "Coca-Cola" en la lista son dos botones identicos en la pantalla del
+     * garzon, y ahi no hay forma de saber cual tocar. Se comparan sin
+     * distinguir mayusculas porque "coca-cola" y "Coca-Cola" son el mismo
+     * botón para quien lo mira.
+     */
+    options: input.options
+      ? [
+          ...new Map(
+            input.options
+              .split(",")
+              .map((option) => option.trim())
+              .filter(Boolean)
+              .map((option) => [option.toLowerCase(), option] as const),
+          ).values(),
+        ]
+      : [],
   };
 
   if (productId) {

@@ -4,6 +4,7 @@ import { Check, Gift, Loader2, Lock, X } from "lucide-react";
 import { useState, useTransition } from "react";
 
 import { applyPromotion } from "@/app/actions/pos";
+import { OptionSheet } from "@/components/staff/pos/option-sheet";
 import { formatPrice } from "@/lib/format";
 import { IDLE, type FormState } from "@/lib/form-state";
 import type { PromotionOffer } from "@/lib/pos";
@@ -38,11 +39,15 @@ export function PromoSheet({
   const [pending, startTransition] = useTransition();
   const [applying, setApplying] = useState<string | null>(null);
 
-  const apply = (offer: PromotionOffer) => {
+  /** La cortesia que antes de regalarse pregunta algo. Ver `OptionSheet`. */
+  const [preguntando, setPreguntando] = useState<PromotionOffer | null>(null);
+
+  const apply = (offer: PromotionOffer, option?: string) => {
     const formData = new FormData();
     formData.set("sessionId", sessionId);
     formData.set("promotionId", offer.id);
     if (dinerId) formData.set("dinerId", dinerId);
+    if (option) formData.set("variant", option);
 
     setApplying(offer.id);
 
@@ -53,6 +58,23 @@ export function PromoSheet({
 
       if (result.status === "success") onClose();
     });
+  };
+
+  /**
+   * Un toque en un beneficio.
+   *
+   * Igual que en la carta: el camino corto sigue siendo un toque, y la pregunta
+   * aparece solo cuando la cortesia va a agregar un producto que la necesita.
+   * Sin esto, aplicar una promo de bebida fallaba con "elige el sabor" y no
+   * habia donde elegirlo.
+   */
+  const elegir = (offer: PromotionOffer) => {
+    if (offer.options.length > 0) {
+      setPreguntando(offer);
+      return;
+    }
+
+    apply(offer);
   };
 
   const disponibles = offers.filter((offer) => offer.available);
@@ -96,7 +118,7 @@ export function PromoSheet({
               <li key={offer.id}>
                 <button
                   type="button"
-                  onClick={() => apply(offer)}
+                  onClick={() => elegir(offer)}
                   disabled={pending}
                   className="flex w-full items-center justify-between gap-4 border border-line bg-ink p-4 text-left transition-colors hover:border-crimson disabled:opacity-60"
                 >
@@ -169,6 +191,33 @@ export function PromoSheet({
           </p>
         )}
       </div>
+
+      {/*
+        La misma hoja que en la carta, a proposito.
+
+        Elegir el sabor de una bebida que se regala y de una que se vende es el
+        mismo gesto, y no hay razon para que se vean distinto: se arma un
+        producto con lo que la oferta trae —la cortesia siempre es una unidad,
+        asi que el precio no pinta nada aca— y se reusa tal cual.
+      */}
+      {preguntando && (
+        <OptionSheet
+          product={{
+            id: preguntando.id,
+            name: preguntando.targetName ?? preguntando.title,
+            station: "BARRA",
+            unitPriceCents: 0,
+            discountCents: 0,
+            discountLabel: null,
+            optionLabel: preguntando.optionLabel ?? "Elige",
+            options: preguntando.options,
+          }}
+          dinerLabel={tabLabel}
+          pending={pending}
+          onPick={(option) => apply(preguntando, option)}
+          onClose={() => setPreguntando(null)}
+        />
+      )}
     </div>
   );
 }

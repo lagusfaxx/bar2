@@ -391,7 +391,7 @@ function Waiting({ pending }: { pending: LiveService["kitchen"]["pending"] }) {
             >
               <span className="min-w-0">
                 <span className="block text-bone">
-                  Mesa {ticket.tableNumber}
+                  {ticket.title}
                   <span className="ml-2 text-xs text-muted">
                     #{ticket.number} ·{" "}
                     {ticket.station === "BARRA" ? "barra" : "cocina"}

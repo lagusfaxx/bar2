@@ -229,6 +229,28 @@ model MenuProduct {
   // helado que arma la barra, un cafe que sale de cocina). Vacio = la categoria.
   station Station?
 
+  /**
+   * Lo unico que hay que preguntar al pedir este producto.
+   *
+   * Hay productos que no se pueden mandar a la barra sin un dato mas: la promo
+   * que viene con bebida no dice cual, y el agua no dice si es con gas. Eso se
+   * resolvia escribiendolo en la nota de la linea, o sea sacando el teclado en
+   * medio del servicio; peor todavia, la barra recibia "coca" y "Coca-Cola"
+   * escritos de cinco formas distintas.
+   *
+   * Con esto el producto declara la pregunta y sus respuestas, y elegir pasa a
+   * ser un toque sobre un boton grande. `optionLabel` es como se pregunta
+   * ("Sabor", "Agua", "Punto"); `options`, las respuestas posibles.
+   *
+   * Es UNA sola pregunta por producto a proposito. Sabor y tamano y punto de
+   * coccion es un arbol de decisiones en una pantalla tactil con gente de pie
+   * esperando: el producto que necesite dos preguntas conviene que sean dos
+   * productos. Vacio = no se pregunta nada y el producto se carga de un toque,
+   * que es como sigue funcionando el resto de la carta.
+   */
+  optionLabel String?
+  options     String[] @default([])
+
   // Precio promocional. Es la unica fuente del descuento: la carta de la web y
   // el POS de los garzones leen lo mismo, asi que una promo publicada aparece
   // sola en la comanda sin que nadie la cargue dos veces.
@@ -965,14 +987,43 @@ enum TableSessionStatus {
 }
 
 /**
+ * De donde sale la cuenta.
+ *
+ * En un bar la mitad de la gente nunca se sienta. Antes eso no tenia donde
+ * anotarse —toda cuenta colgaba de una mesa, y una mesa no admite dos turnos a
+ * la vez— asi que la barra terminaba usando una mesa de mentira para todos o
+ * llevando las rondas de memoria.
+ */
+enum SessionKind {
+  MESA // gente sentada, con su numero de mesa
+  PIE // gente en la barra: sin mesa y varias a la vez
+}
+
+/**
  * Un turno de mesa: desde que se sientan hasta que se van.
  * Se mantiene OPEN mientras quede algo sin cobrar o el garzon no la cierre a
  * mano, aunque algunos comensales ya hayan pagado lo suyo.
+ *
+ * Tambien es la cuenta de quien esta de pie, que es lo mismo sin mesa: mismas
+ * lineas, mismas comandas, mismo cobro. Lo unico que cambia es que no hay
+ * numero que cantar (ver `kind` y `label`).
  */
 model TableSession {
-  id      String   @id @default(cuid())
-  tableId String
-  table   PosTable @relation(fields: [tableId], references: [id], onDelete: Restrict)
+  id      String    @id @default(cuid())
+  // Vacio en las cuentas de pie: no hay mesa a la que pertenezcan.
+  tableId String?
+  table   PosTable? @relation(fields: [tableId], references: [id], onDelete: Restrict)
+
+  kind SessionKind @default(MESA)
+
+  /**
+   * Como se reconoce a una cuenta de pie: "Polera azul", "Los del karaoke".
+   *
+   * Cumple el papel que en una mesa cumple el numero. Es opcional porque la
+   * venta al paso —piden, pagan y se van— no alcanza a necesitar nombre: se
+   * abre, se cobra y se cierra sin que nadie tenga que describir a nadie.
+   */
+  label String?
 
   // Correlativo legible del turno, para nombrarlo en voz alta: "M4-0312".
   code   String             @unique
@@ -1010,6 +1061,8 @@ model TableSession {
   @@index([tableId, status])
   @@index([cardId])
   @@index([updatedAt])
+  // La barra de la pantalla de sala: las cuentas de pie abiertas, por antiguedad.
+  @@index([kind, status, openedAt])
   @@map("pos_table_sessions")
 }
 
@@ -1066,6 +1119,17 @@ model OrderItem {
   unitPriceCents Int
   quantity       Int     @default(1)
   note           String? // "sin cebolla", "bien cocido"
+
+  /**
+   * La respuesta a `MenuProduct.optionLabel`: "Sprite", "Con gas".
+   *
+   * Va aparte de `note` porque no es lo mismo: la nota es un pedido del cliente
+   * que la cocina puede o no poder cumplir, y esto es parte de lo que se
+   * vendio. Separarlo permite imprimirlo donde se lee —pegado al nombre y del
+   * mismo tamano— y, mas adelante, contar cuantas Fanta salieron sin tener que
+   * adivinar sobre texto libre.
+   */
+  variant String?
 
   // Descuento ya resuelto al cargar la linea (promo vigente de la carta).
   // Los beneficios de BarzuCard NO se guardan aca: viven en Redemption y se

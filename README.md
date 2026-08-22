@@ -423,6 +423,72 @@ Es una medida **de ese monitor**, no del sitio, y por eso vive en el equipo y
 no en los ajustes del panel: los teléfonos de los garzones no tienen nada que
 compensar y no se ven afectados.
 
+### La gente de pie
+
+En un bar la mitad de la gente nunca se sienta, y hasta ahora eso no tenía
+dónde anotarse: toda cuenta colgaba de una mesa y una mesa no admite dos turnos
+abiertos a la vez. La barra terminaba inventando mesas o llevando las rondas de
+memoria.
+
+Arriba de la rejilla de mesas hay una sección **De pie** con dos botones, y cuál
+usar lo decide el cliente, no el garzón:
+
+| | Para quién | Qué hace |
+| --- | --- | --- |
+| **Venta rápida** | Pide, paga y se va | Un toque y ya está cargando. No pregunta cuántos son ni cómo se llaman. Al cobrarla **se cierra sola**. |
+| **Abrir cuenta** | Se queda tomando | Pide sólo cómo se reconoce —"Polera azul"— y queda listada como una mesa más hasta que se vaya. |
+
+Por dentro son la misma cosa: una cuenta sin mesa (`SessionKind.PIE`). Tiene
+todo lo que tiene una mesa —comandas, comensales para separar, BarzuCard,
+cobro— y lo único que le falta es el número. En su lugar va el nombre, que es
+la misma convención que ya usaban los comensales dentro de una mesa: no se le
+pide el nombre a nadie, se anota cómo se ve. Está en botones ("Polera negra",
+"Barba", "Gorro") y se pueden encadenar dos, porque en una barra llena siempre
+hay dos poleras negras.
+
+Ese nombre es lo que sale impreso donde antes iba `MESA 4`, y lo que aparece en
+las pantallas de cocina y barra. Las cuentas de pie **pueden ser muchas a la
+vez**; las mesas siguen admitiendo un solo turno, como siempre.
+
+Que la venta rápida se cierre sola es lo que mantiene la pantalla ordenada: si
+no, la barra terminaría la noche con cuarenta cuentas en cero que alguien
+tendría que ir cerrando a mano —y entre ellas, las de verdad—. Sólo se cierra
+cuando no queda **nada** sin cobrar: cobrarle a uno de un grupo que sigue
+tomando no la cierra.
+
+### Lo que hay que preguntar al pedir
+
+La promo que viene con bebida no dice cuál. El agua no dice si es con gas.
+
+Eso se anotaba en la nota libre —sacar el teclado con gente esperando— y la
+barra recibía "coca", "Coca" y "coca cola" para la misma cosa. Ahora el
+producto declara la pregunta y sus respuestas, y elegir es **un toque**:
+
+En **Carta → producto** se llenan dos campos:
+
+| Campo | Ejemplo |
+| --- | --- |
+| Pregunta al pedirlo | `Sabor` |
+| Opciones | `Coca-Cola, Sprite, Fanta` |
+
+Con eso cargado, tocar el producto en el POS abre una hoja con las opciones en
+botones grandes; tocar una **es** agregarlo, sin confirmar. El agua es el mismo
+mecanismo con `Con gas, Sin gas`. Vacío, el producto se carga de un toque como
+el resto de la carta: esto no aparece en el 95% de la noche.
+
+Lo elegido no va en la nota. Va en un campo propio y por eso sale **del mismo
+tamaño que el producto** en la comanda y en la pantalla de la estación —la nota
+es un pedido del cliente, esto es qué hay que servir— y el recuento del turno
+los separa: "8 Coca-Cola, 2 Sprite" en vez de "10 bebidas".
+
+Una sola pregunta por producto, a propósito. Sabor *y* tamaño *y* punto de
+cocción es un árbol de decisiones en una pantalla táctil con gente de pie
+esperando: el producto que necesite dos preguntas conviene que sean dos
+productos.
+
+Las cortesías de BarzuCard usan lo mismo: una promo que regala una bebida
+pregunta cuál al aplicarla, en la misma hoja.
+
 ### Notas de los pedidos
 
 "Sin lechuga", "bien cocido", "sin hielo". Se ponen desde botones, no
