@@ -1072,7 +1072,17 @@ export async function payAccount(
     return formError("Revisa el cobro.", fieldErrors(parsed.error));
   }
 
-  const { sessionId, dinerId, method } = parsed.data;
+  const { sessionId, dinerId, method, soloCompartido } = parsed.data;
+
+  /*
+   * Que parte de la cuenta se esta cobrando.
+   *
+   * Tres, y hay que distinguirlas: un comensal, la cuenta compartida sola, o
+   * todo lo pendiente de la mesa. Antes eran dos —"con comensal" o "todo"— y
+   * por eso lo compartido no se podia cobrar aparte: no lleva comensal, asi
+   * que caia en el "todo" y arrastraba el consumo de los demas.
+   */
+  const soloLaMesa = soloCompartido === "1" && !dinerId;
 
   const session = await prisma.tableSession.findUnique({
     where: { id: sessionId },
@@ -1088,7 +1098,7 @@ export async function payAccount(
       sessionId,
       status: { not: "CANCELLED" },
       paymentId: null,
-      ...(dinerId ? { dinerId } : {}),
+      ...(dinerId ? { dinerId } : soloLaMesa ? { dinerId: null } : {}),
     },
     select: {
       id: true,
@@ -1126,7 +1136,16 @@ export async function payAccount(
       sessionId,
       voidedAt: null,
       discountCents: 0,
-      ...(dinerId ? { dinerId } : { dinerId: null }),
+      /*
+       * Los de la pestaña que se cobra; cobrando la mesa entera, todos.
+       *
+       * Antes el cobro de la mesa completa tomaba solo los beneficios sin
+       * comensal, y los de Victor y Daniel quedaban afuera: la pantalla
+       * mostraba el total con su descuento y el papel salia mas caro, con el
+       * beneficio ademas sin congelar. Si se cobra el consumo de todos,
+       * corresponden los descuentos de todos.
+       */
+      ...(dinerId ? { dinerId } : soloLaMesa ? { dinerId: null } : {}),
     },
     include: { promotion: true },
   });
@@ -1138,13 +1157,25 @@ export async function payAccount(
     unitPriceCents: item.unitPriceCents,
     discountCents: item.discountCents,
     quantity: item.quantity,
+    dinerId: item.dinerId,
   }));
 
   let beneficioCents = 0;
   const congelados: Array<{ id: string; discountCents: number }> = [];
 
   for (const beneficio of beneficios) {
-    const resuelto = resolvePromotion(beneficio.promotion, lineas);
+    /*
+     * Cada beneficio se resuelve contra el consumo de SU pestaña.
+     *
+     * Es como se calcula en la cuenta que el garzon le muestra al cliente, y
+     * es lo unico que da el mismo numero cobrando de una forma o de la otra:
+     * un 2x1 aplicado a Victor no puede empezar a mirar los tragos de Daniel
+     * porque se cobro la mesa entera.
+     */
+    const suyas = lineas.filter(
+      (linea) => linea.dinerId === (beneficio.dinerId ?? null),
+    );
+    const resuelto = resolvePromotion(beneficio.promotion, suyas);
     // Nunca por debajo de cero: varios beneficios sobre una cuenta chica no
     // pueden terminar en que el local le deba plata al cliente.
     const aplicado = Math.min(
