@@ -92,7 +92,16 @@ export function PaySheet({
     const formData = new FormData();
     formData.set("sessionId", sessionId);
     formData.set("method", method);
+
+    /*
+     * A quien se le cobra, dicho sin ambiguedad.
+     *
+     * La pestaña compartida no tiene comensal, asi que mandar solo el
+     * `dinerId` la volvia indistinguible de "toda la mesa" y terminaba
+     * cobrando —y dando por pagado— el consumo de todos.
+     */
     if (tab?.dinerId) formData.set("dinerId", tab.dinerId);
+    else if (tab) formData.set("soloCompartido", "1");
 
     startTransition(async () => {
       setState(await payAccount(IDLE, formData));
@@ -166,7 +175,11 @@ export function PaySheet({
               <div>
                 <p className="text-xs text-muted">Le vas a cobrar a</p>
                 <h2 className="font-display text-xl text-bone">
-                  {tab ? tab.label : "Toda la mesa"}
+                  {tab
+                    ? tab.dinerId
+                      ? tab.label
+                      : "Lo compartido de la mesa"
+                    : "Toda la mesa"}
                 </h2>
               </div>
 

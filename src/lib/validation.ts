@@ -403,6 +403,13 @@ export const posPaymentSchema = z.object({
   sessionId: trimmed.min(1),
   /** Vacio = se cobra la mesa completa. */
   dinerId: trimmed.max(40).optional().or(z.literal("")),
+  /**
+   * "1" = se cobra solo la cuenta compartida, sin tocar lo de los comensales.
+   *
+   * Sin esto, la pestaña de lo compartido no se podia cobrar sola: no lleva
+   * comensal, y un cobro sin comensal significaba la mesa entera.
+   */
+  soloCompartido: z.literal("1").optional(),
   method: z.enum(["EFECTIVO", "DEBITO", "CREDITO", "TRANSFERENCIA", "OTRO"]),
 });
 

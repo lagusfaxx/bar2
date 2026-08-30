@@ -14,6 +14,7 @@ import {
   Send,
   Trash2,
   UserPlus,
+  Users,
   Wallet,
 } from "lucide-react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ import {
   sendOrder,
   setItemQuantity,
 } from "@/app/actions/pos";
+import { AssignSheet } from "@/components/staff/pos/assign-sheet";
 import { CardSheet } from "@/components/staff/pos/card-sheet";
 import { ConfirmSheet } from "@/components/staff/pos/confirm-sheet";
 import { Keyboard } from "@/components/staff/pos/keyboard";
@@ -80,6 +82,7 @@ export function Account({
   const [activeTab, setActiveTab] = useState<string | null>(null);
   const [picker, setPicker] = useState(autoOpenPicker);
   const [noting, setNoting] = useState<AccountItem | null>(null);
+  const [assigning, setAssigning] = useState<AccountItem | null>(null);
   const [paying, setPaying] = useState<"tab" | "table" | null>(null);
   const [addingDiner, setAddingDiner] = useState(false);
   const [scanningCard, setScanningCard] = useState(false);
@@ -504,7 +507,7 @@ export function Account({
                       </div>
 
                       {!item.paid && !cerrada && (
-                        <div className="mt-2 flex items-center gap-2">
+                        <div className="mt-2 flex flex-wrap items-center gap-2">
                           {item.status === "DRAFT" ? (
                             <>
                               <QuantityButton
@@ -542,6 +545,20 @@ export function Account({
                             >
                               <Ban className="size-4" aria-hidden />
                               Anular
+                            </button>
+                          )}
+
+                          {/* Con la cuenta separada, de quien es cada producto
+                              es parte de la linea y se cambia ahi mismo: es lo
+                              unico que decide despues quien paga que. */}
+                          {cuentaSeparada && (
+                            <button
+                              type="button"
+                              onClick={() => setAssigning(item)}
+                              className="flex h-10 items-center gap-1.5 border border-line px-3 text-sm text-muted hover:border-crimson hover:text-bone"
+                            >
+                              <Users className="size-4" aria-hidden />
+                              ¿De quién?
                             </button>
                           )}
 
@@ -882,6 +899,15 @@ export function Account({
         />
       )}
 
+      {assigning && (
+        <AssignSheet
+          item={assigning}
+          tabs={session.tabs}
+          onDone={setFeedback}
+          onClose={() => setAssigning(null)}
+        />
+      )}
+
       {noting && (
         <NoteSheet
           itemId={noting.id}
@@ -914,13 +940,20 @@ export function Account({
           deduccion del sistema. */}
       {choosingPayer && (
         <PayerSheet
-          tabLabel={tab.label}
-          tabPendingCents={tab.pendingCents}
-          tabSinCobrar={tab.items.some((item) => !item.paid)}
+          tabs={session.tabs}
           tablePendingCents={session.pendingCents}
           onPick={(who) => {
             setChoosingPayer(false);
-            setPaying(who);
+
+            if (who === "table") {
+              setPaying("table");
+              return;
+            }
+
+            /* La pestaña elegida pasa a ser la abierta: el cobro se arma con
+               ella, y al volver la cuenta queda mostrando a quien se le cobro. */
+            setActiveTab(who.dinerId);
+            setPaying("tab");
           }}
           onClose={() => setChoosingPayer(false)}
         />
@@ -970,26 +1003,33 @@ export function Account({
 /**
  * ¿Quien paga?
  *
- * Solo aparece con la cuenta separada. Las dos opciones se muestran con su
- * monto, porque es lo que se compara al decidir — y porque es lo que hay que
- * cantar en voz alta antes de pasar la maquina.
+ * Solo aparece con la cuenta separada. Estan todas las pestañas con su monto,
+ * no solo la que quedo abierta: quien paga se decide en la mesa —"yo pago lo
+ * mio", dice Victor— y el garzon tiene que poder tocar ese nombre sin volver
+ * atras a buscar la pestaña. Y porque los montos son lo que hay que cantar en
+ * voz alta antes de pasar la maquina.
+ *
+ * Una pestaña sin nada que cobrar sale apagada y con el motivo escrito: sin
+ * eso, un boton muerto se lee como que el sistema no deja cobrarle a esa
+ * persona, cuando lo que pasa es que su consumo todavia esta en la cuenta de
+ * la mesa.
  */
 function PayerSheet({
-  tabLabel,
-  tabPendingCents,
-  tabSinCobrar,
+  tabs,
   tablePendingCents,
   onPick,
   onClose,
 }: {
-  tabLabel: string;
-  tabPendingCents: number;
-  /** Esa pestaña tiene consumo que todavía no entró en ningún cobro. */
-  tabSinCobrar: boolean;
+  tabs: AccountTab[];
   tablePendingCents: number;
-  onPick: (who: "tab" | "table") => void;
+  onPick: (who: AccountTab | "table") => void;
   onClose: () => void;
 }) {
+  /** Alguien tiene consumo sin cobrar todavia en la cuenta compartida. */
+  const hayEnLaMesa = tabs.some(
+    (tab) => tab.dinerId === null && tab.items.some((item) => !item.paid),
+  );
+
   return (
     <div
       role="dialog"
@@ -997,35 +1037,65 @@ function PayerSheet({
       aria-label="¿Quién paga?"
       className="fixed inset-0 z-60 flex h-[100dvh] items-end bg-ink/80"
     >
-      <div className="w-full border-t border-line bg-ink-soft p-5 pb-safe">
+      <div className="max-h-full w-full overflow-y-auto overscroll-contain border-t border-line bg-ink-soft p-5 pb-safe">
         <h2 className="font-display text-xl text-bone">¿Quién paga ahora?</h2>
         <p className="mt-2 text-sm text-muted">
           Cobrar a una persona no cierra la mesa: los demás siguen consumiendo.
         </p>
 
         <div className="mt-5 flex flex-col gap-2">
-          <button
-            type="button"
-            disabled={!tabSinCobrar}
-            onClick={() => onPick("tab")}
-            className="flex h-16 w-full items-center justify-between border border-line px-4 text-left disabled:opacity-40"
-          >
-            <span className="text-base text-bone">Solo {tabLabel}</span>
-            <span className="font-display text-lg text-bone">
-              {formatPrice(tabPendingCents)}
-            </span>
-          </button>
+          {tabs.map((tab) => {
+            const sinCobrar = tab.items.some((item) => !item.paid);
+
+            return (
+              <button
+                key={tab.dinerId ?? "mesa"}
+                type="button"
+                disabled={!sinCobrar}
+                onClick={() => onPick(tab)}
+                className="flex min-h-16 w-full items-center justify-between gap-3 border border-line px-4 text-left disabled:opacity-40"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate text-base text-bone">
+                    {tab.dinerId ? `Solo ${tab.label}` : "Solo lo compartido"}
+                  </span>
+
+                  {!sinCobrar && (
+                    <span className="block text-xs text-muted">
+                      {tab.items.length === 0
+                        ? "Sin consumo asignado. Usa “¿De quién?” en cada producto."
+                        : "Ya está todo cobrado."}
+                    </span>
+                  )}
+                </span>
+
+                <span className="shrink-0 font-display text-lg text-bone">
+                  {formatPrice(tab.pendingCents)}
+                </span>
+              </button>
+            );
+          })}
 
           <button
             type="button"
             onClick={() => onPick("table")}
-            className="flex h-16 w-full items-center justify-between border border-line px-4 text-left"
+            className="flex min-h-16 w-full items-center justify-between gap-3 border border-line px-4 text-left"
           >
             <span className="text-base text-bone">Toda la mesa</span>
-            <span className="font-display text-lg text-bone">
+            <span className="shrink-0 font-display text-lg text-bone">
               {formatPrice(tablePendingCents)}
             </span>
           </button>
+
+          {/* Lo compartido no se reparte solo: cobrar a una persona deja ese
+              consumo pendiente, y conviene saberlo antes de cobrar y no
+              despues, con el cliente ya de pie. */}
+          {hayEnLaMesa && (
+            <p className="mt-1 text-xs text-muted">
+              Lo que está en la cuenta compartida no entra en el cobro de una
+              persona: queda pendiente para la mesa.
+            </p>
+          )}
 
           <button
             type="button"
