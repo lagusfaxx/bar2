@@ -108,6 +108,9 @@ $Config = Leer-Configuracion -Ruta $RutaEnv
 
 $UrlSitio = (Valor $Config "BARZUO_URL" "http://localhost:3000").TrimEnd("/")
 $TokenImpresion = Valor $Config "PRINT_AGENT_TOKEN"
+# Un equipo que ya tenia su agente -el acceso directo del escritorio, una tarea
+# hecha a mano- lo sigue manejando el: aca solo se abren las pantallas.
+$AgentePropio = (Valor $Config "AGENTE_LEVANTAR" "si").ToLower() -ne "no"
 
 # --- Programas del equipo ---------------------------------------------------
 
@@ -157,12 +160,80 @@ function Listar-Pantallas {
 
 $ProcesoAgente = $null
 
+$RutaAgente = $null
+
+function Buscar-Agente {
+    <#
+      Donde esta "print-agent.mjs".
+
+      No se da por hecho que este script viva dentro del repo: en el local el
+      agente suele estar suelto en el escritorio, puesto a mano antes que todo
+      esto. Se busca en ese orden -lo que diga la configuracion, el repo, el
+      escritorio- y quien lo tenga en otra parte solo escribe AGENTE_RUTA.
+    #>
+    if ($script:RutaAgente) { return $script:RutaAgente }
+
+    $declarada = Valor $Config "AGENTE_RUTA"
+    if ($declarada -ne "") {
+        if (Test-Path $declarada) { $script:RutaAgente = $declarada; return $declarada }
+        Escribir-Log "AGENTE_RUTA apunta a $declarada y ahi no hay nada."
+        return $null
+    }
+
+    $candidatos = @(
+        (Join-Path $RaizRepo "scripts\print-agent.mjs"),
+        (Join-Path $env:USERPROFILE "Desktop\print-agent.mjs"),
+        (Join-Path $env:USERPROFILE "OneDrive\Escritorio\print-agent.mjs"),
+        (Join-Path $env:USERPROFILE "OneDrive\Desktop\print-agent.mjs"),
+        (Join-Path $env:USERPROFILE "Escritorio\print-agent.mjs")
+    )
+    foreach ($ruta in $candidatos) {
+        if ($ruta -and (Test-Path $ruta)) { $script:RutaAgente = $ruta; return $ruta }
+    }
+
+    # Ultimo intento: una carpeta del escritorio, que es como suele quedar
+    # ("barzuo", "impresora", "POS"...). Dos niveles alcanzan y no cuesta nada.
+    foreach ($escritorio in @((Join-Path $env:USERPROFILE "Desktop"),
+                              (Join-Path $env:USERPROFILE "OneDrive\Escritorio"),
+                              (Join-Path $env:USERPROFILE "OneDrive\Desktop"))) {
+        if (-not (Test-Path $escritorio)) { continue }
+        $hallado = Get-ChildItem -Path $escritorio -Filter "print-agent.mjs" -Recurse -Depth 2 -File -ErrorAction SilentlyContinue |
+            Select-Object -First 1
+        if ($hallado) { $script:RutaAgente = $hallado.FullName; return $hallado.FullName }
+    }
+
+    return $null
+}
+
+function Agente-YaCorriendo {
+    <#
+      Un segundo agente contra la misma cola es una comanda que sale dos veces
+      o una que no sale. Si el equipo ya tiene el suyo -el acceso directo del
+      escritorio, una tarea de antes- este no levanta otro.
+    #>
+    try {
+        $procesos = Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction Stop
+    } catch {
+        return $false
+    }
+    foreach ($proceso in $procesos) {
+        if ($proceso.CommandLine -and $proceso.CommandLine -match "print-agent\.mjs") { return $true }
+    }
+    return $false
+}
+
 function Levantar-Agente {
     param([string]$Node)
 
-    $script = Join-Path $RaizRepo "scripts\print-agent.mjs"
-    if (-not (Test-Path $script)) {
-        Escribir-Log "No encuentro $script: el agente de impresion no arranca."
+    if (-not $AgentePropio) { return $null }
+    if (Agente-YaCorriendo) {
+        Escribir-Log "Ya hay un agente de impresion corriendo: no levanto otro."
+        return $null
+    }
+
+    $script = Buscar-Agente
+    if (-not $script) {
+        Escribir-Log "No encuentro print-agent.mjs. Escribe su ruta en AGENTE_RUTA."
         return $null
     }
     if ($TokenImpresion -eq "") {
@@ -188,9 +259,9 @@ function Levantar-Agente {
     Rotar-Log -Ruta $errores
 
     $proceso = Start-Process -FilePath $Node -ArgumentList @("`"$script`"") `
-        -WorkingDirectory $RaizRepo -WindowStyle Hidden -PassThru `
+        -WorkingDirectory (Split-Path -Parent $script) -WindowStyle Hidden -PassThru `
         -RedirectStandardOutput $salida -RedirectStandardError $errores
-    Escribir-Log "Agente de impresion levantado (PID $($proceso.Id))."
+    Escribir-Log "Agente de impresion levantado desde $script (PID $($proceso.Id))."
     return $proceso
 }
 
@@ -333,10 +404,14 @@ function Esperar-Sitio {
 
 Escribir-Log "=== Arranque del local ==="
 
+if (-not $AgentePropio) {
+    Escribir-Log "AGENTE_LEVANTAR=no: el agente de impresion queda como estaba en el equipo."
+}
+
 $Node = Buscar-Node
-if (-not $Node) {
+if ($AgentePropio -and -not $Node) {
     Escribir-Log "No encuentro node.exe. Instala Node 18 o superior desde nodejs.org."
-} else {
+} elseif ($AgentePropio) {
     $ProcesoAgente = Levantar-Agente -Node $Node
 }
 
@@ -362,9 +437,13 @@ Escribir-Log "Vigilando el agente y las pantallas."
 while ($true) {
     Start-Sleep -Seconds 10
 
-    if ($Node -and (-not $ProcesoAgente -or $ProcesoAgente.HasExited)) {
-        Escribir-Log "El agente de impresion no esta corriendo. Lo levanto de nuevo."
-        $ProcesoAgente = Levantar-Agente -Node $Node
+    if ($AgentePropio -and $Node -and (-not $ProcesoAgente -or $ProcesoAgente.HasExited)) {
+        # Se pregunta por cualquier agente, no solo por el que levanto este
+        # script: si el del escritorio esta en pie, aca no hay nada que hacer.
+        if (-not (Agente-YaCorriendo)) {
+            Escribir-Log "No hay ningun agente de impresion corriendo. Levanto uno."
+            $ProcesoAgente = Levantar-Agente -Node $Node
+        }
     }
 
     if ($Navegador) {

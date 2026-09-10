@@ -794,6 +794,12 @@ scripts/local/
   instalar-inicio.ps1        Registra lo anterior como tarea al iniciar sesión
 ```
 
+**Si el equipo ya levanta su agente** —un acceso directo en el escritorio, una
+tarea hecha a mano— no hay que desarmarlo: el arranque **nunca levanta un
+segundo agente contra la misma cola**, porque una comanda impresa dos veces es
+peor que ninguna. Comprueba si ya hay uno corriendo y, si lo hay, se limita a
+las pantallas. Con `AGENTE_LEVANTAR=no` ni siquiera lo comprueba.
+
 **Qué hace al encender.** Levanta el agente de impresión, espera a que
 `barzuo.cl` responda —el equipo enciende antes que el wifi— y abre dos ventanas
 sin barras, a pantalla completa, cada una clavada en su monitor: el **POS de
@@ -843,6 +849,8 @@ lleva el token):
 | `BARZUO_URL` | La URL pública del sitio, sin barra final. |
 | `PRINT_AGENT_TOKEN` | El mismo valor que tiene el servidor. |
 | `PRINTER_DEFAULT` | La impresora. En Windows, el recurso compartido: `\\localhost\POS80`. |
+| `AGENTE_RUTA` | Dónde está `print-agent.mjs`. Vacío se busca solo: el repo primero, el escritorio después. |
+| `AGENTE_LEVANTAR` | En `no`, el arranque no toca el agente —el equipo ya lo levanta por su cuenta— y solo abre las pantallas. |
 | `PANTALLA_POS_INDICE` / `PANTALLA_CAJA_INDICE` | Qué monitor muestra cada cosa. Se vacía uno para dejar una sola pantalla. |
 | `PANTALLA_POS_RUTA` / `PANTALLA_CAJA_RUTA` | Qué abre cada una. Para una pantalla de estación: `/staff/cocina` o `/staff/barra`. |
 | `PANTALLA_POS_ZONA_MUERTA` | La franja ciega del monitor táctil, en píxeles (ver arriba). |
