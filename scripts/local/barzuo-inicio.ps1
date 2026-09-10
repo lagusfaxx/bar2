@@ -182,6 +182,8 @@ function Buscar-Agente {
 
     $candidatos = @(
         (Join-Path $RaizRepo "scripts\print-agent.mjs"),
+        (Join-Path $env:USERPROFILE "Desktop\agente.bat"),
+        (Join-Path $env:USERPROFILE "Desktop\imprimir.bat"),
         (Join-Path $env:USERPROFILE "Desktop\print-agent.mjs"),
         (Join-Path $env:USERPROFILE "OneDrive\Escritorio\print-agent.mjs"),
         (Join-Path $env:USERPROFILE "OneDrive\Desktop\print-agent.mjs"),
@@ -236,8 +238,20 @@ function Levantar-Agente {
         Escribir-Log "No encuentro print-agent.mjs. Escribe su ruta en AGENTE_RUTA."
         return $null
     }
-    if ($TokenImpresion -eq "") {
+
+    # Un .bat o .cmd es lo que suele haber en el escritorio de un equipo que ya
+    # imprime: adentro estan el token y la impresora, y funciona. Se ejecuta tal
+    # cual en vez de pedir que lo desarmen para reescribirlo aca; lo unico que
+    # le faltaba era arrancar solo.
+    $porArchivo = [System.IO.Path]::GetExtension($script).ToLower()
+    $propio = ($porArchivo -eq ".mjs" -or $porArchivo -eq ".js")
+
+    if ($propio -and $TokenImpresion -eq "") {
         Escribir-Log "PRINT_AGENT_TOKEN vacio en barzuo-local.env: no salen comandas."
+        return $null
+    }
+    if ($propio -and -not $Node) {
+        Escribir-Log "No encuentro node.exe y el agente lo necesita."
         return $null
     }
 
@@ -258,9 +272,33 @@ function Levantar-Agente {
     Rotar-Log -Ruta $salida
     Rotar-Log -Ruta $errores
 
-    $proceso = Start-Process -FilePath $Node -ArgumentList @("`"$script`"") `
-        -WorkingDirectory (Split-Path -Parent $script) -WindowStyle Hidden -PassThru `
-        -RedirectStandardOutput $salida -RedirectStandardError $errores
+    if ($propio) {
+        $programa = $Node
+        $argumentos = @("`"$script`"")
+    } elseif ($porArchivo -eq ".ps1") {
+        $programa = "powershell.exe"
+        $argumentos = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$script`"")
+    } elseif ($porArchivo -eq ".bat" -or $porArchivo -eq ".cmd") {
+        $programa = "cmd.exe"
+        $argumentos = @("/c", "`"$script`"")
+    } else {
+        $programa = $script
+        $argumentos = @()
+    }
+
+    $parametros = @{
+        FilePath               = $programa
+        WorkingDirectory       = (Split-Path -Parent $script)
+        WindowStyle            = "Hidden"
+        PassThru               = $true
+        RedirectStandardOutput = $salida
+        RedirectStandardError  = $errores
+    }
+    # -ArgumentList vacio no es lo mismo que no pasarlo: Start-Process lo
+    # rechaza, y un .exe suelto en AGENTE_RUTA no lleva ninguno.
+    if ($argumentos.Count -gt 0) { $parametros["ArgumentList"] = $argumentos }
+
+    $proceso = Start-Process @parametros
     Escribir-Log "Agente de impresion levantado desde $script (PID $($proceso.Id))."
     return $proceso
 }
@@ -408,10 +446,11 @@ if (-not $AgentePropio) {
     Escribir-Log "AGENTE_LEVANTAR=no: el agente de impresion queda como estaba en el equipo."
 }
 
+# Node puede faltar y el local seguir imprimiendo: si el agente del escritorio
+# es un .bat, adentro va su propia forma de llamarlo. Solo se exige cuando hay
+# que ejecutar print-agent.mjs directamente, y eso lo decide Levantar-Agente.
 $Node = Buscar-Node
-if ($AgentePropio -and -not $Node) {
-    Escribir-Log "No encuentro node.exe. Instala Node 18 o superior desde nodejs.org."
-} elseif ($AgentePropio) {
+if ($AgentePropio) {
     $ProcesoAgente = Levantar-Agente -Node $Node
 }
 
@@ -437,7 +476,7 @@ Escribir-Log "Vigilando el agente y las pantallas."
 while ($true) {
     Start-Sleep -Seconds 10
 
-    if ($AgentePropio -and $Node -and (-not $ProcesoAgente -or $ProcesoAgente.HasExited)) {
+    if ($AgentePropio -and (-not $ProcesoAgente -or $ProcesoAgente.HasExited)) {
         # Se pregunta por cualquier agente, no solo por el que levanto este
         # script: si el del escritorio esta en pie, aca no hay nada que hacer.
         if (-not (Agente-YaCorriendo)) {

@@ -849,7 +849,7 @@ lleva el token):
 | `BARZUO_URL` | La URL pública del sitio, sin barra final. |
 | `PRINT_AGENT_TOKEN` | El mismo valor que tiene el servidor. |
 | `PRINTER_DEFAULT` | La impresora. En Windows, el recurso compartido: `\\localhost\POS80`. |
-| `AGENTE_RUTA` | Dónde está `print-agent.mjs`. Vacío se busca solo: el repo primero, el escritorio después. |
+| `AGENTE_RUTA` | Con qué se levanta el agente: el `print-agent.mjs`, o el `.bat`/`.cmd`/`.ps1` que el equipo ya tenga, que se ejecuta tal cual con sus propios valores adentro. Vacío se busca solo: el repo primero, el escritorio después. |
 | `AGENTE_LEVANTAR` | En `no`, el arranque no toca el agente —el equipo ya lo levanta por su cuenta— y solo abre las pantallas. |
 | `PANTALLA_POS_INDICE` / `PANTALLA_CAJA_INDICE` | Qué monitor muestra cada cosa. Se vacía uno para dejar una sola pantalla. |
 | `PANTALLA_POS_RUTA` / `PANTALLA_CAJA_RUTA` | Qué abre cada una. Para una pantalla de estación: `/staff/cocina` o `/staff/barra`. |
