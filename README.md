@@ -210,6 +210,7 @@ scripts/
   create-admin.ts        Crea o restablece un administrador
   generate-artwork.mjs   Genera la imaginería de demostración
   print-agent.mjs        Agente de impresión de comandas (corre en el local)
+  local/                 Arranque automático del PC del local (Windows)
 
 docker/
   entrypoint.sh          Espera la base, migra y arranca
@@ -773,7 +774,82 @@ o `192.168.1.50:9100`; el puerto por defecto es el 9100). El agente lo deduce:
 si lleva una barra, es una ruta.
 
 Conviene dejarlo como servicio del sistema (`systemd`, `pm2`) para que arranque
-solo cuando se enciende el equipo.
+solo cuando se enciende el equipo. En el PC de Windows del mostrador eso ya
+está resuelto: ver [El PC del local arranca solo](#el-pc-del-local-arranca-solo-windows).
+
+### El PC del local arranca solo (Windows)
+
+Cada noche empieza igual: alguien enciende el PC, entra a Windows, abre el
+navegador, escribe la dirección, entra al POS, lo pone a pantalla completa y
+—si se acuerda— levanta el agente de impresión. Cinco pasos que nadie tiene por
+qué recordar, y que después de un corte de luz a mitad de servicio hay que
+volver a hacer con el local lleno.
+
+`scripts/local/` deja el equipo funcionando solo:
+
+```
+scripts/local/
+  barzuo-local.env.example   Plantilla de configuración (URL, token, impresora, monitores)
+  barzuo-inicio.ps1          Levanta el agente, espera al sitio y abre cada pantalla
+  instalar-inicio.ps1        Registra lo anterior como tarea al iniciar sesión
+```
+
+**Qué hace al encender.** Levanta el agente de impresión, espera a que
+`barzuo.cl` responda —el equipo enciende antes que el wifi— y abre dos ventanas
+sin barras, a pantalla completa, cada una clavada en su monitor: el **POS de
+mesas** (`/staff/pos`) en la pantalla táctil del mostrador y las **ventas del
+día** (`/admin/caja`) en el monitor del PC. Después se queda vigilando: si el
+agente se cae vuelve a levantarlo, y si alguien cierra una pantalla de un aspa
+la vuelve a abrir.
+
+**Instalación, una sola vez:**
+
+```powershell
+cd C:\ruta\del\proyecto
+copy scripts\local\barzuo-local.env.example scripts\local\barzuo-local.env
+notepad scripts\local\barzuo-local.env
+
+# Qué monitor es cuál (el índice 0 es el de más a la izquierda)
+powershell -ExecutionPolicy Bypass -File scripts\local\instalar-inicio.ps1 -Pantallas
+
+# Registrar el arranque
+powershell -ExecutionPolicy Bypass -File scripts\local\instalar-inicio.ps1
+
+# Probarlo sin reiniciar
+Start-ScheduledTask -TaskName "BARZUO - arranque del local"
+```
+
+Se quita con `instalar-inicio.ps1 -Quitar`.
+
+**Las cuatro cosas que hay que dejar hechas en el equipo**, y que ningún script
+puede hacer por sí solo:
+
+1. **Inicio de sesión automático**, en `netplwiz`: desmarcar *Los usuarios deben
+   escribir su nombre y contraseña*. Sin esto Windows arranca hasta la pantalla
+   de bloqueo y ahí se queda.
+2. **Entrar una vez en cada pantalla**, cada una con su usuario —la táctil como
+   sala, el PC como administrador—. Cada ventana tiene su propio perfil de
+   navegador, así que son dos sesiones distintas y la cookie queda guardada. La
+   sesión dura **7 días**: una vez por semana alguien vuelve a escribir la clave.
+3. **Energía**: pantalla y equipo en *Nunca* (Configuración → Sistema → Energía).
+4. **BIOS**: *Restore on AC power loss* → *Power On*, para que vuelva solo
+   después de un corte.
+
+**Configuración** (`scripts/local/barzuo-local.env`, que no se versiona porque
+lleva el token):
+
+| Variable | Qué es |
+| --- | --- |
+| `BARZUO_URL` | La URL pública del sitio, sin barra final. |
+| `PRINT_AGENT_TOKEN` | El mismo valor que tiene el servidor. |
+| `PRINTER_DEFAULT` | La impresora. En Windows, el recurso compartido: `\\localhost\POS80`. |
+| `PANTALLA_POS_INDICE` / `PANTALLA_CAJA_INDICE` | Qué monitor muestra cada cosa. Se vacía uno para dejar una sola pantalla. |
+| `PANTALLA_POS_RUTA` / `PANTALLA_CAJA_RUTA` | Qué abre cada una. Para una pantalla de estación: `/staff/cocina` o `/staff/barra`. |
+| `PANTALLA_POS_ZONA_MUERTA` | La franja ciega del monitor táctil, en píxeles (ver arriba). |
+
+Lo que pasó en cada arranque queda en `scripts/local/logs/arranque.log`, y lo
+que imprimió el agente en `agente.log`: si una noche el POS no aparece, la
+respuesta está ahí y no hay que reconstruirla de memoria.
 
 ### Antes de usarlo
 

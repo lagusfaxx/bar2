@@ -50,3 +50,7 @@ next-env.d.ts
 
 # El manual de sala se genera, no se edita a mano
 manual-de-sala.pdf
+
+# PC del local: configuracion y bitacoras del arranque (lleva el token de impresion)
+/scripts/local/barzuo-local.env
+/scripts/local/logs/
