@@ -358,6 +358,13 @@ function Abrir-Pantalla {
     }
 }
 
+function Agregar-Parametro {
+    param([string]$Url, [string]$Clave, [string]$Valor)
+
+    $union = if ($Url.Contains("?")) { "&" } else { "?" }
+    return "$Url$union$Clave=$Valor"
+}
+
 function Preparar-Pantallas {
     param([string]$Navegador)
 
@@ -384,8 +391,18 @@ function Preparar-Pantallas {
         if ($definicion.Nombre -eq "pos") {
             $zonaMuerta = Valor $Config "PANTALLA_POS_ZONA_MUERTA"
             if ($zonaMuerta -ne "" -and $zonaMuerta -ne "0") {
-                $union = if ($url.Contains("?")) { "&" } else { "?" }
-                $url = "$url${union}zonamuerta=$zonaMuerta"
+                $url = Agregar-Parametro -Url $url -Clave "zonamuerta" -Valor $zonaMuerta
+            }
+
+            # El teclado de la app, el que se dibuja adentro de la pantalla.
+            #
+            # La preferencia se guarda por navegador, y esta ventana estrena un
+            # perfil vacio en cada equipo nuevo: lo que se forzo alguna vez en
+            # el navegador de siempre no esta aca. Por eso se manda en cada
+            # arranque y no una sola vez a mano.
+            $teclado = Valor $Config "PANTALLA_POS_TECLADO"
+            if ($teclado -ne "") {
+                $url = Agregar-Parametro -Url $url -Clave "teclado" -Valor $teclado
             }
         }
 
