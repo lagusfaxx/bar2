@@ -97,12 +97,21 @@ function loForzado(): boolean | null {
   return forzado;
 }
 
-function subscribe(alCambiar: () => void) {
-  /*
-   * Se guarda lo que venga en la direccion, para que valga tambien la proxima
-   * vez que se abra la sala sin el parametro. Va aca y no al leer el valor
-   * porque leer tiene que poder repetirse sin efectos.
-   */
+/**
+ * Guarda en el equipo lo que venga en la direccion.
+ *
+ * Se llama desde dos lados y por la misma razon: el parametro llega en una
+ * pagina y hace falta en otra.
+ *
+ * La sala (`/staff/pos`) no tiene ningun campo de texto, asi que ningun
+ * componente pregunta ahi por el teclado; los campos aparecen recien al entrar
+ * a una mesa, y para entonces la direccion ya es otra y el parametro se
+ * perdio. Si solo se guardara al preguntar, abrir la sala con `?teclado=1` no
+ * dejaria rastro y el equipo seguiria sin teclado —que es exactamente lo que
+ * pasaba en la pantalla del mostrador—. Por eso lo guarda tambien el layout de
+ * sala, en cada pagina, mire quien mire.
+ */
+export function guardarTecladoDeLaUrl() {
   const enLaUrl = forzadoEnLaUrl();
 
   try {
@@ -117,6 +126,15 @@ function subscribe(alCambiar: () => void) {
   // Lo guardado recien pudo cambiar: se vuelve a mirar una vez, aca.
   forzado = enLaUrl ?? forzadoEnElEquipo();
   yaSeMiro = true;
+}
+
+function subscribe(alCambiar: () => void) {
+  /*
+   * Leer no puede tener efectos, asi que guardar lo que trae la direccion va
+   * aca y no en `getSnapshot`. React vuelve a preguntar por el valor despues
+   * de suscribirse, de modo que lo que se acaba de guardar se ve enseguida.
+   */
+  guardarTecladoDeLaUrl();
 
   const mq = consultaDeMedios();
 
