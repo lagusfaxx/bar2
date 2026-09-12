@@ -111,6 +111,10 @@ $TokenImpresion = Valor $Config "PRINT_AGENT_TOKEN"
 # Un equipo que ya tenia su agente -el acceso directo del escritorio, una tarea
 # hecha a mano- lo sigue manejando el: aca solo se abren las pantallas.
 $AgentePropio = (Valor $Config "AGENTE_LEVANTAR" "si").ToLower() -ne "no"
+# Reabrir una pantalla que alguien cerro es lo que hay que hacer en servicio y
+# lo que estorba mientras se configura el equipo: cerrar una ventana y verla
+# volver a los diez segundos parece que el script ignora lo que uno hace.
+$VigilarPantallas = (Valor $Config "VIGILAR_PANTALLAS" "si").ToLower() -ne "no"
 
 # --- Programas del equipo ---------------------------------------------------
 
@@ -488,7 +492,11 @@ if ($SinVigilancia) {
 # Lo que se cae de noche, en un local lleno, nadie lo levanta. Cada diez
 # segundos se mira que siga todo en pie y se repone lo que falte.
 
-Escribir-Log "Vigilando el agente y las pantallas."
+if ($VigilarPantallas) {
+    Escribir-Log "Vigilando el agente y las pantallas."
+} else {
+    Escribir-Log "VIGILAR_PANTALLAS=no: una pantalla que se cierre se queda cerrada."
+}
 
 while ($true) {
     Start-Sleep -Seconds 10
@@ -502,7 +510,7 @@ while ($true) {
         }
     }
 
-    if ($Navegador) {
+    if ($Navegador -and $VigilarPantallas) {
         for ($i = 0; $i -lt $Pantallas.Count; $i++) {
             $pantalla = $Pantallas[$i]
             if ($pantalla.Proceso.HasExited) {

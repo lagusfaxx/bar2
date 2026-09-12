@@ -854,6 +854,7 @@ lleva el token):
 | `PANTALLA_POS_INDICE` / `PANTALLA_CAJA_INDICE` | Qué monitor muestra cada cosa. Se vacía uno para dejar una sola pantalla. |
 | `PANTALLA_POS_RUTA` / `PANTALLA_CAJA_RUTA` | Qué abre cada una. Para una pantalla de estación: `/staff/cocina` o `/staff/barra`. |
 | `PANTALLA_POS_ZONA_MUERTA` | La franja ciega del monitor táctil, en píxeles (ver arriba). |
+| `VIGILAR_PANTALLAS` | En `no`, una pantalla que alguien cierre se queda cerrada. Por defecto se reabre a los diez segundos. |
 | `PANTALLA_POS_TECLADO` | `1` fuerza el teclado que dibuja la app, `0` lo apaga, `auto` deja decidir a la app. Se manda en cada arranque porque la ventana usa un perfil de navegador propio, donde no está lo que se forzó a mano en el navegador de siempre. |
 
 Lo que pasó en cada arranque queda en `scripts/local/logs/arranque.log`, y lo
