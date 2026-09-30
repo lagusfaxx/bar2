@@ -922,12 +922,44 @@ documento o gráfico— sin entrar al panel.
 
 | Herramienta | Qué devuelve |
 | --- | --- |
-| `informe_diario` | Una jornada (`fecha`, por defecto la en curso): total, subtotal, descuentos, cobros, ticket promedio, formas de pago, mesa / de pie / venta directa, cajeros, barra vs cocina, lo más vendido, venta hora por hora con la hora peak, cobros anulados y comparación con **el mismo día de la semana anterior**. Si es la noche en curso, también lo que queda sin cobrar en las cuentas abiertas. |
-| `informe_mensual` | Un mes (`mes`, por defecto el en curso): las mismas cifras, más la venta jornada por jornada, el promedio por día de la semana, la mejor y la peor jornada y la comparación con **el mes anterior**. |
-| `informe_rango` | Entre dos jornadas (`desde`, `hasta`, máximo un año): las mismas cifras y el total de cada jornada. Sirve para semanas o tramos a medida. |
+| `informe_diario` | El informe completo de una jornada (`fecha`, por defecto la en curso), más venta hora por hora con la hora peak, los eventos de la noche, lo que queda sin cobrar si es la noche en curso y comparación con **el mismo día de la semana anterior** y con **el promedio de las últimas 4 semanas**. |
+| `informe_mensual` | El informe completo de un mes (`mes`, por defecto el en curso), más venta jornada por jornada, promedio por día de la semana, mapa de calor día × hora, impacto de los eventos, mejor y peor jornada, **proyección de cierre** y comparación con **el mes anterior** y **el mismo mes del año anterior**. |
+| `informe_rango` | El informe completo entre dos jornadas (`desde`, `hasta`, máximo un año), con venta por jornada, mapa de calor, eventos y comparación con el tramo anterior del mismo largo. |
+| `detalle_cobros` | Cada cobro de una jornada: hora, comprobante, cuenta, forma de pago, descuento, cajero, BarzuCard, anulación y productos. Para cuadrar la caja o revisar un reclamo. |
 
-Las tres aceptan `top` (cuántos productos listar). Los montos van en pesos,
-sin decimales. Mismas reglas que el resto del panel:
+El **informe completo** trae, en cada una de las tres primeras:
+
+| Sección | Indicadores |
+| --- | --- |
+| Resumen | Venta total, venta neta sin IVA, IVA, venta a precio de lista, descuentos (y % sobre lista), cobros, cuentas, personas atendidas, ticket promedio por cobro, por cuenta y **por persona**, unidades por persona, margen bruto. |
+| Costos y margen | Costo de lo vendido, margen bruto, **pour cost** de barra y **food cost** de cocina, cobertura (qué parte de la venta tiene costo cargado). |
+| Descuentos | Promociones de la carta (por etiqueta), beneficios BarzuCard y cortesías a precio de lista. |
+| Mix de venta | Formas de pago, mesa / de pie / venta directa (con ticket por cuenta y por persona), cajeros, **garzones** (venta cargada, unidades, cuentas, promedio), barra vs cocina, categorías. |
+| Productos | Más vendidos, mayor facturación, menos vendidos, opciones elegidas (sabores), **análisis ABC** (qué productos hacen el 80 % de la venta), **ingeniería de menú** (estrella, caballo de batalla, enigma, perro) y productos de la carta que no se vendieron. |
+| Salón | Mesas activas, rotación por mesa, permanencia promedio (mesa y de pie), personas por mesa, venta por zona y por mesa. |
+| Tiempos de servicio | Por estación: comandas, espera promedio, mediana, percentil 90, peor espera, comandas sobre 15 minutos e impresiones fallidas. |
+| Cancelaciones y anulados | Líneas sacadas de la cuenta (valor, % sobre venta, por producto y por quién), las que ya habían salido a preparación (posible merma) y cobros anulados con motivo y quién anuló. |
+| BarzuCard | Cobros y venta con tarjeta, ticket con vs sin tarjeta, socios distintos y nuevos, beneficios canjeados por promoción, cupones emitidos / canjeados / vencidos. |
+| Karaoke | Canciones pedidas, cantadas, descartadas, pedidas por QR y las más cantadas. |
+| Contexto | `criterios` (cómo se calcula cada cifra) y `noDisponible` (lo que el sistema no registra: propinas, sueldos, stock), para que Claude no lo invente. |
+
+Las tres aceptan `top` (cuántos productos listar) y `meta` (meta de venta en
+pesos: agrega el % de cumplimiento, lo que falta y cuánto hay que vender por
+jornada restante). Además el servidor ofrece dos **plantillas**
+(`informe_del_dia`, `informe_del_mes`) que piden el informe ejecutivo con la
+estructura de siempre: resumen, indicadores, evolución, mix, productos,
+equipo, operación, salón, BarzuCard, eventos y recomendaciones.
+
+**Costo por porción.** El pour cost, el food cost, el margen y la ingeniería
+de menú necesitan saber cuánto cuesta servir cada producto. Se carga en
+*Carta → producto → Costo por porción* (opcional; nadie en la sala lo ve).
+Cada línea vendida guarda una copia del costo del momento, igual que el
+precio; para lo vendido antes de cargarlo se usa el costo actual y el informe
+lo avisa (`lineasConCostoActual`).
+
+Los montos van en pesos, sin decimales. La venta neta descuenta un IVA del
+19 % incluido en los precios (`REPORT_VAT_RATE` lo cambia). Mismas reglas que
+el resto del panel:
 
 - **Por jornada, de 06:00 a 06:00** (hora del local), igual que
   [El servicio en vivo](#el-servicio-en-vivo): lo cobrado el sábado a las dos

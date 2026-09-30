@@ -137,6 +137,7 @@ export const menuProductSchema = z.object({
   slug: trimmed.max(90).optional().or(z.literal("")),
   description: trimmed.max(600).optional().or(z.literal("")),
   price: trimmed.min(1, "Indica el precio"),
+  cost: trimmed.max(20).optional().or(z.literal("")),
   imageUrl: optionalUrl,
   available: z.coerce.boolean().default(true),
   featured: z.coerce.boolean().default(false),

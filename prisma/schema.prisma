@@ -209,6 +209,15 @@ model MenuProduct {
   slug        String  @unique
   description String? @db.Text
   priceCents  Int
+
+  /**
+   * Costo de una porcion: lo que cuesta servirla (receta, botella prorrateada).
+   *
+   * Opcional y solo para los informes: con el se calcula el costo de lo
+   * vendido, el margen y el pour cost / food cost. Nadie en la sala lo ve.
+   */
+  costCents Int?
+
   imageUrl    String?
 
   available Boolean  @default(true)
@@ -1145,6 +1154,11 @@ model OrderItem {
    * adivinar sobre texto libre.
    */
   variant String?
+
+  // Copia del costo del producto al cargar la linea, por la misma razon que
+  // el precio: si el costo cambia, lo ya vendido conserva el suyo. Vacio si
+  // el producto no tenia costo cargado.
+  unitCostCents Int?
 
   // Descuento ya resuelto al cargar la linea (promo vigente de la carta).
   // Los beneficios de BarzuCard NO se guardan aca: viven en Redemption y se

@@ -172,6 +172,17 @@ export async function saveMenuProduct(
     return formError("El precio no es válido.", { price: "Precio inválido" });
   }
 
+  // El costo es opcional: sin el, el producto simplemente no entra al calculo
+  // de margen de los informes.
+  let costCents: number | null = null;
+  if (input.cost) {
+    try {
+      costCents = parsePriceToCents(input.cost);
+    } catch {
+      return formError("El costo no es válido.", { cost: "Costo inválido" });
+    }
+  }
+
   const category = await prisma.menuCategory.findUnique({
     where: { id: input.categoryId },
     select: { slug: true },
@@ -229,6 +240,7 @@ export async function saveMenuProduct(
     name: input.name,
     description: input.description || null,
     priceCents,
+    costCents,
     imageUrl: input.imageUrl || null,
     available: input.available,
     featured: input.featured,

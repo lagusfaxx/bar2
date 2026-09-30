@@ -40,6 +40,7 @@ export default async function EditarProductoPage({
           name: product.name,
           description: product.description,
           price: (product.priceCents / 100).toString(),
+          cost: product.costCents !== null ? (product.costCents / 100).toString() : "",
           imageUrl: product.imageUrl,
           available: product.available,
           featured: product.featured,

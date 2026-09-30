@@ -125,6 +125,7 @@ export type ProductValues = {
   name?: string;
   description?: string | null;
   price?: string;
+  cost?: string;
   imageUrl?: string | null;
   available?: boolean;
   featured?: boolean;
@@ -200,6 +201,16 @@ export function MenuProductForm({
               placeholder="490"
               hint="En pesos. Usa coma para los centésimos."
               error={state.errors?.price}
+            />
+
+            <Field
+              label="Costo por porción"
+              name="cost"
+              inputMode="decimal"
+              defaultValue={product?.cost}
+              placeholder="150"
+              hint="Opcional. Lo que cuesta servirlo; solo para los informes de margen y pour cost."
+              error={state.errors?.cost}
             />
 
             <Field
