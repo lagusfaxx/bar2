@@ -3,6 +3,13 @@ import { timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
 import {
+  CORS_HEADERS,
+  OAUTH_SCOPE,
+  preflight,
+  resourceMetadataUrl,
+  verifyAccessToken,
+} from "@/lib/oauth";
+import {
   currentJornada,
   currentMonth,
   dailyReport,
@@ -22,9 +29,12 @@ import {
  * respuesta en JSON. Alcanza de sobra para herramientas que solo leen, y evita
  * guardar estado en el proceso —que se pierde con cada despliegue—.
  *
- * Acceso: `MCP_TOKEN`, como `Authorization: Bearer <token>` o, para los
- * clientes que solo aceptan una URL (el conector personalizado de claude.ai),
- * como `?token=<token>`. Sin la variable la ruta queda cerrada.
+ * Acceso, por cualquiera de dos vias:
+ * - OAuth (lo normal en Claude): sin llave, la ruta responde 401 con la
+ *   cabecera que lleva al conector a /oauth/authorize, donde un administrador
+ *   da el permiso con su cuenta del panel (ver lib/oauth.ts).
+ * - La clave fija `MCP_TOKEN`, como `Authorization: Bearer <token>` o
+ *   `?token=<token>`. Opcional: sin la variable esta via queda cerrada.
  */
 
 export const dynamic = "force-dynamic";
@@ -32,21 +42,43 @@ export const dynamic = "force-dynamic";
 const PROTOCOL_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 const LATEST_PROTOCOL = "2025-06-18";
 
-function authorized(request: Request) {
+/** La clave fija de `MCP_TOKEN`, para clientes que la mandan tal cual. */
+function staticToken(provided: string) {
   const expected = process.env.MCP_TOKEN;
 
-  // Son las cifras del negocio: sin una clave larga, cerrado.
-  if (!expected || expected.length < 24) return false;
-
-  const header = request.headers.get("authorization") ?? "";
-  const provided = header.startsWith("Bearer ")
-    ? header.slice(7)
-    : (new URL(request.url).searchParams.get("token") ?? "");
+  // Son las cifras del negocio: sin una clave larga, esta via queda cerrada.
+  if (!expected || expected.length < 24 || !provided) return false;
 
   const a = Buffer.from(provided);
   const b = Buffer.from(expected);
 
   return a.length === b.length && timingSafeEqual(a, b);
+}
+
+async function authorized(request: Request) {
+  const header = request.headers.get("authorization") ?? "";
+  const bearer = header.startsWith("Bearer ") ? header.slice(7).trim() : "";
+
+  if (bearer) {
+    if (staticToken(bearer)) return true;
+    return (await verifyAccessToken(bearer)) !== null;
+  }
+
+  return staticToken(new URL(request.url).searchParams.get("token") ?? "");
+}
+
+/**
+ * La respuesta que arranca el flujo de OAuth: el conector lee la cabecera,
+ * encuentra los metadatos y manda a quien lo agrega a autorizar.
+ */
+function unauthorized() {
+  return Response.json(rpcError(null, -32001, "No autorizado"), {
+    status: 401,
+    headers: {
+      ...CORS_HEADERS,
+      "WWW-Authenticate": `Bearer resource_metadata="${resourceMetadataUrl()}", scope="${OAUTH_SCOPE}"`,
+    },
+  });
 }
 
 // --- Herramientas ------------------------------------------------------------
@@ -225,9 +257,7 @@ async function handle(message: RpcRequest) {
 }
 
 export async function POST(request: Request) {
-  if (!authorized(request)) {
-    return Response.json(rpcError(null, -32001, "No autorizado"), { status: 401 });
-  }
+  if (!(await authorized(request))) return unauthorized();
 
   let body: unknown;
   try {
@@ -251,10 +281,10 @@ export async function POST(request: Request) {
     responses.push(await handle(message));
   }
 
-  if (responses.length === 0) return new Response(null, { status: 202 });
+  if (responses.length === 0) return new Response(null, { status: 202, headers: CORS_HEADERS });
 
   return Response.json(Array.isArray(body) ? responses : responses[0], {
-    headers: { "Cache-Control": "no-store" },
+    headers: { ...CORS_HEADERS, "Cache-Control": "no-store" },
   });
 }
 
@@ -266,3 +296,5 @@ export async function GET() {
 export async function DELETE() {
   return new Response(null, { status: 405, headers: { Allow: "POST" } });
 }
+
+export const OPTIONS = preflight;

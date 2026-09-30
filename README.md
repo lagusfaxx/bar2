@@ -192,7 +192,7 @@ de demostración.
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 | `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
 | `YOUTUBE_API_KEY` | Para el karaoke | Clave de la YouTube Data API v3. Sin ella el karaoke funciona igual, pero solo con el catálogo que el local ya tenga cargado. |
-| `MCP_TOKEN` | Para los informes con Claude | Clave del servidor MCP de ventas (`/api/mcp`). Mínimo 24 caracteres. Sin ella la ruta queda cerrada. Ver [Informes de ventas con Claude](#informes-de-ventas-con-claude-mcp). |
+| `MCP_TOKEN` | No | Clave fija opcional del servidor MCP de ventas (`/api/mcp`). Mínimo 24 caracteres. Lo normal es conectar Claude por OAuth, que no la necesita. Ver [Informes de ventas con Claude](#informes-de-ventas-con-claude-mcp). |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, el HTML público se guarda una hora en el borde y al guardar en el panel se purga solo: el cambio se ve al instante. Sin ellas la copia dura un minuto, así que los cambios tardan como mucho eso. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
@@ -298,7 +298,8 @@ mostrarlas y al cargarlas desde el panel.
 
 **Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
 impresión, autenticado con `PRINT_AGENT_TOKEN`), `/api/mcp` (informes de
-ventas para Claude, autenticado con `MCP_TOKEN`).
+ventas para Claude, autenticado por OAuth o con `MCP_TOKEN`), `/oauth/*` y
+`/.well-known/oauth-*` (autorización de conectores).
 
 ---
 
@@ -938,35 +939,56 @@ sin decimales. Mismas reglas que el resto del panel:
 - Si el periodo **sigue en curso**, la comparación es contra el anterior
   **hasta la misma hora**: media noche contra una noche entera siempre parece
   una caída.
+- **Sirve para cualquier fecha pasada**: lee los cobros guardados, así que las
+  jornadas y meses ya cerrados se consultan igual que hoy, desde el primer
+  cobro que registró el POS.
+- Los **días cerrados** del panel (evento privado, vacaciones) salen marcados
+  con su motivo en `cerrado`: un cero ahí no es un mal día.
 
-### Conectarlo
+### Conectarlo con OAuth (lo normal)
 
-1. Genera la clave y cárgala en el servidor como `MCP_TOKEN` (mínimo 24
-   caracteres), y reinicia:
-
-   ```bash
-   openssl rand -hex 32
-   ```
-
-2. **Claude (web, escritorio y móvil)**: *Ajustes → Conectores → Agregar
-   conector personalizado*, con la URL
+1. En Claude (web, escritorio o móvil): *Ajustes → Conectores → Agregar
+   conector personalizado*, con la URL **sin clave**:
 
    ```
-   https://barzuo.com/api/mcp?token=<MCP_TOKEN>
+   https://barzuo.com/api/mcp
    ```
 
-   El conector personalizado solo admite una URL, por eso la clave va en ella:
-   trátala como una contraseña y no la compartas.
+2. Claude abre la pantalla de autorización del sitio (`/oauth/authorize`). Si
+   no hay sesión pide el login del panel; después muestra qué se está
+   autorizando. **Solo un `ADMIN` puede permitirlo.**
 
-3. **Claude Code**: acepta la clave en la cabecera, que es lo preferible:
+3. Listo. Las llaves se renuevan solas (la de acceso dura una hora; la de
+   renovación, 60 días y rota en cada uso).
 
-   ```bash
-   claude mcp add --transport http barzuo-ventas https://barzuo.com/api/mcp \
-     --header "Authorization: Bearer <MCP_TOKEN>"
-   ```
+En el panel, **Conectores** (`/admin/conectores`) lista lo conectado, quién lo
+autorizó y cuándo se usó por última vez, con un botón para desconectar. Además,
+si la cuenta que autorizó se desactiva o deja de ser `ADMIN`, sus conexiones
+dejan de funcionar solas.
 
-Para cambiar la clave basta con cambiar `MCP_TOKEN` y reiniciar: la URL vieja
-deja de funcionar al instante.
+Por dentro es OAuth 2.1 con lo que pide el conector de Claude: metadatos en
+`/.well-known/oauth-protected-resource` y
+`/.well-known/oauth-authorization-server`, registro dinámico de clientes
+(`/oauth/register`), código con PKCE S256 (`/oauth/authorize`,
+`/oauth/token`) y revocación (`/oauth/revoke`). Las llaves se guardan como
+huellas SHA-256, nunca en claro. La URL pública sale de
+`NEXT_PUBLIC_SITE_URL`: tiene que ser exactamente el dominio con que se agrega
+el conector.
+
+### Con clave fija (opcional)
+
+Para scripts o si prefieres no usar OAuth: carga `MCP_TOKEN` (mínimo 24
+caracteres, `openssl rand -hex 32`) y reinicia. Se manda como
+`Authorization: Bearer <MCP_TOKEN>` o como `?token=<MCP_TOKEN>` en la URL.
+Sin la variable esta vía queda cerrada y solo funciona OAuth.
+
+```bash
+claude mcp add --transport http barzuo-ventas https://barzuo.com/api/mcp \
+  --header "Authorization: Bearer <MCP_TOKEN>"
+```
+
+Claude Code también sabe hacer OAuth: sin `--header`, `/mcp` lo manda a
+autorizar en el navegador.
 
 Con Claude conectado, un informe mensual automático es una tarea programada:
 «el primer día de cada mes, arma el informe del mes anterior y mándamelo por

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { INICIO_JORNADA, serviceStart } from "@/lib/dashboard";
-import { TIME_ZONE, zonedStartOfHour } from "@/lib/format";
+import { dateOnlyKey, TIME_ZONE, zonedStartOfHour } from "@/lib/format";
 import { lineTotal } from "@/lib/pos";
 import { prisma } from "@/lib/prisma";
 
@@ -107,6 +107,19 @@ function shiftMonth(month: string, months: number) {
 }
 
 // --- Lectura -----------------------------------------------------------------
+
+/**
+ * Los dias marcados como cerrados (evento privado, vacaciones) entre dos
+ * jornadas. Un cero en un dia cerrado no es un mal dia, y el informe lo dice.
+ */
+async function closedDays(from: string, to: string) {
+  const days = await prisma.closedDay.findMany({
+    where: { date: { gte: new Date(`${from}T00:00:00Z`), lte: new Date(`${to}T00:00:00Z`) } },
+    select: { date: true, reason: true },
+  });
+
+  return new Map(days.map((d) => [dateOnlyKey(d.date), d.reason]));
+}
 
 async function loadPeriod(start: Date, end: Date) {
   const [payments, items, sessions] = await Promise.all([
@@ -319,6 +332,7 @@ const criterios = [
   "Total = lo cobrado, ya descontadas promociones y beneficios BarzuCard. Sin propina: la propina queda en la terminal de pago.",
   "Los cobros anulados no suman en ninguna cifra y se listan aparte.",
   "Productos y estaciones cuentan solo lo cobrado en el periodo.",
+  "`cerrado` trae el motivo cuando el dia se marco como cerrado en el panel (evento privado, vacaciones): un cero ahi no es un mal dia.",
 ];
 
 // --- Informes ----------------------------------------------------------------
@@ -390,6 +404,7 @@ export async function dailyReport(date: string, topProducts = 10) {
     tipo: "diario",
     jornada: date,
     diaDeLaSemana: weekday,
+    cerrado: (await closedDays(date, date)).get(date) ?? null,
     desde: start.toISOString(),
     hasta: end.toISOString(),
     enCurso: now >= start && now < end,
@@ -423,6 +438,8 @@ export async function monthlyReport(month: string, topProducts = 15) {
     days.push(d);
   }
 
+  const closed = await closedDays(`${month}-01`, days[days.length - 1] ?? `${month}-01`);
+
   const porDia = days.map((date) => {
     const v = byDay.get(date);
     return {
@@ -430,6 +447,7 @@ export async function monthlyReport(month: string, topProducts = 15) {
       dia: DIAS[new Date(`${date}T00:00:00Z`).getUTCDay()],
       total: money(v?.cents ?? 0),
       cobros: v?.count ?? 0,
+      cerrado: closed.get(date) ?? null,
     };
   });
 
@@ -499,7 +517,15 @@ export async function rangeReport(from: string, to: string, topProducts = 10) {
     byDay.set(date, { cents: current.cents + p.totalCents, count: current.count + 1 });
   }
 
-  const porDia: Array<{ jornada: string; dia: string; total: number; cobros: number }> = [];
+  const closed = await closedDays(from, to);
+
+  const porDia: Array<{
+    jornada: string;
+    dia: string;
+    total: number;
+    cobros: number;
+    cerrado: string | null;
+  }> = [];
   for (let d = from; d <= to; d = shiftDay(d, 1)) {
     const v = byDay.get(d);
     porDia.push({
@@ -507,6 +533,7 @@ export async function rangeReport(from: string, to: string, topProducts = 10) {
       dia: DIAS[new Date(`${d}T00:00:00Z`).getUTCDay()],
       total: money(v?.cents ?? 0),
       cobros: v?.count ?? 0,
+      cerrado: closed.get(d) ?? null,
     });
   }
 

@@ -42,6 +42,8 @@ model User {
   voidedPayments Payment[]      @relation("PaymentVoidedBy")
   karaokeEntries KaraokeEntry[] @relation("KaraokeQueuedBy")
   contactReplies ContactReply[] @relation("ContactReplyAuthor")
+  oauthCodes     OAuthCode[]
+  oauthTokens    OAuthToken[]
 
   @@index([role])
   @@map("users")
@@ -1497,4 +1499,91 @@ model KaraokeSearch {
 
   @@index([createdAt])
   @@map("karaoke_searches")
+}
+
+// ---------------------------------------------------------------------------
+// Conectores (OAuth para el servidor MCP de ventas)
+// ---------------------------------------------------------------------------
+
+/**
+ * Una aplicacion que se registro para pedir acceso: Claude, Claude Code.
+ *
+ * Se registran solas (registro dinamico, RFC 7591): el conector de Claude
+ * llega, se presenta y recibe su `clientId` sin que nadie tenga que copiar
+ * claves a mano. Registrarse no da acceso a nada; eso lo decide un
+ * administrador en la pantalla de autorizacion.
+ */
+model OAuthClient {
+  id       String @id @default(cuid())
+  clientId String @unique
+
+  name         String
+  redirectUris String[]
+
+  // Solo si el cliente pidio autenticarse con secreto; los publicos usan PKCE.
+  secretHash String?
+
+  createdAt DateTime @default(now())
+
+  codes  OAuthCode[]
+  tokens OAuthToken[]
+
+  @@map("oauth_clients")
+}
+
+/**
+ * El codigo de un solo uso que sale de la pantalla de autorizacion.
+ * Vive cinco minutos y se guarda solo su huella.
+ */
+model OAuthCode {
+  id       String      @id @default(cuid())
+  codeHash String      @unique
+  clientId String
+  client   OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  redirectUri   String
+  codeChallenge String
+  resource      String?
+  scope         String
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([expiresAt])
+  @@map("oauth_codes")
+}
+
+/**
+ * Una conexion autorizada: el par de llaves que usa el conector.
+ *
+ * La llave de acceso dura una hora y la de renovacion rota en cada uso: si
+ * alguien copiara una vieja, deja de servir en la siguiente renovacion. Se
+ * guardan solo sus huellas. Desconectar desde el panel es poner `revokedAt`.
+ */
+model OAuthToken {
+  id       String      @id @default(cuid())
+  clientId String
+  client   OAuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  // Quien autorizo. Si deja de ser administrador o se desactiva, la conexion
+  // deja de funcionar sola.
+  userId   String
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  scope String
+
+  accessHash       String   @unique
+  accessExpiresAt  DateTime
+  refreshHash      String   @unique
+  refreshExpiresAt DateTime
+
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([clientId])
+  @@map("oauth_tokens")
 }
