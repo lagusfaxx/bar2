@@ -18,7 +18,7 @@ import { prisma } from "@/lib/prisma";
  */
 
 /** A que hora del reloj del local empieza la jornada. */
-const INICIO_JORNADA = 6;
+export const INICIO_JORNADA = 6;
 
 /**
  * Cuando empieza la jornada.

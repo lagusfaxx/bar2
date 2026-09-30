@@ -57,6 +57,8 @@ services:
       EMAIL_NOTIFY_TO: ${EMAIL_NOTIFY_TO:-}
       # Protege /api/cron/cumpleanos, que dispara los saludos del dia.
       CRON_SECRET: ${CRON_SECRET:-}
+      # Protege /api/mcp, los informes de ventas para Claude.
+      MCP_TOKEN: ${MCP_TOKEN:-}
       # Purga del caché de Cloudflare al guardar en el panel.
       CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
