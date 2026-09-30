@@ -1,5 +1,5 @@
 const LOCALE = "es-CL";
-const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
+export const TIME_ZONE = process.env.NEXT_PUBLIC_TIME_ZONE ?? "America/Santiago";
 const CURRENCY = process.env.NEXT_PUBLIC_CURRENCY ?? "CLP";
 
 /*

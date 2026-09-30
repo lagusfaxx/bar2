@@ -22,11 +22,12 @@ cambiar un texto, subir un afiche o publicar un show.
 8. [Cómo funciona la BarzuCard](#cómo-funciona-la-barzucard)
 9. [POS de sala](#pos-de-sala)
 10. [El servicio en vivo](#el-servicio-en-vivo)
-11. [Karaoke](#karaoke)
-12. [Despliegue en Coolify](#despliegue-en-coolify)
-13. [Operación del día a día](#operación-del-día-a-día)
-14. [Comandos disponibles](#comandos-disponibles)
-15. [Decisiones técnicas](#decisiones-técnicas)
+11. [Informes de ventas con Claude (MCP)](#informes-de-ventas-con-claude-mcp)
+12. [Karaoke](#karaoke)
+13. [Despliegue en Coolify](#despliegue-en-coolify)
+14. [Operación del día a día](#operación-del-día-a-día)
+15. [Comandos disponibles](#comandos-disponibles)
+16. [Decisiones técnicas](#decisiones-técnicas)
 
 ---
 
@@ -191,6 +192,7 @@ de demostración.
 | `SEED_FORCE` | No | Si es `true`, el seed vuelve a sembrar aunque la base ya tenga contenido. **Devuelve la portada a la demo**: úsala solo a propósito. |
 | `PRINT_AGENT_TOKEN` | Para el POS | Clave compartida con el agente de impresión del local. Mínimo 16 caracteres. Sin ella, la cola de comandas queda cerrada. |
 | `YOUTUBE_API_KEY` | Para el karaoke | Clave de la YouTube Data API v3. Sin ella el karaoke funciona igual, pero solo con el catálogo que el local ya tenga cargado. |
+| `MCP_TOKEN` | Para los informes con Claude | Clave del servidor MCP de ventas (`/api/mcp`). Mínimo 24 caracteres. Sin ella la ruta queda cerrada. Ver [Informes de ventas con Claude](#informes-de-ventas-con-claude-mcp). |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_API_TOKEN` | No | Si están, el HTML público se guarda una hora en el borde y al guardar en el panel se purga solo: el cambio se ve al instante. Sin ellas la copia dura un minuto, así que los cambios tardan como mucho eso. |
 
 Las tres variables `NEXT_PUBLIC_*` se insertan **en tiempo de build**: si las
@@ -295,7 +297,8 @@ mostrarlas y al cargarlas desde el panel.
 `/staff/karaoke/qr`.
 
 **Servicio** — `/api/health`, `/uploads/*`, `/api/pos/comandas` (agente de
-impresión, autenticado con `PRINT_AGENT_TOKEN`).
+impresión, autenticado con `PRINT_AGENT_TOKEN`), `/api/mcp` (informes de
+ventas para Claude, autenticado con `MCP_TOKEN`).
 
 ---
 
@@ -908,6 +911,69 @@ cero justo cuando el local está más lleno. Las seis son **las del local**
 
 ---
 
+## Informes de ventas con Claude (MCP)
+
+`/api/mcp` es un servidor [MCP](https://modelcontextprotocol.io) de **solo
+lectura** con las cifras de la caja. Conectado a Claude, basta con pedir «el
+informe de ayer», «cómo nos fue en septiembre comparado con agosto» o «qué se
+vendió más los viernes de este mes» y Claude arma el informe —en texto, tabla,
+documento o gráfico— sin entrar al panel.
+
+| Herramienta | Qué devuelve |
+| --- | --- |
+| `informe_diario` | Una jornada (`fecha`, por defecto la en curso): total, subtotal, descuentos, cobros, ticket promedio, formas de pago, mesa / de pie / venta directa, cajeros, barra vs cocina, lo más vendido, venta hora por hora con la hora peak, cobros anulados y comparación con **el mismo día de la semana anterior**. Si es la noche en curso, también lo que queda sin cobrar en las cuentas abiertas. |
+| `informe_mensual` | Un mes (`mes`, por defecto el en curso): las mismas cifras, más la venta jornada por jornada, el promedio por día de la semana, la mejor y la peor jornada y la comparación con **el mes anterior**. |
+| `informe_rango` | Entre dos jornadas (`desde`, `hasta`, máximo un año): las mismas cifras y el total de cada jornada. Sirve para semanas o tramos a medida. |
+
+Las tres aceptan `top` (cuántos productos listar). Los montos van en pesos,
+sin decimales. Mismas reglas que el resto del panel:
+
+- **Por jornada, de 06:00 a 06:00** (hora del local), igual que
+  [El servicio en vivo](#el-servicio-en-vivo): lo cobrado el sábado a las dos
+  de la mañana es del sábado. Por eso el informe diario puede no coincidir con
+  `/admin/caja`, que cuenta desde la medianoche.
+- **Los cobros anulados no suman** en ninguna cifra y se listan aparte con su
+  motivo.
+- **Lo más vendido cuenta lo cobrado** en el periodo, no lo cargado.
+- Si el periodo **sigue en curso**, la comparación es contra el anterior
+  **hasta la misma hora**: media noche contra una noche entera siempre parece
+  una caída.
+
+### Conectarlo
+
+1. Genera la clave y cárgala en el servidor como `MCP_TOKEN` (mínimo 24
+   caracteres), y reinicia:
+
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Claude (web, escritorio y móvil)**: *Ajustes → Conectores → Agregar
+   conector personalizado*, con la URL
+
+   ```
+   https://barzuo.com/api/mcp?token=<MCP_TOKEN>
+   ```
+
+   El conector personalizado solo admite una URL, por eso la clave va en ella:
+   trátala como una contraseña y no la compartas.
+
+3. **Claude Code**: acepta la clave en la cabecera, que es lo preferible:
+
+   ```bash
+   claude mcp add --transport http barzuo-ventas https://barzuo.com/api/mcp \
+     --header "Authorization: Bearer <MCP_TOKEN>"
+   ```
+
+Para cambiar la clave basta con cambiar `MCP_TOKEN` y reiniciar: la URL vieja
+deja de funcionar al instante.
+
+Con Claude conectado, un informe mensual automático es una tarea programada:
+«el primer día de cada mes, arma el informe del mes anterior y mándamelo por
+correo».
+
+---
+
 ## Karaoke
 
 Es de autoservicio: la mesa escanea el QR, busca su canción, la elige y **entra
@@ -1048,6 +1114,7 @@ SEED_ON_START=true
 RESEND_API_KEY=re_...
 EMAIL_FROM=BARZUO <hola@barzuo.com>
 CRON_SECRET=<openssl rand -hex 24>
+MCP_TOKEN=<openssl rand -hex 32>
 ```
 
 Marca como **Build Variable** las tres `NEXT_PUBLIC_*`: Next las inserta en el
